@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.*?>
+<?import javafx.scene.text.*?>
+
+<StackPane xmlns="http://javafx.com/javafx/23.0.1"
+           xmlns:fx="http://javafx.com/fxml/1"
+           fx:controller="com.groupeisi.minisystemebancaire.controllers.client.ClientLoginController"
+           style="-fx-background-color: linear-gradient(to bottom right, #2C3E50, #4CA1AF);"
+           prefHeight="450" prefWidth="600">
+
+   <VBox spacing="20" alignment="CENTER" maxWidth="400" style="-fx-background-color: white; -fx-padding: 40; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 10, 0.1, 0, 4);">
+
+      <!-- Titre -->
+      <Label text="Connexion Client" style="-fx-font-size: 24px; -fx-text-fill: #2C3E50; -fx-font-weight: bold;" />
+
+      <!-- Email -->
+      <VBox spacing="5" alignment="CENTER_LEFT">
+         <Label text="Email :" style="-fx-text-fill: #2C3E50; -fx-font-size: 14px;"/>
+         <TextField fx:id="txtEmail" promptText="Entrez votre email"
+                    style="-fx-background-radius: 8; -fx-border-color: #ccc; -fx-padding: 8;"
+                    prefWidth="300" />
+      </VBox>
+
+      <!-- Mot de passe -->
+      <VBox spacing="5" alignment="CENTER_LEFT">
+         <Label text="Mot de passe :" style="-fx-text-fill: #2C3E50; -fx-font-size: 14px;"/>
+         <PasswordField fx:id="txtPassword" promptText="Entrez votre mot de passe"
+                        style="-fx-background-radius: 8; -fx-border-color: #ccc; -fx-padding: 8;"
+                        prefWidth="300" />
+      </VBox>
+
+      <!-- Boutons -->
+      <HBox spacing="20" alignment="CENTER">
+         <Button fx:id="btnLogin" text="✅ Se connecter"
+                 style="-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold; -fx-padding: 10 20; -fx-background-radius: 8;" />
+         <Button fx:id="btnQuitter" text="❌ Quitter"
+                 style="-fx-background-color: #c0392b; -fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold; -fx-padding: 10 20; -fx-background-radius: 8;" />
+      </HBox>
+
+   </VBox>
+</StackPane>

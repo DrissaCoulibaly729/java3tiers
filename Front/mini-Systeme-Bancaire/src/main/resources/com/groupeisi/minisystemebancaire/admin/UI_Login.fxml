@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.text.Font?>
+<?import javafx.geometry.Insets?>
+
+<Pane xmlns="http://javafx.com/javafx/23.0.1"
+      xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.groupeisi.minisystemebancaire.controllers.admin.AdminLoginController"
+      prefHeight="450.0" prefWidth="600.0"
+      style="-fx-background-color: linear-gradient(to bottom, #f8f9fa, #e3f2fd);">
+
+    <children>
+        <VBox spacing="20" alignment="CENTER" layoutX="75" layoutY="60"
+              prefWidth="450" style="
+                  -fx-background-color: white;
+                  -fx-background-radius: 15px;
+                  -fx-padding: 30px;
+                  -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 20, 0, 0, 4);">
+
+            <!-- Titre -->
+            <Label text="🔐 Connexion Admin"
+                   style="-fx-text-fill: #2C3E50;
+                          -fx-font-size: 22px;
+                          -fx-font-weight: bold;" />
+
+            <!-- Username -->
+            <VBox spacing="5" alignment="CENTER_LEFT">
+                <Label text="Nom d'utilisateur :" style="-fx-text-fill: #2C3E50; -fx-font-size: 14px;" />
+                <TextField fx:id="txtUsername"
+                           promptText="Entrez votre nom d'utilisateur"
+                           prefHeight="35" prefWidth="300"
+                           style="-fx-background-radius: 8px; -fx-border-color: #ced4da; -fx-border-radius: 8px;" />
+            </VBox>
+
+            <!-- Password -->
+            <VBox spacing="5" alignment="CENTER_LEFT">
+                <Label text="Mot de passe :" style="-fx-text-fill: #2C3E50; -fx-font-size: 14px;" />
+                <PasswordField fx:id="txtPassword"
+                               promptText="Entrez votre mot de passe"
+                               prefHeight="35" prefWidth="300"
+                               style="-fx-background-radius: 8px; -fx-border-color: #ced4da; -fx-border-radius: 8px;" />
+            </VBox>
+
+            <!-- Boutons -->
+            <HBox spacing="20" alignment="CENTER">
+                <Button fx:id="btnLogin" text="✅ Se connecter"
+                        prefWidth="140" prefHeight="40"
+                        style="-fx-background-color: #00b894;
+                               -fx-text-fill: white;
+                               -fx-font-weight: bold;
+                               -fx-background-radius: 10px;
+                               -fx-cursor: hand;" />
+
+                <Button fx:id="btnQuitter" text="❌ Quitter"
+                        prefWidth="140" prefHeight="40"
+                        style="-fx-background-color: #d63031;
+                               -fx-text-fill: white;
+                               -fx-font-weight: bold;
+                               -fx-background-radius: 10px;
+                               -fx-cursor: hand;" />
+            </HBox>
+        </VBox>
+    </children>
+</Pane>

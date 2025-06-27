@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.*?>
+<?import javafx.scene.text.*?>
+<?import javafx.scene.effect.*?>
+
+<BorderPane xmlns="http://javafx.com/javafx/23.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.groupeisi.minisystemebancaire.controllers.admin.AdminCartesController">
+
+    <!-- Sidebar premium -->
+    <left>
+        <VBox spacing="15" alignment="TOP_LEFT" style="-fx-background-color: linear-gradient(to bottom, #0f2027, #203a43, #2c5364); -fx-padding: 20; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.4), 12, 0, 5, 0);">
+            <padding>
+                <Insets top="10" right="10" bottom="20" left="10"/>
+            </padding>
+
+            <Label text="🏦 Mini Système Bancaire" style="-fx-text-fill: white; -fx-font-size: 20px; -fx-font-weight: bold;" />
+            <Separator style="-fx-background-color: rgba(255,255,255,0.3);" />
+
+            <Button text="🏠 Tableau de Bord" fx:id="btnDashboard" onAction="#handleDashboard" style="-fx-background-color: #3498db; -fx-background-radius: 10; -fx-text-fill: white; -fx-font-weight: bold; -fx-pref-width: 220px; -fx-padding: 12;" />
+            <Button text="👥 Gestion des Clients" fx:id="btnClients" onAction="#handleGestionClients" style="-fx-background-color: transparent; -fx-text-fill: white; -fx-pref-width: 220px; -fx-padding: 12; -fx-font-size: 14px;" />
+            <Button text="💰 Gestion des Comptes" fx:id="btnComptes" onAction="#handleGestionComptes" style="-fx-background-color: transparent; -fx-text-fill: white; -fx-pref-width: 220px; -fx-padding: 12; -fx-font-size: 14px;" />
+            <Button text="🔄 Transactions" fx:id="btnTransactions" onAction="#handleGestionTransactions" style="-fx-background-color: transparent; -fx-text-fill: white; -fx-pref-width: 220px; -fx-padding: 12; -fx-font-size: 14px;" />
+            <Button text="🏦 Crédits" fx:id="btnCredits" onAction="#handleGestionCredits" style="-fx-background-color: transparent; -fx-text-fill: white; -fx-pref-width: 220px; -fx-padding: 12; -fx-font-size: 14px;" />
+            <Button text="💳 Cartes Bancaires" fx:id="btnCartes" style="-fx-background-color: white; -fx-text-fill: #2c3e50; -fx-pref-width: 220px; -fx-background-radius: 8; -fx-padding: 12; -fx-font-weight: bold;" />
+            <Button text="📩 Service Client &amp; Rapports" fx:id="btnSupport" onAction="#handleGestionSupport" style="-fx-background-color: transparent; -fx-text-fill: white; -fx-pref-width: 220px; -fx-padding: 12; -fx-font-size: 14px;" />
+
+            <Region VBox.vgrow="ALWAYS"/>
+
+            <Button text="🚪 Déconnexion" fx:id="btnDeconnexion" onAction="#handleDeconnexion" style="-fx-background-color: #e74c3c; -fx-background-radius: 10; -fx-text-fill: white; -fx-font-weight: bold; -fx-pref-width: 220px; -fx-padding: 12;" />
+        </VBox>
+    </left>
+
+    <!-- Contenu principal -->
+    <center>
+        <ScrollPane fitToWidth="true" fitToHeight="false" pannable="true" prefHeight="650" style="-fx-background-color: transparent;">
+            <content>
+                <VBox spacing="25" alignment="TOP_CENTER" style="-fx-background-color: #f8f9fa; -fx-padding: 40 50;">
+
+                    <Label text="💳 Gestion des Cartes Bancaires" style="-fx-font-size: 26px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;" />
+
+                    <!-- Recherche -->
+                    <HBox spacing="10" alignment="CENTER_LEFT">
+                        <Label text="🔍 Rechercher une carte :" style="-fx-font-size: 16px; -fx-text-fill: #2c3e50;"/>
+                        <TextField fx:id="txtRechercheCarte" promptText="Entrez un numéro de carte" style="-fx-pref-width: 250; -fx-padding: 8; -fx-background-radius: 6; -fx-border-color: #ced4da; -fx-border-radius: 6;"/>
+                        <Button text="🔍 Rechercher" fx:id="btnRechercherCarte" onAction="#handleRechercherCarte" style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-background-radius: 8; -fx-padding: 8 16; -fx-font-weight: bold;"/>
+                    </HBox>
+
+                    <!-- Demande -->
+                    <Label text="💳 Demande de Carte Bancaire" style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;"/>
+
+                    <GridPane hgap="10" vgap="10">
+                        <Label text="Client :" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+                        <ChoiceBox fx:id="choiceClientCarte" GridPane.columnIndex="1" GridPane.rowIndex="0" style="-fx-pref-width: 200;"/>
+
+                        <Label text="Type de Carte :" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+                        <ChoiceBox fx:id="choiceTypeCarte" GridPane.columnIndex="1" GridPane.rowIndex="1" style="-fx-pref-width: 200;"/>
+
+                        <Label text="Solde associé :" GridPane.columnIndex="0" GridPane.rowIndex="2"/>
+                        <TextField fx:id="txtSoldeCarte" promptText="Entrez un montant" GridPane.columnIndex="1" GridPane.rowIndex="2" style="-fx-pref-width: 200; -fx-padding: 6; -fx-border-color: #ced4da; -fx-border-radius: 6;"/>
+                    </GridPane>
+
+                    <HBox spacing="20" alignment="CENTER">
+                        <Button text="✅ Demander" fx:id="btnDemanderCarte" onAction="#handleDemanderCarte" style="-fx-background-color: #2ecc71; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 8; -fx-padding: 10 20;"/>
+                        <Button text="❌ Annuler" fx:id="btnAnnulerCarte" style="-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 8; -fx-padding: 10 20;"/>
+                    </HBox>
+
+                    <!-- Liste -->
+                    <Label text="📋 Liste des Cartes Bancaires" style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;"/>
+                    <TableView fx:id="tableCartes" prefHeight="220" prefWidth="800" style="-fx-background-radius: 8; -fx-border-color: #e2e8f0; -fx-border-width: 1;">
+                        <columns>
+                            <TableColumn fx:id="colNumeroCarte" text="Numéro" prefWidth="120"/>
+                            <TableColumn fx:id="colTypeCarte" text="Type" prefWidth="100"/>
+                            <TableColumn fx:id="colCVV" text="CVV" prefWidth="70"/>
+                            <TableColumn fx:id="colExpiration" text="Expiration" prefWidth="100"/>
+                            <TableColumn fx:id="colStatutCarte" text="Statut" prefWidth="100"/>
+                            <TableColumn fx:id="colActionCarte" text="Action" prefWidth="150"/>
+                        </columns>
+                    </TableView>
+
+                    <HBox spacing="20" alignment="CENTER">
+                        <Button text="🔒 Bloquer" fx:id="btnBloquerCarte" onAction="#handleBloquerCarte" style="-fx-background-color: #c0392b; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 8; -fx-padding: 10 20;"/>
+                        <Button text="🔓 Débloquer" fx:id="btnDebloquerCarte" onAction="#handleDebloquerCarte" style="-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 8; -fx-padding: 10 20;"/>
+                    </HBox>
+
+                </VBox>
+            </content>
+        </ScrollPane>
+    </center>
+
+</BorderPane>

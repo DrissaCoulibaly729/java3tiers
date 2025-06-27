@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Pos?>
+
+<Pane xmlns="http://javafx.com/javafx/23.0.1"
+      xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.groupeisi.minisystemebancaire.controllers.MainController"
+      prefHeight="400.0" prefWidth="600.0"
+      style="-fx-background-color: linear-gradient(to bottom, #e0eafc, #cfdef3);">
+
+    <children>
+        <VBox spacing="25" alignment="CENTER" layoutX="100" layoutY="100"
+              style="-fx-background-color: white;
+                     -fx-padding: 30px;
+                     -fx-background-radius: 15px;
+                     -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 15, 0, 0, 4);">
+
+            <!-- Titre -->
+            <Label text="💻 Choisissez votre type de connexion"
+                   style="-fx-font-size: 22px;
+                          -fx-font-weight: bold;
+                          -fx-text-fill: #2C3E50;" />
+
+            <!-- Bouton Admin -->
+            <Button fx:id="btnAdmin" text="👨‍💼 Admin" onAction="#handleAdminClick"
+                    style="-fx-font-size: 16px;
+                           -fx-font-weight: bold;
+                           -fx-background-color: #00b894;
+                           -fx-text-fill: white;
+                           -fx-background-radius: 12px;
+                           -fx-padding: 10px 25px;
+                           -fx-cursor: hand;"
+                    onMouseEntered="#hoverEffect" onMouseExited="#resetEffect"/>
+
+            <!-- Bouton Client -->
+            <Button fx:id="btnClient" text="👤 Client" onAction="#handleClientClick"
+                    style="-fx-font-size: 16px;
+                           -fx-font-weight: bold;
+                           -fx-background-color: #0984e3;
+                           -fx-text-fill: white;
+                           -fx-background-radius: 12px;
+                           -fx-padding: 10px 25px;
+                           -fx-cursor: hand;"
+                    onMouseEntered="#hoverEffect" onMouseExited="#resetEffect"/>
+
+        </VBox>
+    </children>
+</Pane>
