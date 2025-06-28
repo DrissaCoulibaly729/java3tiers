@@ -70,6 +70,23 @@
             <version>2.21.1</version>
         </dependency>
 
+        <!-- Apache POI pour Excel -->
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi</artifactId>
+            <version>5.2.5</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml</artifactId>
+            <version>5.2.5</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-scratchpad</artifactId>
+            <version>5.2.5</version>
+        </dependency>
+
         <!-- PDF generation (iText seulement) -->
         <dependency>
             <groupId>com.itextpdf</groupId>
@@ -101,19 +118,32 @@
                 <configuration>
                     <source>17</source>
                     <target>17</target>
+                    <compilerArgs>
+                        <!-- Permettre l'accès aux modules non exportés -->
+                        <arg>--add-exports</arg>
+                        <arg>org.apache.poi.poi/org.apache.poi.ss.usermodel=com.groupeisi.minisystemebancaire</arg>
+                        <arg>--add-exports</arg>
+                        <arg>org.apache.poi.ooxml/org.apache.poi.xssf.usermodel=com.groupeisi.minisystemebancaire</arg>
+                        <arg>--add-reads</arg>
+                        <arg>com.groupeisi.minisystemebancaire=ALL-UNNAMED</arg>
+                    </compilerArgs>
                 </configuration>
             </plugin>
+
             <plugin>
                 <groupId>org.openjfx</groupId>
                 <artifactId>javafx-maven-plugin</artifactId>
                 <version>0.0.8</version>
                 <executions>
                     <execution>
-                        <!-- Default configuration for running -->
-                        <!-- Usage: mvn clean javafx:run -->
                         <id>default-cli</id>
                         <configuration>
                             <mainClass>com.groupeisi.minisystemebancaire.MainApp</mainClass>
+                            <commandlineArgs>
+                                --add-exports org.apache.poi.poi/org.apache.poi.ss.usermodel=com.groupeisi.minisystemebancaire
+                                --add-exports org.apache.poi.ooxml/org.apache.poi.xssf.usermodel=com.groupeisi.minisystemebancaire
+                                --add-reads com.groupeisi.minisystemebancaire=ALL-UNNAMED
+                            </commandlineArgs>
                         </configuration>
                     </execution>
                 </executions>

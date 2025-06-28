@@ -9,13 +9,12 @@ import java.io.IOException;
 
 public class App extends Application {
 
-
     @Override
     public void start(Stage stage) throws IOException {
-
-        FXMLLoader fxmlLoader = new FXMLLoader(App.class.getResource("/fxml/connexion.fxml"));
+        // CORRECTION: Chemin correct vers le fichier FXML
+        FXMLLoader fxmlLoader = new FXMLLoader(App.class.getResource("/com/groupeisi/minisystemebancaire/connexion.fxml"));
         Scene scene = new Scene(fxmlLoader.load());
-        stage.setTitle("Optibank");
+        stage.setTitle("Mini - Système Bancaire");
         stage.setResizable(false);
         stage.setScene(scene);
         stage.show();

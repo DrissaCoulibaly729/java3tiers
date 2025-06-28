@@ -20,6 +20,12 @@ module com.groupeisi.minisystemebancaire {
     requires itextpdf;
     requires java.desktop;
 
+
+
+    // Accès à tous les modules non nommés (pour POI)
+    requires java.xml;
+    requires java.logging;
+
     // Exports
     exports com.groupeisi.minisystemebancaire;
     exports com.groupeisi.minisystemebancaire.controllers;

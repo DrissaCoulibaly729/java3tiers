@@ -62,9 +62,9 @@ public class CurrencyFormatter {
     public static BigDecimal parse(String amount) {
         try {
             String cleanAmount = amount.replace(" ", "")
-                                     .replace("CFA", "")
-                                     .replace(",", ".")
-                                     .trim();
+                    .replace("CFA", "")
+                    .replace(",", ".")
+                    .trim();
             return new BigDecimal(cleanAmount);
         } catch (NumberFormatException e) {
             return BigDecimal.ZERO;
@@ -81,7 +81,7 @@ public class CurrencyFormatter {
 
         String formatted = format(amount.abs());
         return amount.compareTo(BigDecimal.ZERO) >= 0 ?
-            "+" + formatted :
-            "-" + formatted;
+                "+" + formatted :
+                "-" + formatted;
     }
 }
