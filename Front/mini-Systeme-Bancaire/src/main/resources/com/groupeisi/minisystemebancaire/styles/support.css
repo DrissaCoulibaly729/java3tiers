@@ -1,0 +1,135 @@
+/* Variables de couleurs pour le support */
+* {
+    -primary-color: #2196F3;
+    -success-color: #4CAF50;
+    -warning-color: #FF9800;
+    -pending-color: #9C27B0;
+    -closed-color: #757575;
+}
+
+.support-container {
+    -fx-background-color: #F5F6FA;
+}
+
+.new-ticket-container {
+    -fx-background-color: white;
+    -fx-padding: 20px;
+    -fx-background-radius: 8px;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.1), 10, 0, 0, 4);
+}
+
+.section-title {
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #212121;
+}
+
+.field-label {
+    -fx-font-size: 12px;
+    -fx-text-fill: #757575;
+}
+
+.input-field {
+    -jfx-focus-color: -primary-color;
+    -jfx-unfocus-color: #BDBDBD;
+    -fx-font-size: 14px;
+}
+
+.button-primary {
+    -fx-background-color: -primary-color;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-padding: 10px 20px;
+}
+
+.button-primary:hover {
+    -fx-opacity: 0.9;
+    -fx-scale-x: 1.02;
+    -fx-scale-y: 1.02;
+}
+
+.button-primary .glyph-icon {
+    -fx-fill: white;
+}
+
+.tickets-list {
+    -fx-background-color: transparent;
+}
+
+.ticket-item {
+    -fx-background-color: white;
+    -fx-padding: 15px;
+    -fx-background-radius: 4px;
+    -fx-border-color: #EEEEEE;
+    -fx-border-radius: 4px;
+}
+
+.ticket-sujet {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #212121;
+}
+
+.ticket-date {
+    -fx-font-size: 12px;
+    -fx-text-fill: #757575;
+}
+
+.ticket-description {
+    -fx-font-size: 14px;
+    -fx-text-fill: #424242;
+    -fx-wrap-text: true;
+}
+
+.ticket-statut {
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-padding: 4px 8px;
+    -fx-background-radius: 4px;
+}
+
+.statut-nouveau {
+    -fx-text-fill: -primary-color;
+    -fx-background-color: derive(-primary-color, 90%);
+}
+
+.statut-en_cours {
+    -fx-text-fill: -warning-color;
+    -fx-background-color: derive(-warning-color, 90%);
+}
+
+.statut-resolu {
+    -fx-text-fill: -success-color;
+    -fx-background-color: derive(-success-color, 90%);
+}
+
+.statut-ferme {
+    -fx-text-fill: -closed-color;
+    -fx-background-color: derive(-closed-color, 90%);
+}
+
+.statut-en_attente {
+    -fx-text-fill: -pending-color;
+    -fx-background-color: derive(-pending-color, 90%);
+}
+
+.spinner {
+    -fx-progress-color: -primary-color;
+}
+
+/* Style pour les messages de validation */
+.error-label {
+    -fx-text-fill: #F44336;
+    -fx-font-size: 12px;
+    -fx-padding: 4px 0 0 0;
+}
+
+/* Animation des éléments de la liste */
+.ticket-item {
+    -fx-transition: all 0.2s ease-in-out;
+}
+
+.ticket-item:hover {
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.1), 10, 0, 0, 4);
+    -fx-translate-y: -2px;
+}

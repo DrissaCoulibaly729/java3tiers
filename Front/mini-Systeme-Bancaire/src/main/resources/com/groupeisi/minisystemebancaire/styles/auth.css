@@ -1,0 +1,120 @@
+/* Variables de couleurs */
+* {
+    -primary-color: #2196F3;
+    -primary-dark: #1976D2;
+    -primary-light: #BBDEFB;
+    -accent-color: #FF4081;
+    -text-color: #212121;
+    -secondary-text: #757575;
+    -error-color: #F44336;
+    -divider-color: #BDBDBD;
+    -background-color: #F5F6FA;
+}
+
+.background {
+    -fx-background-color: -background-color;
+}
+
+.title-label {
+    -fx-text-fill: -text-color;
+    -fx-font-size: 24px;
+    -fx-font-weight: bold;
+}
+
+.jfx-text-field, .jfx-password-field {
+    -jfx-focus-color: -primary-color;
+    -jfx-unfocus-color: -divider-color;
+    -fx-prompt-text-fill: -secondary-text;
+    -fx-text-fill: -text-color;
+    -fx-font-size: 14px;
+}
+
+.button-primary {
+    -fx-background-color: -primary-color;
+    -fx-text-fill: white;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-padding: 12px;
+    -fx-cursor: hand;
+}
+
+.button-primary:hover {
+    -fx-background-color: -primary-dark;
+}
+
+.button-link {
+    -fx-background-color: transparent;
+    -fx-text-fill: -primary-color;
+    -fx-font-size: 13px;
+    -fx-cursor: hand;
+    -fx-underline: false;
+}
+
+.button-link:hover {
+    -fx-text-fill: -primary-dark;
+}
+
+.error-label {
+    -fx-text-fill: -error-color;
+    -fx-font-size: 12px;
+    -fx-padding: 5 0 0 0;
+}
+
+/* Styles pour les validateurs */
+.jfx-text-field:error, .jfx-password-field:error {
+    -jfx-focus-color: -error-color;
+    -jfx-unfocus-color: -error-color;
+}
+
+.validator-label {
+    -fx-text-fill: -error-color;
+    -fx-font-size: 11px;
+}
+
+/* Animation de chargement */
+.jfx-spinner {
+    -fx-radius: 20;
+    -fx-stroke: -primary-color;
+}
+
+/* Conteneur du formulaire */
+.form-container {
+    -fx-background-color: white;
+    -fx-background-radius: 8px;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.1), 10, 0, 0, 4);
+    -fx-padding: 30px;
+}
+
+/* Style pour les icônes */
+.form-icon {
+    -fx-fill: -primary-color;
+    -fx-font-size: 18px;
+}
+
+.root {
+    -fx-background-color: #F5F6FA;
+}
+
+.input-field {
+    -jfx-focus-color: #4682B4;
+    -jfx-unfocus-color: #999999;
+    -fx-prompt-text-fill: #666666;
+    -fx-background-radius: 5;
+}
+
+.button-raised {
+    -jfx-button-type: RAISED;
+    -fx-background-color: #4682B4;
+    -fx-text-fill: white;
+    -fx-background-radius: 5;
+    -fx-font-size: 14px;
+    -fx-padding: 10 20 10 20;
+}
+
+.button-raised:hover {
+    -fx-background-color: #5A9BD4;
+}
+
+.button-raised:pressed {
+    -fx-background-color: #3A6A9A;
+}

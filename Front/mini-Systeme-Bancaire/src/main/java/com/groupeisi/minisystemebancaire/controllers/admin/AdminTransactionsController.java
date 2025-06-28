@@ -94,6 +94,16 @@ public class AdminTransactionsController {
         updateButtonStates();
     }
 
+    @FXML
+    private void handleGestionCartes() {
+        navigateToPage("UI_Gestion_Cartes");
+    }
+
+    @FXML
+    private void handleGestionSupport() {
+        navigateToPage("UI_Service_Client_Rapports");
+    }
+
     private void setupTableColumns() {
         colType.setCellValueFactory(new PropertyValueFactory<>("type"));
         colMontant.setCellValueFactory(new PropertyValueFactory<>("montant"));

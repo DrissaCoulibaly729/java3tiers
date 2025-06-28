@@ -1,0 +1,146 @@
+/* Variables de couleurs */
+* {
+    -primary-color: #2196F3;
+    -primary-dark: #1976D2;
+    -primary-light: #BBDEFB;
+    -accent-color: #FF4081;
+    -danger-color: #F44336;
+    -success-color: #4CAF50;
+    -warning-color: #FFC107;
+    -text-color: #212121;
+    -text-secondary: #757575;
+}
+
+/* Container principal */
+.card-manager-container {
+    -fx-background-color: #F5F6FA;
+}
+
+/* Style de la carte bancaire */
+.credit-card {
+    -fx-background-color: linear-gradient(135deg, #1976D2, #2196F3);
+    -fx-background-radius: 15px;
+    -fx-padding: 20px;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.2), 10, 0, 0, 4);
+}
+
+.credit-card .card-title {
+    -fx-text-fill: white;
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+}
+
+.credit-card .field-label {
+    -fx-text-fill: rgba(255, 255, 255, 0.8);
+    -fx-font-size: 12px;
+}
+
+.credit-card .card-number {
+    -fx-text-fill: white;
+    -fx-font-size: 22px;
+    -fx-font-family: "Courier New";
+    -fx-font-weight: bold;
+    -fx-padding: 5 0;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.2), 2, 0, 0, 1);
+}
+
+.credit-card .card-data {
+    -fx-text-fill: white;
+    -fx-font-size: 16px;
+}
+
+.credit-card .card-status {
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-padding: 5px 10px;
+    -fx-background-radius: 4px;
+}
+
+.card-status:active {
+    -fx-text-fill: -success-color;
+    -fx-background-color: rgba(76, 175, 80, 0.1);
+}
+
+.card-status:blocked {
+    -fx-text-fill: -danger-color;
+    -fx-background-color: rgba(244, 67, 54, 0.1);
+}
+
+/* Formulaire */
+.form-container {
+    -fx-background-color: white;
+    -fx-padding: 20px;
+    -fx-background-radius: 8px;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.1), 8, 0, 0, 2);
+}
+
+.section-title {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -text-color;
+}
+
+/* Champ PIN */
+.pin-field {
+    -jfx-focus-color: -primary-color;
+    -jfx-unfocus-color: #BDBDBD;
+    -fx-font-family: "Courier New";
+    -fx-font-size: 18px;
+    -fx-alignment: center;
+}
+
+/* Boutons */
+.button-primary {
+    -fx-background-color: -primary-color;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-padding: 10px 20px;
+}
+
+.button-primary:hover {
+    -fx-background-color: -primary-dark;
+}
+
+.button-danger {
+    -fx-background-color: -danger-color;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-padding: 10px 20px;
+}
+
+.button-danger:hover {
+    -fx-background-color: derive(-danger-color, -10%);
+}
+
+.button-success {
+    -fx-background-color: -success-color;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-padding: 10px 20px;
+}
+
+.button-success:hover {
+    -fx-background-color: derive(-success-color, -10%);
+}
+
+/* Spinner de chargement */
+.spinner {
+    -fx-progress-color: -primary-color;
+}
+
+/* Animations */
+.button-primary, .button-danger, .button-success {
+    -fx-cursor: hand;
+    -fx-transition: all 0.2s ease-in-out;
+}
+
+.button-primary:pressed, .button-danger:pressed, .button-success:pressed {
+    -fx-scale-x: 0.95;
+    -fx-scale-y: 0.95;
+}
+
+/* Icônes */
+.glyph-icon {
+    -fx-fill: white;
+    -fx-size: 18px;
+}

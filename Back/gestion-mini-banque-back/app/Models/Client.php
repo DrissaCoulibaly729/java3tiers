@@ -5,7 +5,10 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Models\Compte;
+use App\Models\Credit;
+use App\Models\TicketSupport;
 class Client extends Model
 {
     protected $fillable = [

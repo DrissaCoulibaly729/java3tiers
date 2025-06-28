@@ -1,15 +1,25 @@
-package com.groupeisi.minisystemebancaire.utils;
+package gm.rahmanproperties.optibank.utils;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.regex.Pattern;
 
 public class ValidationUtils {
-
     private static final Pattern EMAIL_PATTERN = Pattern.compile(
-            "^[a-zA-Z0-9_+&*-]+(?:\\.[a-zA-Z0-9_+&*-]+)*@(?:[a-zA-Z0-9-]+\\.)+[a-zA-Z]{2,7}$"
+        "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$"
     );
 
     private static final Pattern PHONE_PATTERN = Pattern.compile(
-            "^(\\+221|221|0)?[0-9]{9}$"
+        "^\\+?[0-9]{9}$"
+    );
+
+    private static final Pattern IBAN_PATTERN = Pattern.compile(
+        "^[A-Z]{2}[0-9]{2}[A-Z0-9]{4}[0-9]{7}([A-Z0-9]?){0,16}$"
+    );
+
+    private static final Pattern CODE_PIN_PATTERN = Pattern.compile(
+        "^[0-9]{4}$"
     );
 
     public static boolean isValidEmail(String email) {
@@ -17,46 +27,110 @@ public class ValidationUtils {
     }
 
     public static boolean isValidPhone(String phone) {
-        if (phone == null) return false;
-        return PHONE_PATTERN.matcher(phone.replaceAll("\\s", "")).matches();
+        return phone != null && PHONE_PATTERN.matcher(phone).matches();
     }
 
-    public static boolean isValidPassword(String password) {
-        return password != null && password.length() >= 6;
+    public static boolean isValidIban(String iban) {
+        return iban != null && IBAN_PATTERN.matcher(iban).matches();
+    }
+
+    public static boolean isValidCodePin(String pin) {
+        return pin != null && CODE_PIN_PATTERN.matcher(pin).matches();
     }
 
     public static boolean isValidAmount(String amount) {
+        if (amount == null || amount.trim().isEmpty()) {
+            return false;
+        }
         try {
-            double value = Double.parseDouble(amount);
-            return value > 0;
+            BigDecimal value = new BigDecimal(amount);
+            return value.compareTo(BigDecimal.ZERO) >= 0;
         } catch (NumberFormatException e) {
             return false;
         }
     }
 
-    public static boolean isNotEmpty(String text) {
-        return text != null && !text.trim().isEmpty();
+    public static boolean isValidDate(String date) {
+        if (date == null || date.trim().isEmpty()) {
+            return false;
+        }
+        try {
+            LocalDate.parse(date);
+            return true;
+        } catch (DateTimeParseException e) {
+            return false;
+        }
     }
 
-    public static String formatPhone(String phone) {
-        if (phone == null) return "";
+    public static boolean isAdult(LocalDate birthDate) {
+        if (birthDate == null) {
+            return false;
+        }
+        return birthDate.plusYears(18).isBefore(LocalDate.now()) ||
+               birthDate.plusYears(18).isEqual(LocalDate.now());
+    }
 
-        // Supprimer tous les espaces et caractères non numériques
-        String cleaned = phone.replaceAll("[^0-9+]", "");
-
-        // Ajouter le préfixe sénégalais si nécessaire
-        if (cleaned.length() == 9) {
-            cleaned = "+221" + cleaned;
-        } else if (cleaned.startsWith("0") && cleaned.length() == 10) {
-            cleaned = "+221" + cleaned.substring(1);
-        } else if (cleaned.startsWith("221") && cleaned.length() == 12) {
-            cleaned = "+" + cleaned;
+    public static boolean isValidPassword(String password) {
+        if (password == null || password.length() < 8) {
+            return false;
         }
 
-        return cleaned;
+        boolean hasUppercase = false;
+        boolean hasLowercase = false;
+        boolean hasDigit = false;
+        boolean hasSpecial = false;
+
+        for (char c : password.toCharArray()) {
+            if (Character.isUpperCase(c)) hasUppercase = true;
+            else if (Character.isLowerCase(c)) hasLowercase = true;
+            else if (Character.isDigit(c)) hasDigit = true;
+            else hasSpecial = true;
+        }
+
+        return hasUppercase && hasLowercase && hasDigit && hasSpecial;
     }
 
-    public static String formatAmount(double amount) {
-        return String.format("%.2f €", amount);
+    public static boolean isValidCardNumber(String cardNumber) {
+        if (cardNumber == null || cardNumber.replaceAll("\\s", "").length() != 16) {
+            return false;
+        }
+
+        // Algorithme de Luhn pour la validation du numéro de carte
+        String number = cardNumber.replaceAll("\\s", "");
+        int sum = 0;
+        boolean alternate = false;
+
+        for (int i = number.length() - 1; i >= 0; i--) {
+            int n = Integer.parseInt(number.substring(i, i + 1));
+            if (alternate) {
+                n *= 2;
+                if (n > 9) {
+                    n = (n % 10) + 1;
+                }
+            }
+            sum += n;
+            alternate = !alternate;
+        }
+
+        return (sum % 10 == 0);
+    }
+
+    public static boolean isValidCVV(String cvv) {
+        return cvv != null && cvv.matches("^[0-9]{3,4}$");
+    }
+
+    public static boolean isValidExpiryDate(String date) {
+        if (date == null || !date.matches("^(0[1-9]|1[0-2])/[0-9]{2}$")) {
+            return false;
+        }
+
+        String[] parts = date.split("/");
+        int month = Integer.parseInt(parts[0]);
+        int year = Integer.parseInt(parts[1]) + 2000;
+
+        LocalDate expiryDate = LocalDate.of(year, month, 1)
+            .plusMonths(1).minusDays(1);
+
+        return !expiryDate.isBefore(LocalDate.now());
     }
 }

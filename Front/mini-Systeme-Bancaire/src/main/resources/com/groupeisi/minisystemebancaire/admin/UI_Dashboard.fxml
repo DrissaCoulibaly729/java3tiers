@@ -32,23 +32,23 @@
                 <cursor><javafx.scene.Cursor fx:constant="HAND"/></cursor>
             </Button>
 
-            <Button fx:id="btnTransactions" text="🔄 Transactions"
+            <Button fx:id="btnGestionTransactions" text="🔄 Transactions"
                     style="-fx-background-color: #f39c12; -fx-text-fill: white; -fx-pref-width: 200; -fx-padding: 10;">
                 <cursor><javafx.scene.Cursor fx:constant="HAND"/></cursor>
             </Button>
 
-            <Button fx:id="btnCredits" text="🏦 Crédits"
+            <Button fx:id="btnGestionCredits" text="🏦 Crédits"
                     style="-fx-background-color: #9b59b6; -fx-text-fill: white; -fx-pref-width: 200; -fx-padding: 10;">
                 <cursor><javafx.scene.Cursor fx:constant="HAND"/></cursor>
             </Button>
 
-            <Button fx:id="btnCartes" text="💳 Cartes Bancaires"
+            <Button fx:id="btnGestionCartes" text="💳 Cartes Bancaires"
                     style="-fx-background-color: #1abc9c; -fx-text-fill: white; -fx-pref-width: 200; -fx-padding: 10;">
                 <cursor><javafx.scene.Cursor fx:constant="HAND"/></cursor>
             </Button>
 
-            <Button fx:id="btnProfil" text="🎫 Service Client"
-                    style="-fx-background-color: #34495e; -fx-text-fill: white; -fx-pref-width: 200; -fx-padding: 10;">
+            <Button fx:id="btnServiceClient" text="🎫 Service Client"
+                    style="-fx-background-color: #e67e22; -fx-text-fill: white; -fx-pref-width: 200; -fx-padding: 10;">
                 <cursor><javafx.scene.Cursor fx:constant="HAND"/></cursor>
             </Button>
 
@@ -58,97 +58,133 @@
                     style="-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-pref-width: 200; -fx-padding: 10;">
                 <cursor><javafx.scene.Cursor fx:constant="HAND"/></cursor>
             </Button>
+
         </VBox>
     </left>
 
-    <!-- Contenu Principal -->
+    <!-- Main Content Area -->
     <center>
-        <VBox spacing="20" style="-fx-padding: 30; -fx-background-color: #ecf0f1;">
+        <ScrollPane fitToWidth="true" fitToHeight="true"
+                    style="-fx-background-color: #ecf0f1;">
+            <content>
+                <VBox spacing="20" alignment="TOP_CENTER"
+                      style="-fx-padding: 30; -fx-background-color: #ecf0f1;">
 
-            <!-- En-tête -->
-            <VBox spacing="10">
-                <Label fx:id="lblBienvenue" text="Bienvenue, Administrateur !"
-                       style="-fx-font-size: 28px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;">
-                    <font>
-                        <Font name="System Bold" size="28.0"/>
-                    </font>
-                </Label>
-                <Label text="Tableau de bord administrateur - Gestion du système bancaire"
-                       style="-fx-font-size: 16px; -fx-text-fill: #7f8c8d;"/>
-            </VBox>
+                    <!-- Header -->
+                    <HBox alignment="CENTER_LEFT" spacing="20">
+                        <Label fx:id="lblBienvenue" text="Bienvenue, Admin !"
+                               style="-fx-font-size: 28px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;" />
+                    </HBox>
 
-            <!-- Statistiques -->
-            <HBox spacing="20" alignment="CENTER">
-                <!-- Clients -->
-                <VBox alignment="CENTER" spacing="10" prefWidth="150"
-                      style="-fx-background-color: white; -fx-background-radius: 10; -fx-padding: 20; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 5, 0, 0, 2);">
-                    <Label text="👥" style="-fx-font-size: 30px;"/>
-                    <Label fx:id="lblNombreClients" text="0"
-                           style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #3498db;"/>
-                    <Label text="Clients" style="-fx-font-size: 12px; -fx-text-fill: #7f8c8d;"/>
+                    <Separator style="-fx-background-color: #bdc3c7;" />
+
+                    <!-- Statistics Cards -->
+                    <HBox spacing="20" alignment="CENTER">
+
+                        <VBox alignment="CENTER" spacing="10" prefWidth="180" prefHeight="120"
+                              style="-fx-background-color: white; -fx-background-radius: 10;
+                                     -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 5, 0, 0, 2);
+                                     -fx-padding: 20;">
+                            <Label text="👥" style="-fx-font-size: 24px;" />
+                            <Label fx:id="lblNombreClients" text="0"
+                                   style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #3498db;" />
+                            <Label text="Clients" style="-fx-font-size: 14px; -fx-text-fill: #7f8c8d;" />
+                        </VBox>
+
+                        <VBox alignment="CENTER" spacing="10" prefWidth="180" prefHeight="120"
+                              style="-fx-background-color: white; -fx-background-radius: 10;
+                                     -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 5, 0, 0, 2);
+                                     -fx-padding: 20;">
+                            <Label text="💰" style="-fx-font-size: 24px;" />
+                            <Label fx:id="lblNombreComptes" text="0"
+                                   style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #27ae60;" />
+                            <Label text="Comptes" style="-fx-font-size: 14px; -fx-text-fill: #7f8c8d;" />
+                        </VBox>
+
+                        <VBox alignment="CENTER" spacing="10" prefWidth="180" prefHeight="120"
+                              style="-fx-background-color: white; -fx-background-radius: 10;
+                                     -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 5, 0, 0, 2);
+                                     -fx-padding: 20;">
+                            <Label text="🔄" style="-fx-font-size: 24px;" />
+                            <Label fx:id="lblNombreTransactions" text="0"
+                                   style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #f39c12;" />
+                            <Label text="Transactions" style="-fx-font-size: 14px; -fx-text-fill: #7f8c8d;" />
+                        </VBox>
+
+                        <VBox alignment="CENTER" spacing="10" prefWidth="180" prefHeight="120"
+                              style="-fx-background-color: white; -fx-background-radius: 10;
+                                     -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 5, 0, 0, 2);
+                                     -fx-padding: 20;">
+                            <Label text="⚠️" style="-fx-font-size: 24px;" />
+                            <Label fx:id="lblTransactionsSuspectes" text="0"
+                                   style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #e74c3c;" />
+                            <Label text="Suspectes" style="-fx-font-size: 14px; -fx-text-fill: #7f8c8d;" />
+                        </VBox>
+
+                    </HBox>
+
+                    <!-- Recent Transactions Table -->
+                    <VBox spacing="15" alignment="TOP_LEFT"
+                          style="-fx-background-color: white; -fx-background-radius: 10;
+                                 -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 5, 0, 0, 2);
+                                 -fx-padding: 25;">
+
+                        <HBox alignment="CENTER_LEFT" spacing="15">
+                            <Label text="📊 Transactions Récentes"
+                                   style="-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;" />
+                            <Button text="Voir toutes" onAction="#handleVoirToutesTransactions"
+                                    style="-fx-background-color: #3498db; -fx-text-fill: white;
+                                           -fx-background-radius: 5; -fx-padding: 5 15;" />
+                        </HBox>
+
+                        <TableView fx:id="tableTransactionsRecentes" prefHeight="200" prefWidth="700"
+                                   style="-fx-background-radius: 5;">
+                            <columns>
+                                <TableColumn fx:id="colType" text="Type" prefWidth="150" />
+                                <TableColumn fx:id="colMontant" text="Montant" prefWidth="120" />
+                                <TableColumn fx:id="colDate" text="Date" prefWidth="150" />
+                                <TableColumn fx:id="colStatut" text="Statut" prefWidth="100" />
+                            </columns>
+                        </TableView>
+
+                    </VBox>
+
+                    <!-- Suspicious Transactions Table -->
+                    <VBox spacing="15" alignment="TOP_LEFT"
+                          style="-fx-background-color: white; -fx-background-radius: 10;
+                                 -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 5, 0, 0, 2);
+                                 -fx-padding: 25;">
+
+                        <HBox alignment="CENTER_LEFT" spacing="15">
+                            <Label text="⚠️ Transactions Suspectes"
+                                   style="-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #e74c3c;" />
+                            <Button text="Gérer" onAction="#handleGererTransactionsSuspectes"
+                                    style="-fx-background-color: #e74c3c; -fx-text-fill: white;
+                                           -fx-background-radius: 5; -fx-padding: 5 15;" />
+                        </HBox>
+
+                        <TableView fx:id="tableTransactionsSuspectes" prefHeight="200" prefWidth="700"
+                                   style="-fx-background-radius: 5;">
+                            <columns>
+                                <TableColumn fx:id="colTypeSuspecte" text="Type" prefWidth="120" />
+                                <TableColumn fx:id="colMontantSuspecte" text="Montant" prefWidth="120" />
+                                <TableColumn fx:id="colDateSuspecte" text="Date" prefWidth="150" />
+                                <TableColumn fx:id="colMotifSuspecte" text="Motif" prefWidth="200" />
+                            </columns>
+                        </TableView>
+
+                    </VBox>
+
+                    <!-- Action Buttons -->
+                    <HBox spacing="15" alignment="CENTER">
+                        <Button text="🔄 Rafraîchir" onAction="#handleRafraichir"
+                                style="-fx-background-color: #95a5a6; -fx-text-fill: white;
+                                       -fx-font-weight: bold; -fx-background-radius: 5; -fx-padding: 10 20;" />
+                    </HBox>
+
                 </VBox>
-
-                <!-- Comptes -->
-                <VBox alignment="CENTER" spacing="10" prefWidth="150"
-                      style="-fx-background-color: white; -fx-background-radius: 10; -fx-padding: 20; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 5, 0, 0, 2);">
-                    <Label text="💰" style="-fx-font-size: 30px;"/>
-                    <Label fx:id="lblNombreComptes" text="0"
-                           style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #27ae60;"/>
-                    <Label text="Comptes" style="-fx-font-size: 12px; -fx-text-fill: #7f8c8d;"/>
-                </VBox>
-
-                <!-- Transactions -->
-                <VBox alignment="CENTER" spacing="10" prefWidth="150"
-                      style="-fx-background-color: white; -fx-background-radius: 10; -fx-padding: 20; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 5, 0, 0, 2);">
-                    <Label text="🔄" style="-fx-font-size: 30px;"/>
-                    <Label fx:id="lblNombreTransactions" text="0"
-                           style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #f39c12;"/>
-                    <Label text="Transactions" style="-fx-font-size: 12px; -fx-text-fill: #7f8c8d;"/>
-                </VBox>
-
-                <!-- Transactions suspectes -->
-                <VBox alignment="CENTER" spacing="10" prefWidth="150"
-                      style="-fx-background-color: white; -fx-background-radius: 10; -fx-padding: 20; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 5, 0, 0, 2);">
-                    <Label text="⚠️" style="-fx-font-size: 30px;"/>
-                    <Label fx:id="lblTransactionsSuspectes" text="0"
-                           style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #e74c3c;"/>
-                    <Label text="Suspectes" style="-fx-font-size: 12px; -fx-text-fill: #7f8c8d;"/>
-                </VBox>
-            </HBox>
-
-            <!-- Tableau Transactions Récentes -->
-            <VBox spacing="10"
-                  style="-fx-background-color: white; -fx-background-radius: 10; -fx-padding: 20; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 5, 0, 0, 2);">
-                <Label text="📊 Transactions Récentes"
-                       style="-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;"/>
-
-                <TableView fx:id="tableTransactionsRecentes" prefHeight="200">
-                    <columns>
-                        <TableColumn fx:id="colType" text="Type" prefWidth="120"/>
-                        <TableColumn fx:id="colMontant" text="Montant" prefWidth="150"/>
-                        <TableColumn fx:id="colDate" text="Date" prefWidth="150"/>
-                        <TableColumn fx:id="colStatut" text="Statut" prefWidth="120"/>
-                    </columns>
-                </TableView>
-            </VBox>
-
-            <!-- Tableau Transactions Suspectes -->
-            <VBox spacing="10"
-                  style="-fx-background-color: white; -fx-background-radius: 10; -fx-padding: 20; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 5, 0, 0, 2);">
-                <Label text="⚠️ Transactions Suspectes"
-                       style="-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #e74c3c;"/>
-
-                <TableView fx:id="tableTransactionsSuspectes" prefHeight="200">
-                    <columns>
-                        <TableColumn fx:id="colTypeSuspecte" text="Type" prefWidth="120"/>
-                        <TableColumn fx:id="colMontantSuspecte" text="Montant" prefWidth="150"/>
-                        <TableColumn fx:id="colDateSuspecte" text="Date" prefWidth="150"/>
-                        <TableColumn fx:id="colMotifSuspecte" text="Motif" prefWidth="200"/>
-                    </columns>
-                </TableView>
-            </VBox>
-
-        </VBox>
+            </content>
+        </ScrollPane>
     </center>
 
 </BorderPane>

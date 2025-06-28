@@ -22,6 +22,7 @@ public class AdminClientsController {
     @FXML private TableColumn<ClientDTO, String> colNom, colPrenom, colEmail, colTelephone, colStatut;
     @FXML private Button btnAjouterClient, btnModifierClient, btnSupprimerClient, btnSuspendre, btnActiver, btnDeconnexion;
 
+
     private final ClientService clientService = new ClientService();
     private ClientDTO selectedClient;
 
@@ -216,6 +217,56 @@ public class AdminClientsController {
     @FXML private void handleGestionTransactions() { navigateToPage("UI_Gestion_Transactions"); }
     @FXML private void handleGestionCredits() { navigateToPage("UI_Gestion_Credits"); }
     @FXML private void handleGestionCartes() { navigateToPage("UI_Gestion_Cartes_Bancaires"); }
+    @FXML
+    private void handleGestionSupport() {
+        navigateToPage("UI_Service_Client_Rapports");
+    }
+
+    // OU si vous voulez changer le nom du handler dans le FXML :
+    @FXML
+    private void handleServiceClient() {
+        navigateToPage("UI_Service_Client_Rapports");
+    }
+
+    @FXML
+    private void handleDeconnexion() {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/groupeisi/minisystemebancaire/UI_Main.fxml"));
+            Scene scene = new Scene(loader.load());
+            Stage stage = (Stage) btnDeconnexion.getScene().getWindow();
+            stage.setScene(scene);
+            stage.centerOnScreen();
+        } catch (IOException e) {
+            e.printStackTrace();
+            showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible de se déconnecter");
+        }
+    }
+
+    @FXML
+    private void handleRechercherClient() {
+        String terme = txtRechercheClient.getText().trim();
+        if (terme.isEmpty()) {
+            loadClients(); // Recharger tous les clients
+            return;
+        }
+
+        try {
+            List<ClientDTO> clients = clientService.getAllClients();
+            List<ClientDTO> filtered = clients.stream()
+                    .filter(client ->
+                            client.getNom().toLowerCase().contains(terme.toLowerCase()) ||
+                                    client.getPrenom().toLowerCase().contains(terme.toLowerCase()) ||
+                                    client.getEmail().toLowerCase().contains(terme.toLowerCase()) ||
+                                    String.valueOf(client.getId()).contains(terme)
+                    )
+                    .toList();
+
+            tableClients.setItems(FXCollections.observableArrayList(filtered));
+        } catch (Exception e) {
+            showAlert(Alert.AlertType.ERROR, "Erreur", "Erreur de recherche: " + e.getMessage());
+        }
+    }
+
 
     @FXML
     private void handleLogout() {

@@ -68,16 +68,30 @@ public class AdminDashboardController {
         loadDashboardData();
     }
 
+
+
     private void setupUI() {
         lblBienvenue.setText("Bienvenue, " + currentAdmin.getUsername() + " !");
 
-        // Configuration des boutons
-        btnGestionClients.setOnAction(this::handleGestionClients);
-        btnGestionComptes.setOnAction(this::handleGestionComptes);
-        btnGestionTransactions.setOnAction(this::handleGestionTransactions);
-        btnGestionCredits.setOnAction(this::handleGestionCredits);
-        btnServiceClient.setOnAction(this::handleServiceClient);
-        btnDeconnexion.setOnAction(this::handleDeconnexion);
+        // Configuration des boutons - AVEC VÉRIFICATION DE NULLITÉ
+        if (btnGestionClients != null) {
+            btnGestionClients.setOnAction(this::handleGestionClients);
+        }
+        if (btnGestionComptes != null) {
+            btnGestionComptes.setOnAction(this::handleGestionComptes);
+        }
+        if (btnGestionTransactions != null) {
+            btnGestionTransactions.setOnAction(this::handleGestionTransactions);
+        }
+        if (btnGestionCredits != null) {
+            btnGestionCredits.setOnAction(this::handleGestionCredits);
+        }
+        if (btnServiceClient != null) {
+            btnServiceClient.setOnAction(this::handleServiceClient);
+        }
+        if (btnDeconnexion != null) {
+            btnDeconnexion.setOnAction(this::handleDeconnexion);
+        }
     }
 
     private void setupTableColumns() {

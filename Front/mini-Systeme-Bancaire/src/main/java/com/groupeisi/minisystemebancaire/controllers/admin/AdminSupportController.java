@@ -251,4 +251,18 @@ public class AdminSupportController {
         alert.setContentText(message);
         alert.showAndWait();
     }
+
+    @FXML
+    private void handleDeconnexion() {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/groupeisi/minisystemebancaire/UI_Main.fxml"));
+            Scene scene = new Scene(loader.load());
+            Stage stage = (Stage) btnDeconnexion.getScene().getWindow();
+            stage.setScene(scene);
+            stage.centerOnScreen();
+        } catch (IOException e) {
+            e.printStackTrace();
+            showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible de se déconnecter");
+        }
+    }
 }

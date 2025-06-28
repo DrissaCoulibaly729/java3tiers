@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import com.jfoenix.controls.*?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import de.jensd.fx.glyphs.materialdesignicons.*?>
+
+<StackPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
+         fx:controller="gm.rahmanproperties.optibank.controllers.admin.GestionFraisController"
+         styleClass="root">
+
+    <!-- Loading Spinner -->
+    <JFXSpinner fx:id="loadingSpinner" styleClass="spinner" visible="false"/>
+
+    <!-- Main Content -->
+    <VBox spacing="20" styleClass="frais-container">
+        <padding>
+            <Insets top="20" right="20" bottom="20" left="20"/>
+        </padding>
+
+        <!-- Section Application des frais -->
+        <VBox spacing="15" styleClass="form-container">
+            <Label text="Application des frais bancaires" styleClass="section-title"/>
+
+            <GridPane hgap="20" vgap="15">
+                <columnConstraints>
+                    <ColumnConstraints percentWidth="33"/>
+                    <ColumnConstraints percentWidth="33"/>
+                    <ColumnConstraints percentWidth="33"/>
+                </columnConstraints>
+
+                <VBox spacing="5" GridPane.columnIndex="0" GridPane.rowIndex="0">
+                    <Label text="Type de frais" styleClass="field-label"/>
+                    <JFXComboBox fx:id="typeFraisCombo"
+                                promptText="Sélectionnez le type"
+                                styleClass="combo-box"
+                                prefWidth="Infinity"/>
+                </VBox>
+
+                <VBox spacing="5" GridPane.columnIndex="1" GridPane.rowIndex="0">
+                    <Label text="Montant (€)" styleClass="field-label"/>
+                    <JFXTextField fx:id="montantField"
+                                promptText="Entrez le montant"
+                                styleClass="input-field"/>
+                </VBox>
+
+                <VBox spacing="5" GridPane.columnIndex="2" GridPane.rowIndex="0">
+                    <Label text="Compte" styleClass="field-label"/>
+                    <JFXComboBox fx:id="compteCombo"
+                                promptText="Sélectionnez le compte"
+                                styleClass="combo-box"
+                                prefWidth="Infinity"/>
+                </VBox>
+            </GridPane>
+
+            <HBox alignment="CENTER_RIGHT">
+                <JFXButton fx:id="appliquerButton"
+                          text="Appliquer les frais"
+                          buttonType="RAISED"
+                          onAction="#appliquerFrais"
+                          styleClass="button-primary">
+                    <graphic>
+                        <MaterialDesignIconView glyphName="CASH" size="18"/>
+                    </graphic>
+                </JFXButton>
+            </HBox>
+        </VBox>
+
+        <!-- Historique des frais -->
+        <VBox spacing="10" VBox.vgrow="ALWAYS">
+            <Label text="Historique des frais appliqués" styleClass="section-title"/>
+
+            <TableView fx:id="fraisTable" styleClass="frais-table" VBox.vgrow="ALWAYS">
+                <columns>
+                    <TableColumn fx:id="typeColumn" text="Type de frais" prefWidth="200"/>
+                    <TableColumn fx:id="montantColumn" text="Montant" prefWidth="150"/>
+                    <TableColumn fx:id="dateColumn" text="Date d'application" prefWidth="200"/>
+                </columns>
+                <columnResizePolicy>
+                    <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
+                </columnResizePolicy>
+            </TableView>
+        </VBox>
+    </VBox>
+</StackPane>

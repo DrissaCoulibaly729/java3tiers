@@ -268,4 +268,16 @@ public class AdminCreditsController {
         alert.setContentText(message);
         alert.showAndWait();
     }
+    @FXML
+    private void handleGestionSupport() {
+        navigateToPage("UI_Service_Client_Rapports");
+    }
+
+    @FXML
+    private void handleRechercherCredit() {
+        // Implémentation simple de recherche
+        showAlert(Alert.AlertType.INFORMATION, "Recherche", "Fonctionnalité en cours de développement");
+    }
+
+
 }

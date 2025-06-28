@@ -1,0 +1,34 @@
+.table-view {
+    -fx-pref-width: 100%;
+}
+
+.table-column {
+    -fx-pref-width: 25%;
+}
+
+.badge {
+    -fx-padding: 5px;
+    -fx-background-radius: 5px;
+    -fx-text-fill: white;
+    -fx-font-size: 12px;
+}
+
+.badge-depot {
+    -fx-background-color: #2ecc71;
+}
+
+.badge-retrait {
+    -fx-background-color: #e74c3c;
+}
+
+.badge-virement {
+    -fx-background-color: #3498db;
+}
+
+.type-courant {
+    -fx-background-color: #3498db;
+}
+
+.type-epargne {
+    -fx-background-color: #2ecc71;
+}

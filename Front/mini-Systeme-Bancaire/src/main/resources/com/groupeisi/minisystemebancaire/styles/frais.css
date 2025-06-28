@@ -1,0 +1,113 @@
+/* Variables de couleurs pour les frais bancaires */
+* {
+    -primary-color: #2196F3;
+    -success-color: #4CAF50;
+    -warning-color: #FF9800;
+    -error-color: #F44336;
+    -text-color: #212121;
+    -text-secondary: #757575;
+}
+
+.frais-container {
+    -fx-background-color: #F5F6FA;
+}
+
+.form-container {
+    -fx-background-color: white;
+    -fx-padding: 20px;
+    -fx-background-radius: 8px;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.1), 10, 0, 0, 4);
+}
+
+.section-title {
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -text-color;
+}
+
+.field-label {
+    -fx-font-size: 12px;
+    -fx-text-fill: -text-secondary;
+}
+
+.input-field {
+    -jfx-focus-color: -primary-color;
+    -jfx-unfocus-color: #BDBDBD;
+    -fx-font-size: 14px;
+}
+
+.combo-box {
+    -jfx-focus-color: -primary-color;
+    -jfx-unfocus-color: #BDBDBD;
+    -fx-prompt-text-fill: -text-secondary;
+}
+
+.button-primary {
+    -fx-background-color: -primary-color;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-padding: 10px 20px;
+}
+
+.button-primary:hover {
+    -fx-opacity: 0.9;
+    -fx-scale-x: 1.02;
+    -fx-scale-y: 1.02;
+}
+
+.button-primary .glyph-icon {
+    -fx-fill: white;
+}
+
+.frais-table {
+    -fx-background-color: transparent;
+}
+
+.frais-table .column-header {
+    -fx-background-color: -primary-color;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+}
+
+.frais-table .table-row-cell {
+    -fx-background-color: white;
+}
+
+.frais-table .table-row-cell:odd {
+    -fx-background-color: derive(white, -2%);
+}
+
+.frais-table .table-row-cell:selected {
+    -fx-background-color: derive(-primary-color, 90%);
+}
+
+/* Style pour les montants */
+.montant-cell {
+    -fx-alignment: CENTER-RIGHT;
+    -fx-font-family: "Monospace";
+}
+
+/* Style pour les dates */
+.date-cell {
+    -fx-alignment: CENTER;
+}
+
+.spinner {
+    -fx-progress-color: -primary-color;
+}
+
+/* Animation des éléments */
+.form-container {
+    -fx-transition: all 0.2s ease-in-out;
+}
+
+.form-container:hover {
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.15), 15, 0, 0, 5);
+}
+
+/* Style pour les messages de validation */
+.error-label {
+    -fx-text-fill: -error-color;
+    -fx-font-size: 12px;
+    -fx-padding: 4px 0 0 0;
+}
