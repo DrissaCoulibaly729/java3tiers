@@ -1,4 +1,4 @@
-package gm.rahmanproperties.optibank;
+package com.groupeisi.minisystemebancaire;
 
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;

@@ -1,4 +1,4 @@
-package gm.rahmanproperties.optibank.controllers.admin;
+package com.groupeisi.minisystemebancaire.controllers.admin;
 
 import gm.rahmanproperties.optibank.config.ApiConfig;
 import gm.rahmanproperties.optibank.dtos.*;

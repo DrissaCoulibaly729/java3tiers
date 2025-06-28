@@ -1,4 +1,4 @@
-package gm.rahmanproperties.optibank.utils;
+package com.groupeisi.minisystemebancaire.utils;
 
 import io.github.hugoquinn2.fxpopup.constants.MessageType;
 import io.github.hugoquinn2.fxpopup.constants.Theme;

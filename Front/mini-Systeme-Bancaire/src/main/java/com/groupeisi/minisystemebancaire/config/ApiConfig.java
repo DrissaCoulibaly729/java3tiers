@@ -1,4 +1,4 @@
-package gm.rahmanproperties.optibank.config;
+package com.groupeisi.minisystemebancaire.config;
 
 import lombok.Getter;
 import lombok.Setter;

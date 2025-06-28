@@ -1,4 +1,4 @@
-package gm.rahmanproperties.optibank.controllers;
+package com.groupeisi.minisystemebancaire.controllers;
 
 import gm.rahmanproperties.optibank.config.ApiConfig;
 import gm.rahmanproperties.optibank.utils.WindowManager;

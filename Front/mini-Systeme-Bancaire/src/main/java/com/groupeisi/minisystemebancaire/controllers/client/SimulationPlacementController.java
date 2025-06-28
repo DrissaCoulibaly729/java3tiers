@@ -1,4 +1,4 @@
-package gm.rahmanproperties.optibank.controllers.client;
+package com.groupeisi.minisystemebancaire.controllers.client;
 
 import com.jfoenix.controls.JFXButton;
 import com.jfoenix.controls.JFXCheckBox;

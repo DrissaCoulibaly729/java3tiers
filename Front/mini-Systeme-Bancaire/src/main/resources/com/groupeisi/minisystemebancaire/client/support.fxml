@@ -7,7 +7,7 @@
 <?import de.jensd.fx.glyphs.materialdesignicons.*?>
 
 <StackPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
-         fx:controller="gm.rahmanproperties.optibank.controllers.client.SupportClientController"
+         fx:controller="com.groupeisi.minisystemebancaire.controllers.client.SupportClientController"
          styleClass="root">
 
     <!-- Loading Spinner -->
