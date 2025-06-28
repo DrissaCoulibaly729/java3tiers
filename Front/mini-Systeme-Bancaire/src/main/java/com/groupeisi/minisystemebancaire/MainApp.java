@@ -14,6 +14,10 @@ import java.io.IOException;
 
 public class MainApp extends Application {
 
+    public static void main(String[] args) {
+        launch(args);
+    }
+
     @Override
     public void start(Stage primaryStage) {
         // Configuration de l'application
@@ -27,15 +31,26 @@ public class MainApp extends Application {
             Scene scene = new Scene(loader.load());
 
             // Configuration de la fenêtre principale
-            primaryStage.setTitle("🏦 Mini Système Bancaire");
+            primaryStage.setTitle("🏦 Mini Système Bancaire - Groupe 1");
             primaryStage.setScene(scene);
-            primaryStage.setResizable(false);
+            primaryStage.setResizable(true);
+            primaryStage.setMinWidth(800);
+            primaryStage.setMinHeight(600);
             primaryStage.centerOnScreen();
 
             // Icône de l'application (optionnel)
             // primaryStage.getIcons().add(new Image("/icons/bank-icon.png"));
 
+            // Gestionnaire de fermeture
+            primaryStage.setOnCloseRequest(event -> {
+                SessionManager.clearSession();
+                System.out.println("👋 Application fermée proprement");
+                Platform.exit();
+            });
+
             primaryStage.show();
+
+            System.out.println("🚀 Application démarrée avec succès");
 
         } catch (IOException e) {
             e.printStackTrace();
@@ -50,10 +65,16 @@ public class MainApp extends Application {
             try {
                 AdminService adminService = new AdminService();
                 AdminDTO admin = new AdminDTO("admin", "admin123", "ADMIN");
-                adminService.createAdmin(admin);
-                System.out.println("✅ Admin par défaut créé/vérifié avec succès");
+                AdminDTO createdAdmin = adminService.createAdmin(admin);
+
+                if (createdAdmin != null) {
+                    System.out.println("✅ Admin par défaut créé avec succès");
+                } else {
+                    System.out.println("ℹ️ Admin par défaut existe déjà");
+                }
             } catch (Exception e) {
                 System.out.println("ℹ️ Admin par défaut probablement déjà existant ou erreur de connexion API");
+                System.out.println("💡 Vérifiez que le backend Laravel est démarré (php artisan serve)");
             }
         });
         initThread.setDaemon(true); // Thread daemon pour qu'il se ferme avec l'application
@@ -64,7 +85,7 @@ public class MainApp extends Application {
     public void stop() {
         // Nettoyer la session au fermeture
         SessionManager.clearSession();
-        System.out.println("Application fermée proprement");
+        System.out.println("🔐 Session nettoyée lors de la fermeture");
     }
 
     private void showErrorAlert(String title, String message) {
@@ -76,6 +97,4 @@ public class MainApp extends Application {
             alert.showAndWait();
         });
     }
-
-
 }

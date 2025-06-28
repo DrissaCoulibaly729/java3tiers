@@ -3,6 +3,7 @@ package com.groupeisi.minisystemebancaire.controllers.admin;
 import com.groupeisi.minisystemebancaire.dto.AdminDTO;
 import com.groupeisi.minisystemebancaire.services.AdminService;
 import com.groupeisi.minisystemebancaire.utils.SessionManager;
+import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -32,7 +33,7 @@ public class AdminLoginController {
     }
 
     private void setupEnterKeyHandler() {
-        txtPassword.setOnAction(e -> handleLogin(null));
+        txtPassword.setOnAction(this::handleLogin);
         btnLogin.setDefaultButton(true);
     }
 
@@ -46,20 +47,59 @@ public class AdminLoginController {
             return;
         }
 
-        try {
-            AdminDTO admin = adminService.login(username, password);
-            SessionManager.setCurrentAdmin(admin);
+        // Désactiver le bouton pendant la connexion
+        btnLogin.setDisable(true);
+        btnLogin.setText("Connexion...");
 
-            showMessage("Connexion réussie !", "success");
+        // Exécuter la connexion dans un thread séparé
+        Thread loginThread = new Thread(() -> {
+            try {
+                System.out.println("🔐 Tentative de connexion admin...");
+                AdminDTO admin = adminService.login(username, password);
 
-            // Redirection vers le dashboard admin
-            redirectToDashboard(event != null ? event :
-                    new ActionEvent(btnLogin, null));
+                Platform.runLater(() -> {
+                    if (admin != null) {
+                        System.out.println("✅ Connexion admin réussie pour: " + admin.getUsername());
 
-        } catch (Exception e) {
-            showMessage("Identifiants incorrects", "error");
-            txtPassword.clear();
-        }
+                        // Stocker les informations de session
+                        SessionManager.setCurrentAdmin(admin);
+
+                        showMessage("Connexion réussie ! Redirection...", "success");
+
+                        // Redirection vers le dashboard admin après un court délai
+                        Platform.runLater(() -> {
+                            try {
+                                Thread.sleep(1000);
+                                redirectToDashboard(event != null ? event : new ActionEvent(btnLogin, null));
+                            } catch (InterruptedException e) {
+                                Thread.currentThread().interrupt();
+                            }
+                        });
+                    } else {
+                        showMessage("Identifiants incorrects", "error");
+                        resetLoginButton();
+                    }
+                });
+
+            } catch (Exception e) {
+                Platform.runLater(() -> {
+                    System.err.println("❌ Identifiants admin incorrects");
+
+                    String errorMessage = e.getMessage();
+                    if (errorMessage.contains("serveur")) {
+                        showMessage("Erreur de connexion au serveur. Vérifiez votre connexion.", "error");
+                    } else {
+                        showMessage("Identifiants incorrects", "error");
+                    }
+
+                    txtPassword.clear();
+                    resetLoginButton();
+                });
+            }
+        });
+
+        loginThread.setDaemon(true);
+        loginThread.start();
     }
 
     @FXML
@@ -73,6 +113,8 @@ public class AdminLoginController {
 
     private void navigateTo(String fxmlPath, ActionEvent event) {
         try {
+            System.out.println("🚀 Navigation vers : " + fxmlPath);
+
             FXMLLoader loader = new FXMLLoader(getClass().getResource(fxmlPath));
             Parent root = loader.load();
 
@@ -82,13 +124,20 @@ public class AdminLoginController {
             stage.centerOnScreen();
         } catch (IOException e) {
             e.printStackTrace();
-            showMessage("Erreur lors de la navigation", "error");
+            showMessage("Erreur lors de la navigation vers " + fxmlPath, "error");
+            resetLoginButton();
         }
     }
 
     private void showMessage(String message, String type) {
         lblMessage.setText(message);
         lblMessage.setStyle(type.equals("error") ?
-                "-fx-text-fill: #e74c3c;" : "-fx-text-fill: #27ae60;");
+                "-fx-text-fill: #e74c3c; -fx-font-weight: bold;" :
+                "-fx-text-fill: #27ae60; -fx-font-weight: bold;");
+    }
+
+    private void resetLoginButton() {
+        btnLogin.setDisable(false);
+        btnLogin.setText("Se connecter");
     }
 }

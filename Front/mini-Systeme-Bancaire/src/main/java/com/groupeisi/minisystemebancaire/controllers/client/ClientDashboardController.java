@@ -1,162 +1,201 @@
 package com.groupeisi.minisystemebancaire.controllers.client;
 
-import com.groupeisi.minisystemebancaire.dto.*;
-import com.groupeisi.minisystemebancaire.services.*;
+import com.groupeisi.minisystemebancaire.dto.ClientDTO;
+import com.groupeisi.minisystemebancaire.dto.CompteDTO;
+import com.groupeisi.minisystemebancaire.services.CompteService;
 import com.groupeisi.minisystemebancaire.utils.SessionManager;
+import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
+import javafx.scene.Node;
+import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.stage.Stage;
 
 import java.io.IOException;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 public class ClientDashboardController {
 
-    @FXML private Label lblWelcome;
-    @FXML private Label lblNbComptes;
+    @FXML private Label lblBienvenue;
+    @FXML private Label lblNombreComptes;
     @FXML private Label lblSoldeTotal;
-    @FXML private Label lblNbCartes;
-    @FXML private Label lblNbCredits;
-
     @FXML private TableView<CompteDTO> tableComptes;
-    @FXML private TableColumn<CompteDTO, String> colNumeroCompte;
-    @FXML private TableColumn<CompteDTO, String> colTypeCompte;
-    @FXML private TableColumn<CompteDTO, Double> colSoldeCompte;
-    @FXML private TableColumn<CompteDTO, String> colStatutCompte;
-
-    @FXML private TableView<TransactionDTO> tableTransactionsRecentes;
-    @FXML private TableColumn<TransactionDTO, String> colTypeTransaction;
-    @FXML private TableColumn<TransactionDTO, Double> colMontantTransaction;
-    @FXML private TableColumn<TransactionDTO, String> colDateTransaction;
-    @FXML private TableColumn<TransactionDTO, String> colStatutTransaction;
-
+    @FXML private TableColumn<CompteDTO, String> colNumero;
+    @FXML private TableColumn<CompteDTO, String> colType;
+    @FXML private TableColumn<CompteDTO, Double> colSolde;
+    @FXML private TableColumn<CompteDTO, String> colStatut;
+    @FXML private Button btnNouveauCompte;
     @FXML private Button btnTransactions;
-    @FXML private Button btnCredits;
     @FXML private Button btnCartes;
-    @FXML private Button btnSupport;
+    @FXML private Button btnCredits;
+    @FXML private Button btnProfil;
     @FXML private Button btnDeconnexion;
 
-    private Long clientId;
     private final CompteService compteService = new CompteService();
-    private final TransactionService transactionService = new TransactionService();
-    private final CarteBancaireService carteService = new CarteBancaireService();
-    private final CreditService creditService = new CreditService();
-
-    public void setClientId(Long clientId) {
-        this.clientId = clientId;
-        if (clientId != null) {
-            initialize();
-        }
-    }
+    private ClientDTO currentClient;
+    private Long clientId; // Pour la compatibilité
 
     @FXML
-    private void initialize() {
-        if (SessionManager.isClientLoggedIn()) {
-            clientId = SessionManager.getCurrentClient().getId();
-            setupTableColumns();
-            loadDashboardData();
+    public void initialize() {
+        currentClient = SessionManager.getCurrentClient();
+
+        if (currentClient == null) {
+            showAlert(Alert.AlertType.ERROR, "Erreur", "Session expirée");
+            redirectToLogin();
+            return;
         }
+
+        this.clientId = currentClient.getId(); // Initialiser clientId
+        setupUI();
+        setupTableColumns();
+        loadClientData();
+    }
+
+    // Méthode pour la compatibilité
+    public void setClientId(Long clientId) {
+        this.clientId = clientId;
+    }
+
+    public Long getClientId() {
+        return this.clientId;
+    }
+
+    private void setupUI() {
+        lblBienvenue.setText("Bienvenue, " + currentClient.getNomComplet() + " !");
+
+        // Configuration des boutons
+        btnNouveauCompte.setOnAction(this::handleNouveauCompte);
+        btnTransactions.setOnAction(this::handleTransactions);
+        btnCartes.setOnAction(this::handleCartes);
+        btnCredits.setOnAction(this::handleCredits);
+        btnProfil.setOnAction(this::handleProfil);
+        btnDeconnexion.setOnAction(this::handleDeconnexion);
     }
 
     private void setupTableColumns() {
-        // Configuration des colonnes des comptes
-        colNumeroCompte.setCellValueFactory(new PropertyValueFactory<>("numero"));
-        colTypeCompte.setCellValueFactory(new PropertyValueFactory<>("type"));
-        colSoldeCompte.setCellValueFactory(new PropertyValueFactory<>("solde"));
-        colStatutCompte.setCellValueFactory(new PropertyValueFactory<>("statut"));
+        colNumero.setCellValueFactory(new PropertyValueFactory<>("numero"));
+        colType.setCellValueFactory(new PropertyValueFactory<>("type"));
+        colSolde.setCellValueFactory(new PropertyValueFactory<>("solde"));
+        colStatut.setCellValueFactory(new PropertyValueFactory<>("statut"));
 
-        // Configuration des colonnes des transactions
-        colTypeTransaction.setCellValueFactory(new PropertyValueFactory<>("type"));
-        colMontantTransaction.setCellValueFactory(new PropertyValueFactory<>("montant"));
-        colStatutTransaction.setCellValueFactory(new PropertyValueFactory<>("statut"));
-
-        // Formatage de la date
-        colDateTransaction.setCellValueFactory(cellData -> {
-            if (cellData.getValue().getDate() != null) {
-                return new javafx.beans.property.SimpleStringProperty(
-                        cellData.getValue().getDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))
-                );
+        // Formatage du solde
+        colSolde.setCellFactory(column -> new TableCell<CompteDTO, Double>() {
+            @Override
+            protected void updateItem(Double item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(String.format("%.2f FCFA", item));
+                }
             }
-            return new javafx.beans.property.SimpleStringProperty("");
+        });
+
+        // Formatage du statut
+        colStatut.setCellFactory(column -> new TableCell<CompteDTO, String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setStyle("");
+                } else {
+                    setText(item);
+                    if ("Actif".equals(item)) {
+                        setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
+                    } else {
+                        setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
+                    }
+                }
+            }
         });
     }
 
-    private void loadDashboardData() {
-        try {
-            ClientDTO client = SessionManager.getCurrentClient();
-            lblWelcome.setText("Bienvenue, " + client.getPrenom() + " " + client.getNom());
+    private void loadClientData() {
+        Thread loadThread = new Thread(() -> {
+            try {
+                List<CompteDTO> comptes = compteService.getComptesByClient(currentClient.getId());
 
-            // Charger les comptes
-            List<CompteDTO> comptes = compteService.getComptesByClientId(clientId);
-            ObservableList<CompteDTO> comptesData = FXCollections.observableArrayList(comptes);
-            tableComptes.setItems(comptesData);
+                Platform.runLater(() -> {
+                    ObservableList<CompteDTO> comptesData = FXCollections.observableArrayList(comptes);
+                    tableComptes.setItems(comptesData);
 
-            // Calculer les statistiques
-            lblNbComptes.setText(String.valueOf(comptes.size()));
+                    // Mise à jour des statistiques
+                    lblNombreComptes.setText(String.valueOf(comptes.size()));
 
-            double soldeTotal = comptes.stream()
-                    .mapToDouble(CompteDTO::getSolde)
-                    .sum();
-            lblSoldeTotal.setText(String.format("%.2f €", soldeTotal));
+                    double soldeTotal = comptes.stream()
+                            .filter(c -> "Actif".equals(c.getStatut()))
+                            .mapToDouble(CompteDTO::getSolde)
+                            .sum();
 
-            // Compter les cartes
-            int nbCartes = 0;
-            for (CompteDTO compte : comptes) {
-                nbCartes += carteService.getCartesByCompte(compte.getId()).size();
+                    lblSoldeTotal.setText(String.format("%.2f FCFA", soldeTotal));
+                });
+
+            } catch (Exception e) {
+                Platform.runLater(() -> {
+                    showAlert(Alert.AlertType.ERROR, "Erreur",
+                            "Impossible de charger les données: " + e.getMessage());
+                });
             }
-            lblNbCartes.setText(String.valueOf(nbCartes));
+        });
 
-            // Compter les crédits
-            List<CreditDTO> credits = creditService.getCreditsByClient(clientId);
-            lblNbCredits.setText(String.valueOf(credits.size()));
-
-            // Charger les transactions récentes (5 dernières)
-            List<TransactionDTO> transactions = transactionService.getTransactionsByClient(clientId);
-            ObservableList<TransactionDTO> transactionsData = FXCollections.observableArrayList(
-                    transactions.stream().limit(5).toList()
-            );
-            tableTransactionsRecentes.setItems(transactionsData);
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible de charger les données du dashboard");
-        }
+        loadThread.setDaemon(true);
+        loadThread.start();
     }
 
     @FXML
-    private void goToTransactions() {
-        navigateToPage("UI_Transactions");
+    private void handleNouveauCompte(ActionEvent event) {
+        navigateTo("/com/groupeisi/minisystemebancaire/client/UI_Nouveau_Compte.fxml", event);
     }
 
     @FXML
-    private void goToCredits() {
-        navigateToPage("UI_Credits");
+    private void handleTransactions(ActionEvent event) {
+        navigateTo("/com/groupeisi/minisystemebancaire/client/UI_Transactions.fxml", event);
     }
 
     @FXML
-    private void goToCartes() {
-        navigateToPage("UI_Cartes_Bancaires");
+    private void handleCartes(ActionEvent event) {
+        navigateTo("/com/groupeisi/minisystemebancaire/client/UI_Cartes.fxml", event);
     }
 
     @FXML
-    private void goToSupport() {
-        navigateToPage("UI_Service_Client");
+    private void handleCredits(ActionEvent event) {
+        navigateTo("/com/groupeisi/minisystemebancaire/client/UI_Credits.fxml", event);
     }
 
     @FXML
-    private void handleLogout() {
-        SessionManager.clearSession();
+    private void handleProfil(ActionEvent event) {
+        navigateTo("/com/groupeisi/minisystemebancaire/client/UI_Profil.fxml", event);
+    }
+
+    @FXML
+    private void handleDeconnexion(ActionEvent event) {
+        Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
+        confirmation.setTitle("Déconnexion");
+        confirmation.setHeaderText("Confirmer la déconnexion");
+        confirmation.setContentText("Êtes-vous sûr de vouloir vous déconnecter ?");
+
+        confirmation.showAndWait().ifPresent(response -> {
+            if (response == ButtonType.OK) {
+                SessionManager.logout();
+                redirectToLogin();
+            }
+        });
+    }
+
+    private void redirectToLogin() {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/groupeisi/minisystemebancaire/UI_Main.fxml"));
-            Scene scene = new Scene(loader.load());
-            Stage stage = (Stage) btnDeconnexion.getScene().getWindow();
+            Parent root = loader.load();
+
+            Stage stage = (Stage) lblBienvenue.getScene().getWindow();
+            Scene scene = new Scene(root);
             stage.setScene(scene);
             stage.centerOnScreen();
         } catch (IOException e) {
@@ -164,29 +203,18 @@ public class ClientDashboardController {
         }
     }
 
-    private void navigateToPage(String pageName) {
+    private void navigateTo(String fxmlPath, ActionEvent event) {
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/groupeisi/minisystemebancaire/client/" + pageName + ".fxml"));
-            Scene scene = new Scene(loader.load());
+            FXMLLoader loader = new FXMLLoader(getClass().getResource(fxmlPath));
+            Parent root = loader.load();
 
-            // Passer l'ID du client au contrôleur de destination
-            Object controller = loader.getController();
-            if (controller instanceof ClientTransactionsController) {
-                ((ClientTransactionsController) controller).setClientId(clientId);
-            } else if (controller instanceof ClientCreditsController) {
-                ((ClientCreditsController) controller).setClientId(clientId);
-            } else if (controller instanceof ClientCartesController) {
-                ((ClientCartesController) controller).setClientId(clientId);
-            } else if (controller instanceof ClientSupportController) {
-                ((ClientSupportController) controller).setClientId(clientId);
-            }
-
-            Stage stage = (Stage) btnTransactions.getScene().getWindow();
+            Stage stage = (Stage) ((Node) event.getSource()).getScene().getWindow();
+            Scene scene = new Scene(root);
             stage.setScene(scene);
             stage.centerOnScreen();
         } catch (IOException e) {
             e.printStackTrace();
-            showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible de charger la page " + pageName);
+            showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible de naviguer vers " + fxmlPath);
         }
     }
 

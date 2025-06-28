@@ -2,97 +2,177 @@ package com.groupeisi.minisystemebancaire.controllers.client;
 
 import com.groupeisi.minisystemebancaire.dto.ClientDTO;
 import com.groupeisi.minisystemebancaire.services.ClientService;
+import com.groupeisi.minisystemebancaire.utils.SessionManager;
+import javafx.application.Platform;
+import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
-import javafx.scene.Scene;
-import javafx.scene.control.Alert;
-import javafx.scene.control.Button;
-import javafx.scene.control.PasswordField;
-import javafx.scene.control.TextField;
+import javafx.scene.Node;
 import javafx.scene.Parent;
+import javafx.scene.Scene;
+import javafx.scene.control.*;
 import javafx.stage.Stage;
+
+import java.io.IOException;
 
 public class ClientLoginController {
     private final ClientService clientService = new ClientService();
 
-    @FXML
-    private TextField txtEmail;
-
-    @FXML
-    private PasswordField txtPassword;
-
-    @FXML
-    private Button btnLogin, btnQuitter;
+    @FXML private TextField txtEmail;
+    @FXML private PasswordField txtPassword;
+    @FXML private Button btnLogin;
+    @FXML private Button btnQuitter;
+    @FXML private Button btnInscription;
+    @FXML private Label lblMessage;
 
     @FXML
     public void initialize() {
-        btnLogin.setOnAction(event -> handleLogin());
-        btnQuitter.setOnAction(event -> handleQuitter());
+        // Configuration initiale
+        lblMessage.setText("");
+        setupEventHandlers();
+        setupEnterKeyHandler();
     }
 
-    /**
-     * ✅ Gère la connexion du client
-     */
-    private void handleLogin() {
-        String email = txtEmail.getText().trim();
-        String password = txtPassword.getText().trim();
+    private void setupEventHandlers() {
+        btnLogin.setOnAction(this::handleLogin);
+        btnQuitter.setOnAction(this::handleQuitter);
+        if (btnInscription != null) {
+            btnInscription.setOnAction(this::handleInscription);
+        }
+    }
 
+    private void setupEnterKeyHandler() {
+        txtPassword.setOnAction(this::handleLogin);
+        btnLogin.setDefaultButton(true);
+    }
+
+    @FXML
+    private void handleLogin(ActionEvent event) {
+        String email = txtEmail.getText().trim();
+        String password = txtPassword.getText();
+
+        // Validation des champs
         if (email.isEmpty() || password.isEmpty()) {
-            showAlert(Alert.AlertType.ERROR, "Erreur de connexion", "Veuillez remplir tous les champs !");
+            showMessage("Veuillez remplir tous les champs", "error");
             return;
         }
 
-        try {
-            // Authentifier le client
-            ClientDTO client = clientService.login(email, password);
-
-            if (client != null) {
-                showAlert(Alert.AlertType.INFORMATION, "Connexion réussie", "Bienvenue, " + client.getNom() + " !");
-                ouvrirDashboard(client.getId());  // ✅ On passe l'ID du client ici
-            } else {
-                showAlert(Alert.AlertType.ERROR, "Échec de connexion", "Email ou mot de passe incorrect.");
-            }
-        } catch (RuntimeException e) {
-            showAlert(Alert.AlertType.ERROR, "Erreur de connexion", e.getMessage());
+        // Validation du format email
+        if (!isValidEmail(email)) {
+            showMessage("Format d'email invalide", "error");
+            return;
         }
+
+        // Désactiver le bouton pendant la connexion
+        btnLogin.setDisable(true);
+        btnLogin.setText("Connexion...");
+
+        // Exécuter la connexion dans un thread séparé pour éviter le blocage de l'UI
+        Thread loginThread = new Thread(() -> {
+            try {
+                System.out.println("🔐 Tentative de connexion client...");
+                ClientDTO client = clientService.login(email, password);
+
+                Platform.runLater(() -> {
+                    if (client != null) {
+                        System.out.println("✅ Connexion réussie pour: " + client.getEmail());
+
+                        // Stocker les informations de session
+                        SessionManager.setCurrentClient(client);
+
+                        showMessage("Connexion réussie ! Redirection...", "success");
+
+                        // Redirection vers le dashboard client après un court délai
+                        Platform.runLater(() -> {
+                            try {
+                                Thread.sleep(1000); // Délai pour afficher le message
+                                ouvrirDashboardClient(event != null ? event : new ActionEvent(btnLogin, null));
+                            } catch (InterruptedException e) {
+                                Thread.currentThread().interrupt();
+                            }
+                        });
+                    } else {
+                        showMessage("Identifiants incorrects", "error");
+                        resetLoginButton();
+                    }
+                });
+
+            } catch (Exception e) {
+                Platform.runLater(() -> {
+                    System.err.println("❌ Identifiants incorrects ou compte suspendu");
+
+                    String errorMessage = e.getMessage();
+                    if (errorMessage.contains("suspend")) {
+                        showMessage("Votre compte est suspendu. Contactez l'administration.", "error");
+                    } else if (errorMessage.contains("serveur")) {
+                        showMessage("Erreur de connexion au serveur. Vérifiez votre connexion.", "error");
+                    } else {
+                        showMessage("Identifiants incorrects", "error");
+                    }
+
+                    txtPassword.clear();
+                    resetLoginButton();
+                });
+            }
+        });
+
+        loginThread.setDaemon(true);
+        loginThread.start();
     }
 
-    /**
-     * ✅ Ferme l'application
-     */
-    private void handleQuitter() {
-        Stage stage = (Stage) btnQuitter.getScene().getWindow();
-        stage.close();
+    @FXML
+    private void handleQuitter(ActionEvent event) {
+        navigateTo("/com/groupeisi/minisystemebancaire/UI_Main.fxml", event);
     }
 
-    /**
-     * ✅ Ouvre le tableau de bord client avec l'ID du client
-     */
-    private void ouvrirDashboard(Long clientId) {
+    @FXML
+    private void handleInscription(ActionEvent event) {
+        System.out.println("📝 Redirection vers inscription...");
+        navigateTo("/com/groupeisi/minisystemebancaire/client/UI_Register.fxml", event);
+    }
+
+    private void ouvrirDashboardClient(ActionEvent event) {
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/groupeisi/minisystemebancaire/client/UI_Dashboard.fxml"));
-            Parent root = loader.load();
-
-            // Récupérer le contrôleur et passer l'ID du client
-            ClientDashboardController dashboardController = loader.getController();
-            dashboardController.setClientId(clientId);  // ✅ CORRECTION : utiliser setClientId au lieu de loadDashboard
-
-            Stage stage = (Stage) btnLogin.getScene().getWindow();
-            stage.setScene(new Scene(root));
-            stage.setTitle("Tableau de Bord Client");
+            System.out.println("🚀 Navigation vers le dashboard client...");
+            navigateTo("/com/groupeisi/minisystemebancaire/client/UI_Dashboard.fxml", event);
         } catch (Exception e) {
             e.printStackTrace();
-            showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible d'ouvrir le tableau de bord : " + e.getMessage());
+            showMessage("Erreur lors de l'ouverture du dashboard", "error");
+            resetLoginButton();
         }
     }
 
-    /**
-     * ✅ Affiche une alerte
-     */
-    private void showAlert(Alert.AlertType type, String title, String message) {
-        Alert alert = new Alert(type);
-        alert.setTitle(title);
-        alert.setContentText(message);
-        alert.showAndWait();
+    private void navigateTo(String fxmlPath, ActionEvent event) {
+        try {
+            System.out.println("🚀 Navigation vers : " + fxmlPath);
+
+            FXMLLoader loader = new FXMLLoader(getClass().getResource(fxmlPath));
+            Parent root = loader.load();
+
+            Stage stage = (Stage) ((Node) event.getSource()).getScene().getWindow();
+            Scene scene = new Scene(root);
+            stage.setScene(scene);
+            stage.centerOnScreen();
+
+        } catch (IOException e) {
+            e.printStackTrace();
+            showMessage("Erreur lors de la navigation vers " + fxmlPath, "error");
+        }
+    }
+
+    private void showMessage(String message, String type) {
+        lblMessage.setText(message);
+        lblMessage.setStyle(type.equals("error") ?
+                "-fx-text-fill: #e74c3c; -fx-font-weight: bold;" :
+                "-fx-text-fill: #27ae60; -fx-font-weight: bold;");
+    }
+
+    private void resetLoginButton() {
+        btnLogin.setDisable(false);
+        btnLogin.setText("Se connecter");
+    }
+
+    private boolean isValidEmail(String email) {
+        return email.contains("@") && email.contains(".") && email.length() > 5;
     }
 }

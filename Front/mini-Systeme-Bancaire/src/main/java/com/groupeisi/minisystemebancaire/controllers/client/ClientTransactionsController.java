@@ -1,260 +1,294 @@
 package com.groupeisi.minisystemebancaire.controllers.client;
 
-import com.groupeisi.minisystemebancaire.dto.*;
-import com.groupeisi.minisystemebancaire.services.*;
+import com.groupeisi.minisystemebancaire.dto.ClientDTO;
+import com.groupeisi.minisystemebancaire.dto.CompteDTO;
+import com.groupeisi.minisystemebancaire.dto.TransactionDTO;
+import com.groupeisi.minisystemebancaire.services.CompteService;
+import com.groupeisi.minisystemebancaire.services.TransactionService;
 import com.groupeisi.minisystemebancaire.utils.SessionManager;
+import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
+import javafx.scene.Node;
+import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.stage.Stage;
 
 import java.io.IOException;
-import java.time.format.DateTimeFormatter;
+import java.time.LocalDateTime;
 import java.util.List;
 
 public class ClientTransactionsController {
 
-    @FXML private ChoiceBox<CompteDTO> choiceCompteSource;
-    @FXML private ChoiceBox<CompteDTO> choiceCompteDestination;
-    @FXML private ChoiceBox<String> choiceTypeTransaction;
+    @FXML private ComboBox<CompteDTO> cmbCompteSource;
+    @FXML private ComboBox<CompteDTO> cmbCompteDestination;
     @FXML private TextField txtMontant;
-    @FXML private TextField txtDescription;
-    @FXML private TextField txtNumeroCompteDestinataire;
-
+    @FXML private TextArea txtDescription;
+    @FXML private ComboBox<String> cmbTypeTransaction;
+    @FXML private Button btnEffectuer;
+    @FXML private Button btnRetour;
     @FXML private TableView<TransactionDTO> tableTransactions;
     @FXML private TableColumn<TransactionDTO, String> colType;
     @FXML private TableColumn<TransactionDTO, Double> colMontant;
     @FXML private TableColumn<TransactionDTO, String> colDate;
     @FXML private TableColumn<TransactionDTO, String> colStatut;
-    @FXML private TableColumn<TransactionDTO, String> colDescription;
+    @FXML private Label lblMessage;
 
-    @FXML private Button btnEffectuerTransaction;
-    @FXML private Button btnRafraichir;
-    @FXML private Button btnDashboard;
-    @FXML private Button btnCredits;
-    @FXML private Button btnCartes;
-    @FXML private Button btnSupport;
-    @FXML private Button btnDeconnexion;
-
-    private Long clientId;
-    private final TransactionService transactionService = new TransactionService();
     private final CompteService compteService = new CompteService();
-
-    public void setClientId(Long clientId) {
-        this.clientId = clientId;
-        if (clientId != null) {
-            initialize();
-        }
-    }
+    private final TransactionService transactionService = new TransactionService();
+    private ClientDTO currentClient;
 
     @FXML
-    private void initialize() {
-        if (SessionManager.isClientLoggedIn()) {
-            clientId = SessionManager.getCurrentClient().getId();
-            setupComponents();
-            loadData();
-        }
-    }
+    public void initialize() {
+        currentClient = SessionManager.getCurrentClient();
 
-    private void setupComponents() {
-        // Configuration des types de transactions
-        choiceTypeTransaction.setItems(FXCollections.observableArrayList(
-                "Dépôt", "Retrait", "Virement"
-        ));
-
-        // Configuration des colonnes du tableau
-        colType.setCellValueFactory(new PropertyValueFactory<>("type"));
-        colMontant.setCellValueFactory(new PropertyValueFactory<>("montant"));
-        colStatut.setCellValueFactory(new PropertyValueFactory<>("statut"));
-        colDescription.setCellValueFactory(new PropertyValueFactory<>("description"));
-
-        // Formatage de la date
-        colDate.setCellValueFactory(cellData -> {
-            if (cellData.getValue().getDate() != null) {
-                return new javafx.beans.property.SimpleStringProperty(
-                        cellData.getValue().getDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))
-                );
-            }
-            return new javafx.beans.property.SimpleStringProperty("");
-        });
-
-        // Gestion des changements de type de transaction
-        choiceTypeTransaction.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
-            updateFormBasedOnTransactionType(newVal);
-        });
-    }
-
-    private void updateFormBasedOnTransactionType(String type) {
-        if (type == null) return;
-
-        switch (type) {
-            case "Dépôt":
-                choiceCompteSource.setVisible(false);
-                choiceCompteDestination.setVisible(true);
-                txtNumeroCompteDestinataire.setVisible(false);
-                break;
-            case "Retrait":
-                choiceCompteSource.setVisible(true);
-                choiceCompteDestination.setVisible(false);
-                txtNumeroCompteDestinataire.setVisible(false);
-                break;
-            case "Virement":
-                choiceCompteSource.setVisible(true);
-                choiceCompteDestination.setVisible(false);
-                txtNumeroCompteDestinataire.setVisible(true);
-                break;
-        }
-    }
-
-    private void loadData() {
-        try {
-            // Charger les comptes du client
-            List<CompteDTO> comptes = compteService.getComptesByClientId(clientId);
-            choiceCompteSource.setItems(FXCollections.observableArrayList(comptes));
-            choiceCompteDestination.setItems(FXCollections.observableArrayList(comptes));
-
-            // Charger les transactions
-            refreshTransactions();
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible de charger les données");
-        }
-    }
-
-    @FXML
-    private void handleEffectuerTransaction() {
-        if (!validateTransactionForm()) {
+        if (currentClient == null) {
+            showAlert(Alert.AlertType.ERROR, "Erreur", "Session expirée");
+            redirectToLogin();
             return;
         }
 
-        try {
-            String type = choiceTypeTransaction.getValue();
-            Double montant = Double.parseDouble(txtMontant.getText());
-            String description = txtDescription.getText().trim();
-
-            TransactionDTO transaction = new TransactionDTO();
-            transaction.setType(type);
-            transaction.setMontant(montant);
-            transaction.setDescription(description);
-
-            switch (type) {
-                case "Dépôt":
-                    transaction.setCompteDestId(choiceCompteDestination.getValue().getId());
-                    break;
-                case "Retrait":
-                    transaction.setCompteSourceId(choiceCompteSource.getValue().getId());
-                    break;
-                case "Virement":
-                    transaction.setCompteSourceId(choiceCompteSource.getValue().getId());
-                    // Rechercher le compte destinataire par numéro
-                    CompteDTO compteDestinataire = compteService.getCompteByNumero(txtNumeroCompteDestinataire.getText());
-                    transaction.setCompteDestId(compteDestinataire.getId());
-                    break;
-            }
-
-            transactionService.createTransaction(transaction);
-
-            showAlert(Alert.AlertType.INFORMATION, "Succès", "Transaction effectuée avec succès !");
-            clearForm();
-            refreshTransactions();
-
-        } catch (Exception e) {
-            showAlert(Alert.AlertType.ERROR, "Erreur", "Erreur lors de la transaction : " + e.getMessage());
-        }
+        setupUI();
+        setupTableColumns();
+        loadClientComptes();
+        loadTransactions();
     }
 
-    private boolean validateTransactionForm() {
-        if (choiceTypeTransaction.getValue() == null) {
-            showAlert(Alert.AlertType.WARNING, "Validation", "Veuillez sélectionner un type de transaction");
+    private void setupUI() {
+        // Configuration des types de transaction
+        cmbTypeTransaction.setItems(FXCollections.observableArrayList(
+                "Dépôt", "Retrait", "Virement"
+        ));
+
+        // Gestionnaire de changement de type
+        cmbTypeTransaction.setOnAction(e -> {
+            String type = cmbTypeTransaction.getValue();
+            cmbCompteDestination.setVisible("Virement".equals(type));
+            cmbCompteDestination.setManaged("Virement".equals(type));
+        });
+
+        // Configuration des boutons
+        btnEffectuer.setOnAction(this::handleEffectuerTransaction);
+        btnRetour.setOnAction(this::handleRetour);
+
+        lblMessage.setText("");
+    }
+
+    private void setupTableColumns() {
+        colType.setCellValueFactory(new PropertyValueFactory<>("type"));
+        colMontant.setCellValueFactory(new PropertyValueFactory<>("montant"));
+        colDate.setCellValueFactory(new PropertyValueFactory<>("date"));
+        colStatut.setCellValueFactory(new PropertyValueFactory<>("statut"));
+
+        // Formatage du montant
+        colMontant.setCellFactory(column -> new TableCell<TransactionDTO, Double>() {
+            @Override
+            protected void updateItem(Double item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(String.format("%.2f FCFA", item));
+                }
+            }
+        });
+
+        // Formatage du statut
+        colStatut.setCellFactory(column -> new TableCell<TransactionDTO, String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setStyle("");
+                } else {
+                    setText(item);
+                    if ("Validé".equals(item)) {
+                        setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
+                    } else if ("Rejeté".equals(item)) {
+                        setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
+                    } else {
+                        setStyle("-fx-text-fill: #f39c12; -fx-font-weight: bold;");
+                    }
+                }
+            }
+        });
+    }
+
+    private void loadClientComptes() {
+        Thread loadThread = new Thread(() -> {
+            try {
+                List<CompteDTO> comptes = compteService.getComptesByClientId(currentClient.getId());
+
+                Platform.runLater(() -> {
+                    ObservableList<CompteDTO> comptesData = FXCollections.observableArrayList(
+                            comptes.stream().filter(CompteDTO::isActif).toList()
+                    );
+
+                    cmbCompteSource.setItems(comptesData);
+                    cmbCompteDestination.setItems(comptesData);
+
+                    // Configuration de l'affichage des comptes
+                    cmbCompteSource.setCellFactory(lv -> new CompteListCell());
+                    cmbCompteSource.setButtonCell(new CompteListCell());
+                    cmbCompteDestination.setCellFactory(lv -> new CompteListCell());
+                    cmbCompteDestination.setButtonCell(new CompteListCell());
+                });
+
+            } catch (Exception e) {
+                Platform.runLater(() -> {
+                    showAlert(Alert.AlertType.ERROR, "Erreur",
+                            "Impossible de charger les comptes: " + e.getMessage());
+                });
+            }
+        });
+
+        loadThread.setDaemon(true);
+        loadThread.start();
+    }
+
+    private void loadTransactions() {
+        Thread loadThread = new Thread(() -> {
+            try {
+                List<TransactionDTO> transactions = transactionService.getTransactionsByClient(currentClient.getId());
+
+                Platform.runLater(() -> {
+                    ObservableList<TransactionDTO> transactionsData = FXCollections.observableArrayList(transactions);
+                    tableTransactions.setItems(transactionsData);
+                });
+
+            } catch (Exception e) {
+                Platform.runLater(() -> {
+                    System.err.println("❌ Erreur lors du chargement des transactions: " + e.getMessage());
+                });
+            }
+        });
+
+        loadThread.setDaemon(true);
+        loadThread.start();
+    }
+
+    @FXML
+    private void handleEffectuerTransaction(ActionEvent event) {
+        if (!validateForm()) {
+            return;
+        }
+
+        String type = cmbTypeTransaction.getValue();
+        CompteDTO compteSource = cmbCompteSource.getValue();
+        CompteDTO compteDestination = cmbCompteDestination.getValue();
+        double montant = Double.parseDouble(txtMontant.getText());
+        String description = txtDescription.getText().trim();
+
+        btnEffectuer.setDisable(true);
+        btnEffectuer.setText("Traitement...");
+
+        Thread transactionThread = new Thread(() -> {
+            try {
+                TransactionDTO transaction = new TransactionDTO();
+                transaction.setType(type);
+                transaction.setMontant(montant);
+                transaction.setDescription(description);
+                transaction.setCompteSourceId(compteSource.getId());
+
+                if ("Virement".equals(type) && compteDestination != null) {
+                    transaction.setCompteDestId(compteDestination.getId());
+                }
+
+                transaction.setDate(LocalDateTime.now());
+                transaction.setStatut("En attente");
+
+                TransactionDTO result = transactionService.createTransaction(transaction);
+
+                Platform.runLater(() -> {
+                    if (result != null) {
+                        showMessage("Transaction effectuée avec succès !", "success");
+                        clearForm();
+                        loadTransactions();
+                        loadClientComptes(); // Recharger pour mettre à jour les soldes
+                    } else {
+                        showMessage("Erreur lors de la transaction", "error");
+                    }
+                    resetButton();
+                });
+
+            } catch (Exception e) {
+                Platform.runLater(() -> {
+                    showMessage("Erreur: " + e.getMessage(), "error");
+                    resetButton();
+                });
+            }
+        });
+
+        transactionThread.setDaemon(true);
+        transactionThread.start();
+    }
+
+    private boolean validateForm() {
+        if (cmbTypeTransaction.getValue() == null) {
+            showMessage("Veuillez sélectionner un type de transaction", "error");
+            return false;
+        }
+
+        if (cmbCompteSource.getValue() == null) {
+            showMessage("Veuillez sélectionner un compte source", "error");
             return false;
         }
 
         if (txtMontant.getText().trim().isEmpty()) {
-            showAlert(Alert.AlertType.WARNING, "Validation", "Veuillez saisir un montant");
+            showMessage("Veuillez saisir un montant", "error");
             return false;
         }
 
         try {
             double montant = Double.parseDouble(txtMontant.getText());
             if (montant <= 0) {
-                showAlert(Alert.AlertType.WARNING, "Validation", "Le montant doit être positif");
+                showMessage("Le montant doit être positif", "error");
                 return false;
             }
         } catch (NumberFormatException e) {
-            showAlert(Alert.AlertType.WARNING, "Validation", "Le montant doit être un nombre valide");
+            showMessage("Montant invalide", "error");
             return false;
         }
 
-        String type = choiceTypeTransaction.getValue();
-
-        if ("Dépôt".equals(type) && choiceCompteDestination.getValue() == null) {
-            showAlert(Alert.AlertType.WARNING, "Validation", "Veuillez sélectionner un compte de destination");
+        if ("Virement".equals(cmbTypeTransaction.getValue()) && cmbCompteDestination.getValue() == null) {
+            showMessage("Veuillez sélectionner un compte de destination", "error");
             return false;
-        }
-
-        if ("Retrait".equals(type) && choiceCompteSource.getValue() == null) {
-            showAlert(Alert.AlertType.WARNING, "Validation", "Veuillez sélectionner un compte source");
-            return false;
-        }
-
-        if ("Virement".equals(type)) {
-            if (choiceCompteSource.getValue() == null) {
-                showAlert(Alert.AlertType.WARNING, "Validation", "Veuillez sélectionner un compte source");
-                return false;
-            }
-            if (txtNumeroCompteDestinataire.getText().trim().isEmpty()) {
-                showAlert(Alert.AlertType.WARNING, "Validation", "Veuillez saisir le numéro du compte destinataire");
-                return false;
-            }
         }
 
         return true;
     }
 
     private void clearForm() {
-        choiceTypeTransaction.getSelectionModel().clearSelection();
-        choiceCompteSource.getSelectionModel().clearSelection();
-        choiceCompteDestination.getSelectionModel().clearSelection();
+        cmbTypeTransaction.setValue(null);
+        cmbCompteSource.setValue(null);
+        cmbCompteDestination.setValue(null);
         txtMontant.clear();
         txtDescription.clear();
-        txtNumeroCompteDestinataire.clear();
+    }
+
+    private void resetButton() {
+        btnEffectuer.setDisable(false);
+        btnEffectuer.setText("Effectuer Transaction");
     }
 
     @FXML
-    private void handleRafraichir() {
-        refreshTransactions();
+    private void handleRetour(ActionEvent event) {
+        navigateTo("/com/groupeisi/minisystemebancaire/client/UI_Dashboard.fxml", event);
     }
 
-    private void refreshTransactions() {
-        try {
-            List<TransactionDTO> transactions = transactionService.getTransactionsByClient(clientId);
-            ObservableList<TransactionDTO> transactionsData = FXCollections.observableArrayList(transactions);
-            tableTransactions.setItems(transactionsData);
-        } catch (Exception e) {
-            e.printStackTrace();
-            showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible de rafraîchir les transactions");
-        }
-    }
-
-    // Navigation methods
-    @FXML private void goToDashboard() { navigateToPage("UI_Dashboard"); }
-    @FXML private void goToCredits() { navigateToPage("UI_Credits"); }
-    @FXML private void goToCartes() { navigateToPage("UI_Cartes_Bancaires"); }
-    @FXML private void goToSupport() { navigateToPage("UI_Service_Client"); }
-
-    @FXML
-    private void handleLogout() {
-        SessionManager.clearSession();
+    private void redirectToLogin() {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/groupeisi/minisystemebancaire/UI_Main.fxml"));
-            Scene scene = new Scene(loader.load());
-            Stage stage = (Stage) btnDeconnexion.getScene().getWindow();
+            Parent root = loader.load();
+
+            Stage stage = (Stage) lblMessage.getScene().getWindow();
+            Scene scene = new Scene(root);
             stage.setScene(scene);
             stage.centerOnScreen();
         } catch (IOException e) {
@@ -262,29 +296,18 @@ public class ClientTransactionsController {
         }
     }
 
-    private void navigateToPage(String pageName) {
+    private void navigateTo(String fxmlPath, ActionEvent event) {
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/groupeisi/minisystemebancaire/client/" + pageName + ".fxml"));
-            Scene scene = new Scene(loader.load());
+            FXMLLoader loader = new FXMLLoader(getClass().getResource(fxmlPath));
+            Parent root = loader.load();
 
-            // Passer l'ID du client au contrôleur de destination
-            Object controller = loader.getController();
-            if (controller instanceof ClientDashboardController) {
-                ((ClientDashboardController) controller).setClientId(clientId);
-            } else if (controller instanceof ClientCreditsController) {
-                ((ClientCreditsController) controller).setClientId(clientId);
-            } else if (controller instanceof ClientCartesController) {
-                ((ClientCartesController) controller).setClientId(clientId);
-            } else if (controller instanceof ClientSupportController) {
-                ((ClientSupportController) controller).setClientId(clientId);
-            }
-
-            Stage stage = (Stage) btnDashboard.getScene().getWindow();
+            Stage stage = (Stage) ((Node) event.getSource()).getScene().getWindow();
+            Scene scene = new Scene(root);
             stage.setScene(scene);
             stage.centerOnScreen();
         } catch (IOException e) {
             e.printStackTrace();
-            showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible de charger la page " + pageName);
+            showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible de naviguer vers " + fxmlPath);
         }
     }
 
@@ -294,5 +317,25 @@ public class ClientTransactionsController {
         alert.setHeaderText(null);
         alert.setContentText(message);
         alert.showAndWait();
+    }
+
+    private void showMessage(String message, String type) {
+        lblMessage.setText(message);
+        lblMessage.setStyle(type.equals("error") ?
+                "-fx-text-fill: #e74c3c; -fx-font-weight: bold;" :
+                "-fx-text-fill: #27ae60; -fx-font-weight: bold;");
+    }
+
+    // Classe pour afficher les comptes dans les ComboBox
+    private static class CompteListCell extends ListCell<CompteDTO> {
+        @Override
+        protected void updateItem(CompteDTO item, boolean empty) {
+            super.updateItem(item, empty);
+            if (empty || item == null) {
+                setText(null);
+            } else {
+                setText(item.getNumero() + " - " + item.getType() + " (" + item.getSoldeFormate() + ")");
+            }
+        }
     }
 }
