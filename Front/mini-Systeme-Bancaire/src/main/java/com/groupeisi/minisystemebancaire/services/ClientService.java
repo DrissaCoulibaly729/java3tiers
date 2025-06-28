@@ -95,11 +95,11 @@ public class ClientService extends ApiService {
                     .POST(HttpRequest.BodyPublishers.ofString(json))
                     .build();
 
-            // Ajouter plus de logs pour déboguer
+            // Appel direct pour avoir les logs détaillés
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
-            System.out.println("📡 Status: " + response.statusCode());
-            System.out.println("📄 Réponse brute: " + response.body());
+            System.out.println("📡 Status de connexion client: " + response.statusCode());
+            System.out.println("📄 Réponse brute de connexion: " + response.body());
 
             if (response.statusCode() >= 200 && response.statusCode() < 300) {
                 if (response.body() == null || response.body().trim().isEmpty()) {

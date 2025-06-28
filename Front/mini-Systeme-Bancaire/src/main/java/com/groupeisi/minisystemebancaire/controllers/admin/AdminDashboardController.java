@@ -198,6 +198,21 @@ public class AdminDashboardController {
     }
 
     @FXML
+    private void handleGestionCartes(ActionEvent event) {
+        navigateTo("/com/groupeisi/minisystemebancaire/admin/UI_Gestion_Cartes.fxml", event);
+    }
+
+    @FXML
+    private void handleGestionFrais(ActionEvent event) {
+        navigateTo("/com/groupeisi/minisystemebancaire/admin/UI_Gestion_Frais.fxml", event);
+    }
+
+    @FXML
+    private void handleParametres(ActionEvent event) {
+        showAlert(Alert.AlertType.INFORMATION, "Paramètres", "Fonctionnalité en cours de développement");
+    }
+
+    @FXML
     private void handleServiceClient(ActionEvent event) {
         navigateTo("/com/groupeisi/minisystemebancaire/admin/UI_Service_Client_Rapports.fxml", event);
     }
@@ -220,6 +235,7 @@ public class AdminDashboardController {
     @FXML
     private void handleRafraichir() {
         loadDashboardData();
+        showAlert(Alert.AlertType.INFORMATION, "Actualisation", "Les données ont été actualisées");
     }
 
     @FXML

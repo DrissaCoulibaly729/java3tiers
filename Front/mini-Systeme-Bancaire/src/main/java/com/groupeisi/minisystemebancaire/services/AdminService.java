@@ -75,21 +75,21 @@ public class AdminService extends ApiService {
 
     public AdminDTO login(String username, String password) {
         try {
-            LoginRequest loginRequest = new LoginRequest(username, password);
-            String json = gson.toJson(loginRequest);
+            // Utiliser une Map simple au lieu d'une classe pour éviter les problèmes de modules
+            String json = String.format("{\"username\":\"%s\",\"password\":\"%s\"}", username, password);
 
             System.out.println("🔐 Tentative de connexion admin...");
-            System.out.println("📤 JSON envoyé: " + json);
+            System.out.println("📤 JSON envoyé admin: " + json);
 
             HttpRequest request = createRequest("/admins/login")
                     .POST(HttpRequest.BodyPublishers.ofString(json))
                     .build();
 
-            // Ajouter plus de logs pour déboguer
+            // Appel direct pour avoir les logs détaillés
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
-            System.out.println("📡 Status: " + response.statusCode());
-            System.out.println("📄 Réponse brute: " + response.body());
+            System.out.println("📡 Status de connexion admin: " + response.statusCode());
+            System.out.println("📄 Réponse brute de connexion admin: " + response.body());
 
             if (response.statusCode() >= 200 && response.statusCode() < 300) {
                 if (response.body() == null || response.body().trim().isEmpty()) {
@@ -107,10 +107,10 @@ public class AdminService extends ApiService {
                     throw new RuntimeException("Erreur de parsing de la réponse");
                 }
             } else if (response.statusCode() == 401) {
-                System.out.println("❌ Identifiants incorrects (401)");
+                System.out.println("❌ Identifiants admin incorrects (401)");
                 throw new RuntimeException("Identifiants incorrects");
             } else {
-                System.out.println("❌ Erreur serveur: " + response.statusCode() + " - " + response.body());
+                System.out.println("❌ Erreur serveur admin: " + response.statusCode() + " - " + response.body());
                 throw new RuntimeException("Erreur serveur: " + response.statusCode());
             }
 
@@ -129,17 +129,5 @@ public class AdminService extends ApiService {
         }
     }
 
-    // Classe interne pour les requêtes de connexion
-    private static class LoginRequest {
-        private final String username;
-        private final String password;
-
-        public LoginRequest(String username, String password) {
-            this.username = username;
-            this.password = password;
-        }
-
-        public String getUsername() { return username; }
-        public String getPassword() { return password; }
-    }
+    // Supprimé la classe LoginRequest pour éviter les problèmes de modules
 }

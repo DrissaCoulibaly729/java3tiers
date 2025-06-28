@@ -14,6 +14,10 @@ import javafx.scene.control.*;
 import javafx.stage.Stage;
 
 import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 
 public class AdminLoginController {
 
@@ -27,7 +31,6 @@ public class AdminLoginController {
 
     @FXML
     private void initialize() {
-        // Configuration initiale
         lblMessage.setText("");
         setupEnterKeyHandler();
     }
@@ -42,6 +45,12 @@ public class AdminLoginController {
         String username = txtUsername.getText().trim();
         String password = txtPassword.getText();
 
+        System.out.println("🚀 =========================");
+        System.out.println("🚀 DEBUG CONNEXION ADMIN");
+        System.out.println("🚀 Username saisi: '" + username + "'");
+        System.out.println("🚀 Password saisi: '" + password + "'");
+        System.out.println("🚀 =========================");
+
         if (username.isEmpty() || password.isEmpty()) {
             showMessage("Veuillez remplir tous les champs", "error");
             return;
@@ -51,22 +60,24 @@ public class AdminLoginController {
         btnLogin.setDisable(true);
         btnLogin.setText("Connexion...");
 
+        // Test direct de l'API
+        testDirectAPI(username, password);
+
         // Exécuter la connexion dans un thread séparé
         Thread loginThread = new Thread(() -> {
             try {
-                System.out.println("🔐 Tentative de connexion admin...");
+                System.out.println("🚀 AVANT appel adminService.login()");
                 AdminDTO admin = adminService.login(username, password);
+                System.out.println("🚀 APRES appel adminService.login() - Résultat: " + admin);
 
                 Platform.runLater(() -> {
                     if (admin != null) {
                         System.out.println("✅ Connexion admin réussie pour: " + admin.getUsername());
 
-                        // Stocker les informations de session
                         SessionManager.setCurrentAdmin(admin);
 
                         showMessage("Connexion réussie ! Redirection...", "success");
 
-                        // Redirection vers le dashboard admin après un court délai
                         Platform.runLater(() -> {
                             try {
                                 Thread.sleep(1000);
@@ -76,6 +87,7 @@ public class AdminLoginController {
                             }
                         });
                     } else {
+                        System.out.println("❌ adminService.login() a retourné null");
                         showMessage("Identifiants incorrects", "error");
                         resetLoginButton();
                     }
@@ -83,7 +95,8 @@ public class AdminLoginController {
 
             } catch (Exception e) {
                 Platform.runLater(() -> {
-                    System.err.println("❌ Identifiants admin incorrects");
+                    System.err.println("❌ Exception dans adminService.login(): " + e.getMessage());
+                    e.printStackTrace();
 
                     String errorMessage = e.getMessage();
                     if (errorMessage.contains("serveur")) {
@@ -100,6 +113,39 @@ public class AdminLoginController {
 
         loginThread.setDaemon(true);
         loginThread.start();
+    }
+
+    // Test direct de l'API pour comparaison
+    private void testDirectAPI(String username, String password) {
+        Thread testThread = new Thread(() -> {
+            try {
+                System.out.println("🧪 =========================");
+                System.out.println("🧪 TEST DIRECT API");
+
+                String json = "{\"username\":\"" + username + "\",\"password\":\"" + password + "\"}";
+                System.out.println("🧪 JSON envoyé: " + json);
+
+                HttpRequest request = HttpRequest.newBuilder()
+                        .uri(URI.create("http://localhost:8000/api/admins/login"))
+                        .header("Content-Type", "application/json")
+                        .POST(HttpRequest.BodyPublishers.ofString(json))
+                        .build();
+
+                HttpResponse<String> response = HttpClient.newHttpClient()
+                        .send(request, HttpResponse.BodyHandlers.ofString());
+
+                System.out.println("🧪 Status direct: " + response.statusCode());
+                System.out.println("🧪 Réponse directe: " + response.body());
+                System.out.println("🧪 =========================");
+
+            } catch (Exception e) {
+                System.out.println("🧪 Erreur test direct: " + e.getMessage());
+                e.printStackTrace();
+            }
+        });
+
+        testThread.setDaemon(true);
+        testThread.start();
     }
 
     @FXML
