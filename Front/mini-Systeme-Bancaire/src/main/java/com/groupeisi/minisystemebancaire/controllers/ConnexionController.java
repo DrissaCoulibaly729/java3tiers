@@ -69,22 +69,17 @@ public class ConnexionController implements Initializable {
     }
 
     private void connecterAdmin(String username, String password) {
-        System.out.println("Tentative de connexion admin: " + username);
-
+        // Créer le service pour la connexion admin si pas encore fait
+        // Pour l'instant, on simule
         AuthService.loginAdmin(username, password)
                 .thenAccept(response -> {
-                    System.out.println("Réponse reçue: " + response);
                     Platform.runLater(() -> {
                         setLoading(false);
                         if (response != null) {
                             try {
                                 showSuccess("Connexion réussie en tant qu'administrateur");
-                                System.out.println("Tentative d'ouverture du dashboard admin...");
                                 redirectToAdminDashboard();
-                                System.out.println("Dashboard admin ouvert avec succès !");
                             } catch (Exception e) {
-                                System.out.println("ERREUR lors de la redirection: " + e.getMessage());
-                                e.printStackTrace();
                                 showError("Erreur lors de la redirection: " + e.getMessage());
                             }
                         } else {
@@ -93,11 +88,9 @@ public class ConnexionController implements Initializable {
                     });
                 })
                 .exceptionally(throwable -> {
-                    System.out.println("Erreur complète: " + throwable.getMessage());
-                    throwable.printStackTrace();
                     Platform.runLater(() -> {
                         setLoading(false);
-                        showError("Erreur de connexion administrateur: " + throwable.getMessage());
+                        showError("Erreur de connexion administrateur: " + getErrorMessage(throwable));
                     });
                     return null;
                 });
@@ -164,15 +157,13 @@ public class ConnexionController implements Initializable {
 
     private void redirectToClientDashboard() throws Exception {
         WindowManager.closeWindow();
-        WindowManager.openWindow("/com/groupeisi/minisystemebancaire/client/dashboard-client.fxml", "Espace Client - Tableau de bord");
+        WindowManager.openWindow("/fxml/client/dashboard-client.fxml", "Espace Client - Tableau de bord");
     }
 
     private void redirectToAdminDashboard() throws Exception {
-        // Debug : voir ce qui est disponible
-        System.out.println("Ressource trouvée : " + WindowManager.class.getResource("/com/groupeisi/minisystemebancaire/admin/"));
-
         WindowManager.closeWindow();
-        WindowManager.openWindow("/com/groupeisi/minisystemebancaire/admin/test-admin.fxml", "Administration - Tableau de bord");
+        // Utiliser le fichier dashboard_admin.fxml existant (avec les corrections de type)
+        WindowManager.openWindow("/com/groupeisi/minisystemebancaire/admin/dashboard_admin.fxml", "Administration - Tableau de bord");
     }
 
     private String getErrorMessage(Throwable throwable) {
