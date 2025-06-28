@@ -1,56 +1,43 @@
 package com.groupeisi.minisystemebancaire.services;
 
-import com.groupeisi.minisystemebancaire.config.ApiConfig;
 import com.groupeisi.minisystemebancaire.dtos.TransactionDTo;
+
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 public class TransactionService {
-    private final LaravelApiService apiService = LaravelApiService.getInstance();
 
-    public CompletableFuture<List<TransactionDTo>> getTransactionsByClient(Long clientId) {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                String endpoint = String.format(ApiConfig.Endpoints.TRANSACTIONS_BY_CLIENT, clientId);
-                String response = apiService.get(endpoint);
-                return apiService.fromJsonList(response, TransactionDTo.class);
-            } catch (Exception e) {
-                throw new RuntimeException("Erreur lors du chargement des transactions", e);
-            }
-        });
+    /**
+     * Obtenir les transactions d'un compte
+     */
+    public static CompletableFuture<List<TransactionDTo>> getTransactionsByCompte(Long compteId) {
+        return HttpService.getListAsync("/api/transactions/compte/" + compteId, TransactionDTo.class);
     }
 
-    public CompletableFuture<List<TransactionDTo>> getTransactionsByCompte(Long compteId) {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                String endpoint = String.format(ApiConfig.Endpoints.TRANSACTIONS_BY_COMPTE, compteId);
-                String response = apiService.get(endpoint);
-                return apiService.fromJsonList(response, TransactionDTo.class);
-            } catch (Exception e) {
-                throw new RuntimeException("Erreur lors du chargement des transactions", e);
-            }
-        });
+    /**
+     * Obtenir les dernières transactions d'un client
+     */
+    public static CompletableFuture<List<TransactionDTo>> getDernieresTransactions(Long clientId, int limit) {
+        return HttpService.getListAsync("/api/transactions/client/" + clientId + "?limit=" + limit, TransactionDTo.class);
     }
 
-    public CompletableFuture<TransactionDTo> createTransaction(TransactionDTo transaction) {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                String response = apiService.post(ApiConfig.Endpoints.TRANSACTIONS, transaction);
-                return apiService.fromJson(response, TransactionDTo.class);
-            } catch (Exception e) {
-                throw new RuntimeException("Erreur lors de la création de la transaction", e);
-            }
-        });
+    /**
+     * Obtenir une transaction par son ID
+     */
+    public static CompletableFuture<TransactionDTo> getTransactionById(Long transactionId) {
+        return HttpService.getAsync("/api/transactions/" + transactionId, TransactionDTo.class);
     }
 
-    public CompletableFuture<List<TransactionDTo>> getTransactionsSuspectes() {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                String response = apiService.get(ApiConfig.Endpoints.TRANSACTIONS_SUSPECTES);
-                return apiService.fromJsonList(response, TransactionDTo.class);
-            } catch (Exception e) {
-                throw new RuntimeException("Erreur lors du chargement des transactions suspectes", e);
-            }
-        });
+    /**
+     * Obtenir l'historique des transactions avec filtres
+     */
+    public static CompletableFuture<List<TransactionDTo>> getHistorique(Long clientId, String dateDebut, String dateFin, String type) {
+        StringBuilder url = new StringBuilder("/api/transactions/historique/" + clientId + "?");
+
+        if (dateDebut != null) url.append("date_debut=").append(dateDebut).append("&");
+        if (dateFin != null) url.append("date_fin=").append(dateFin).append("&");
+        if (type != null) url.append("type=").append(type).append("&");
+
+        return HttpService.getListAsync(url.toString(), TransactionDTo.class);
     }
 }

@@ -1,434 +1,364 @@
 package com.groupeisi.minisystemebancaire.controllers.admin;
 
-import gm.rahmanproperties.optibank.config.ApiConfig;
-import gm.rahmanproperties.optibank.dtos.*;
-import gm.rahmanproperties.optibank.utils.ValidationUtils;
-import gm.rahmanproperties.optibank.utils.WindowManager;
-import javafx.beans.property.SimpleStringProperty;
-import javafx.event.ActionEvent;
+import com.groupeisi.minisystemebancaire.config.ApiConfig;
+import com.groupeisi.minisystemebancaire.dtos.*;
+import com.groupeisi.minisystemebancaire.services.*;
+import com.groupeisi.minisystemebancaire.utils.CurrencyFormatter;
+import com.groupeisi.minisystemebancaire.utils.WindowManager;
+import javafx.application.Platform;
+import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
-import javafx.scene.chart.LineChart;
-import javafx.scene.chart.NumberAxis;
+import javafx.scene.chart.BarChart;
+import javafx.scene.chart.PieChart;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.*;
-import javafx.scene.text.Text;
-import javafx.util.StringConverter;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.client.RestTemplate;
+import javafx.scene.control.cell.PropertyValueFactory;
 
 import java.math.BigDecimal;
 import java.net.URL;
-import java.text.DecimalFormat;
-import java.util.*;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
+import java.util.Map;
+import java.util.ResourceBundle;
 import java.util.stream.Collectors;
 
 public class DashboardAdminController implements Initializable {
-    @FXML
-    private TableView<TransactionDTo> transactionsTable;
-    @FXML
-    private TableView<CreditDTo> creditsTable;
-    @FXML
-    private TableView<TicketSupportDTo> ticketsTable;
-    @FXML
-    private ComboBox<?> listClient;
-    @FXML
-    private Label messageField;
-    @FXML
-    private Button btnButton;
-    @FXML
-    private LineChart<String, Number> statisticsChart;
-    @FXML
-    private Text totalClientsLabel;
-    @FXML
-    private Text totalTransactionsLabel;
-    @FXML
-    private Text totalCreditsLabel;
-    @FXML
-    private TextField adresseField;
-    @FXML
-    private ComboBox<CompteDTo.TypeCompte> cbbTypeCompte;
-    @FXML
-    private TextField emailField;
-    @FXML
-    private TextField nomField;
-    @FXML
-    private TextField prenomField;
-    @FXML
-    private PasswordField passwordField;
-    @FXML
-    private TextField soldeField;
-    @FXML
-    private TextField telephoneField;
-    @FXML
-    private TextField usernameField;
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    // Labels pour les statistiques
+    @FXML private Label totalClientsLabel;
+    @FXML private Label totalComptesLabel;
+    @FXML private Label totalTransactionsLabel;
+    @FXML private Label soldeGlobalLabel;
+
+    // Tables
+    @FXML private TableView<TransactionDTo> dernieresTransactionsTable;
+    @FXML private TableColumn<TransactionDTo, String> transactionTypeCol;
+    @FXML private TableColumn<TransactionDTo, BigDecimal> transactionMontantCol;
+    @FXML private TableColumn<TransactionDTo, String> transactionDateCol;
+    @FXML private TableColumn<TransactionDTo, String> transactionStatutCol;
+
+    @FXML private TableView<CreditDTo> demandesCreditsTable;
+    @FXML private TableColumn<CreditDTo, BigDecimal> creditMontantCol;
+    @FXML private TableColumn<CreditDTo, String> creditStatutCol;
+    @FXML private TableColumn<CreditDTo, String> creditDateCol;
+
+    @FXML private TableView<TicketSupportDTo> ticketsSupportTable;
+    @FXML private TableColumn<TicketSupportDTo, String> ticketSujetCol;
+    @FXML private TableColumn<TicketSupportDTo, String> ticketStatutCol;
+    @FXML private TableColumn<TicketSupportDTo, String> ticketPrioriteCol;
+    @FXML private TableColumn<TicketSupportDTo, String> ticketDateCol;
+
+    // Graphiques
+    @FXML private PieChart transactionsChart;
+    @FXML private BarChart<String, Number> evolutionComptesChart;
+
+    // Boutons de navigation
+    @FXML private Button gestionClientsBtn;
+    @FXML private Button gestionComptesBtn;
+    @FXML private Button gestionCreditsBtn;
+    @FXML private Button gestionFraisBtn;
+    @FXML private Button parametresBtn;
+    @FXML private Button deconnexionBtn;
 
     @Override
-    public void initialize(URL url, ResourceBundle rb) {
-        chargerDonnees();
-        cbbTypeCompte.getItems().addAll(List.of(CompteDTo.TypeCompte.values()));
-        cbbTypeCompte.getSelectionModel().selectFirst();
-//        System.out.println(getTotalClients().stream().count());
-        totalClientsLabel.setText(String.valueOf(getTotalClients()));
-        totalTransactionsLabel.setText(String.valueOf(getTotalTransactions()));
-        totalCreditsLabel.setText(String.valueOf(getTotalCredits()));
-
-        NumberAxis yAxis = (NumberAxis) statisticsChart.getYAxis();
-        yAxis.setTickLabelFormatter(new StringConverter<Number>() {
-            @Override
-            public String toString(Number object) {
-                return formatXOF(BigDecimal.valueOf(object.doubleValue()));
-            }
-
-            @Override
-            public Number fromString(String string) {
-                return null;
-            }
-        });
-
-        // Appeler le chargement des données
-        chargerDonnees();
-    }
-
-    private void chargerDonnees() {
-        chargerTransactionsSuspectes();
-        chargerCreditsEnCours();
-        chargerTicketsNonResolus();
-        setupTransactionsTable();
-        setupTicketsTable();
-        setupCreditsTable();
-        chargerStatistiques();
-    }
-
-    private void chargerTransactionsSuspectes() {
-        try {
-            TransactionDTo[] transactions = restTemplate.exchange(
-                    ApiConfig.getApiUrl() + "/transactions/suspectes",
-                    HttpMethod.GET,
-                    new HttpEntity<>(null, ApiConfig.createHeaders()),
-                    TransactionDTo[].class
-            ).getBody();
-
-            if (transactions != null) {
-                transactionsTable.getItems().setAll(transactions);
-            }
-        } catch (Exception e) {
-            WindowManager.showFxPopupError("Impossible de charger les transactions suspectes" +
-                    e.getMessage());
-        }
-    }
-
-    private void chargerCreditsEnCours() {
-        try {
-            CreditDTo[] credits = restTemplate.exchange(
-                    ApiConfig.getApiUrl() + "/api/credits/en-cours",
-                    HttpMethod.GET,
-                    new HttpEntity<>(null, ApiConfig.createHeaders()),
-                    CreditDTo[].class
-            ).getBody();
-
-            if (credits != null) {
-                creditsTable.getItems().setAll(credits);
-            }
-        } catch (Exception e) {
-            WindowManager.showFxPopupError("Impossible de charger les crédits en cours" +
-                    e.getMessage());
-        }
-    }
-
-    private void chargerTicketsNonResolus() {
-        try {
-            TicketSupportDTo[] tickets = restTemplate.exchange(
-                    ApiConfig.getApiUrl() + "/api/support/tickets/statut/EN_COURS",
-                    HttpMethod.GET,
-                    new HttpEntity<>(null, ApiConfig.createHeaders()),
-                    TicketSupportDTo[].class
-            ).getBody();
-
-            System.out.println("Tickets non résolus chargés : " + (tickets != null ? tickets.length : 0));
-
-            if (tickets != null) {
-                ticketsTable.getItems().setAll(tickets);
-            }
-        } catch (Exception e) {
-            WindowManager.showFxPopupError("Impossible de charger les tickets non résolus" +
-                    e.getMessage());
-        }
-    }
-
-    private void setupTransactionsTable() {
-        TableColumn<TransactionDTo, String> dateCol = new TableColumn<>("Date");
-        dateCol.setCellValueFactory(cellData ->
-                new SimpleStringProperty(cellData.getValue().getDateTransaction().toString()));
-
-        TableColumn<TransactionDTo, String> montantCol = new TableColumn<>("Montant");
-        montantCol.setCellValueFactory(cellData ->
-                new SimpleStringProperty(cellData.getValue().getMontant().toString() + " XOF"));
-
-        TableColumn<TransactionDTo, String> typeCol = new TableColumn<>("Type");
-        typeCol.setCellValueFactory(cellData ->
-                new SimpleStringProperty(cellData.getValue().getType().toString()));
-
-        transactionsTable.getColumns().setAll(dateCol, montantCol, typeCol);
-    }
-
-    private void setupCreditsTable() {
-        TableColumn<CreditDTo, String> referenceCol = new TableColumn<>("Référence");
-        referenceCol.setCellValueFactory(cellData ->
-                new SimpleStringProperty(cellData.getValue().getReference()));
-
-        TableColumn<CreditDTo, String> montantCol = new TableColumn<>("Montant");
-        montantCol.setCellValueFactory(cellData ->
-                new SimpleStringProperty(cellData.getValue().getMontant().toString() + " XOF"));
-
-        TableColumn<CreditDTo, String> statutCol = new TableColumn<>("Statut");
-        statutCol.setCellValueFactory(cellData ->
-                new SimpleStringProperty(cellData.getValue().getStatut().toString()));
-
-        creditsTable.getColumns().setAll(referenceCol, montantCol, statutCol);
-    }
-
-    private void setupTicketsTable() {
-        TableColumn<TicketSupportDTo, String> sujetCol = new TableColumn<>("Sujet");
-        sujetCol.setCellValueFactory(cellData ->
-                new SimpleStringProperty(cellData.getValue().getSujet()));
-
-        TableColumn<TicketSupportDTo, String> prioriteCol = new TableColumn<>("Priorité");
-        prioriteCol.setCellValueFactory(cellData ->
-                new SimpleStringProperty(cellData.getValue().getPriorite().toString()));
-
-        TableColumn<TicketSupportDTo, String> statutCol = new TableColumn<>("Statut");
-        statutCol.setCellValueFactory(cellData ->
-                new SimpleStringProperty(cellData.getValue().getStatut().toString()));
-
-        ticketsTable.getColumns().setAll(sujetCol, prioriteCol, statutCol);
-    }
-
-    private int getTotalClients() {
-        try {
-            ResponseEntity<ClientDTo[]> response = restTemplate.exchange(
-                    ApiConfig.getApiUrl() + "/api/clients",
-                    HttpMethod.GET,
-                    new HttpEntity<>(null, ApiConfig.createHeaders()),
-                    ClientDTo[].class
-            );
-            return response.getBody() != null ? response.getBody().length : 0;
-        } catch (Exception e) {
-            WindowManager.showFxPopupError("Erreur clients: " + e.getMessage());
-            return 0;
-        }
-    }
-
-    private int getTotalTransactions() {
-        try {
-            ResponseEntity<TransactionDTo[]> response = restTemplate.exchange(
-                    ApiConfig.getApiUrl() + "/transactions/suspectes",
-                    HttpMethod.GET,
-                    new HttpEntity<>(null, ApiConfig.createHeaders()),
-                    TransactionDTo[].class
-            );
-            return response.getBody() != null ? response.getBody().length : 0;
-        } catch (Exception e) {
-            WindowManager.showFxPopupError("Erreur transactions: " + e.getMessage());
-            return 0;
-        }
-    }
-
-    private int getTotalCredits() {
-        try {
-            ResponseEntity<CreditDTo[]> response = restTemplate.exchange(
-                    ApiConfig.getApiUrl() + "/credits/retard",
-                    HttpMethod.GET,
-                    new HttpEntity<>(null, ApiConfig.createHeaders()),
-                    CreditDTo[].class
-            );
-            return response.getBody() != null ? response.getBody().length : 0;
-        } catch (Exception e) {
-            WindowManager.showFxPopupError("Erreur crédits: " + e.getMessage());
-            return 0;
-        }
-    }
-
-    private void chargerStatistiques() {
-        try {
-            // Récupérer les transactions des 6 derniers mois pour les statistiques
-            ResponseEntity<TransactionDTo[]> response = restTemplate.exchange(
-                        ApiConfig.getApiUrl() + "/transactions/derniers-mois?mois=6",
-                    HttpMethod.GET,
-                    new HttpEntity<>(null, ApiConfig.createHeaders()),
-                    TransactionDTo[].class
-            );
-
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                // Grouper les transactions par mois et calculer le total
-                Map<String, BigDecimal> transactionsParMois = Arrays.stream(response.getBody())
-                        .collect(Collectors.groupingBy(
-                                t -> t.getDateTransaction().getMonth().toString(),
-                                Collectors.reducing(
-                                        BigDecimal.ZERO,
-                                        TransactionDTo::getMontant,
-                                        BigDecimal::add
-                                )
-                        ));
-
-                // Convertir en format pour le graphique
-                List<Map<String, Object>> donnees = transactionsParMois.entrySet().stream()
-                        .map(entry -> Map.<String, Object>of(
-                                "mois", entry.getKey(),
-                                "total", entry.getValue()
-                        ))
-                        .collect(Collectors.toList());
-
-                mettreAJourGraphique(donnees);
-            }
-        } catch (Exception e) {
-            WindowManager.showFxPopupError("Erreur lors du chargement des statistiques: " + e.getMessage());
-
-            // Données de démo en cas d'erreur
-            List<Map<String, Object>> donneesDemo = List.of(
-                    Map.of("mois", "Janvier", "total", new BigDecimal("1500000")),
-                    Map.of("mois", "Février", "total", new BigDecimal("2300000")),
-                    Map.of("mois", "Mars", "total", new BigDecimal("1800000")),
-                    Map.of("mois", "Avril", "total", new BigDecimal("3100000")),
-                    Map.of("mois", "Mai", "total", new BigDecimal("2900000")),
-                    Map.of("mois", "Juin", "total", new BigDecimal("3500000"))
-            );
-            mettreAJourGraphique(donneesDemo);
-        }
-    }
-
-    private void mettreAJourGraphique(List<Map<String, Object>> donnees) {
-        statisticsChart.getData().clear();
-
-        XYChart.Series<String, Number> series = new XYChart.Series<>();
-        series.setName("Évolution des transactions");
-
-        // Trier les données par mois (vous pourriez avoir besoin d'un ordre spécifique)
-        donnees.sort(Comparator.comparing(d -> {
-            String mois = (String) d.get("mois");
-            return List.of("Janvier", "Février", "Mars", "Avril", "Mai", "Juin").indexOf(mois);
-        }));
-
-        for (Map<String, Object> point : donnees) {
-            String mois = (String) point.get("mois");
-            BigDecimal total = (BigDecimal) point.get("total");
-            series.getData().add(new XYChart.Data<>(mois, total));
-        }
-
-        statisticsChart.getData().add(series);
-
-        // Personnalisation du graphique
-        statisticsChart.setTitle("Évolution des transactions (XOF)");
-        statisticsChart.setLegendVisible(false);
-        statisticsChart.setCreateSymbols(true);
-        statisticsChart.setAnimated(false);
-
-        // Style des séries
-        for (XYChart.Data<String, Number> data : series.getData()) {
-            data.getNode().setStyle("-fx-stroke: #078d65; -fx-stroke-width: 2px;");
-        }
-    }
-
-    private String formatXOF(BigDecimal montant) {
-        DecimalFormat format = new DecimalFormat("#,### XOF");
-        return format.format(montant);
-    }
-
-    @FXML
-    public void handleSave(javafx.event.ActionEvent actionEvent) {
-        if (!ValidationUtils.isValidEmail(emailField.getText())) {
-            WindowManager.showFxPopupError("Adresse email invalide");
+    public void initialize(URL location, ResourceBundle resources) {
+        // Vérifier si l'utilisateur est admin
+        if (!ApiConfig.isLoggedIn()) {
+            redirectToLogin();
             return;
         }
 
-        if (!ValidationUtils.isValidPassword(passwordField.getText())) {
-            WindowManager.showFxPopupError("Mot de passe doit contenir au moins 8 caractères et inclure des majuscules, minuscules, chiffres et caractères spéciaux");
-            return;
+        // Configurer les tables
+        setupTables();
+
+        // Configurer les boutons
+        setupButtons();
+
+        // Charger les données du tableau de bord
+        loadDashboardData();
+    }
+
+    private void setupTables() {
+        // Configuration table des transactions
+        if (transactionTypeCol != null) {
+            transactionTypeCol.setCellValueFactory(new PropertyValueFactory<>("type"));
         }
-
-        if (!ValidationUtils.isValidPhone(telephoneField.getText())) {
-            WindowManager.showFxPopupError("Numéro de téléphone invalide");
-            return;
-        }
-
-        if (!ValidationUtils.isValidAmount(soldeField.getText())) {
-            WindowManager.showFxPopupError("Solde doit être un nombre positif");
-            return;
-        }
-
-        if (nomField.getText().isEmpty() || prenomField.getText().isEmpty() ||
-                adresseField.getText().isEmpty() || usernameField.getText().isEmpty()) {
-            WindowManager.showFxPopupError("Tous les champs sont obligatoires");
-            return;
-        }
-
-        ClientDTo clientDTo = new ClientDTo();
-        clientDTo.setNom(nomField.getText());
-        clientDTo.setPrenom(prenomField.getText());
-        clientDTo.setEmail(emailField.getText());
-        clientDTo.setTelephone(telephoneField.getText());
-        clientDTo.setRoles(Collections.singleton(ClientDTo.Role.ROLE_CLIENT));
-        clientDTo.setPassword(passwordField.getText());
-        clientDTo.setAdresse(adresseField.getText());
-        clientDTo.setUsername(usernameField.getText());
-        try {
-            ResponseEntity<ClientDTo> exchange = restTemplate.exchange(
-                    ApiConfig.getApiUrl() + "/clients",
-                    HttpMethod.POST,
-                    new HttpEntity<>(clientDTo, ApiConfig.createHeaders()),
-                    ClientDTo.class
-            );
-
-            System.out.println("Response Status: " + exchange.getStatusCode());
-            System.out.println("Response Body: " + exchange.getBody());
-
-            if (exchange.getStatusCode().is2xxSuccessful()) {
-                clientDTo = exchange.getBody();
-                System.out.println(clientDTo);
-                if (clientDTo == null) {
-                    throw new Exception("Client non créé, réponse vide");
+        if (transactionMontantCol != null) {
+            transactionMontantCol.setCellValueFactory(new PropertyValueFactory<>("montant"));
+            transactionMontantCol.setCellFactory(column -> new TableCell<TransactionDTo, BigDecimal>() {
+                @Override
+                protected void updateItem(BigDecimal item, boolean empty) {
+                    super.updateItem(item, empty);
+                    if (empty || item == null) {
+                        setText(null);
+                    } else {
+                        setText(CurrencyFormatter.format(item.doubleValue()));
+                    }
                 }
+            });
+        }
+        if (transactionDateCol != null) {
+            transactionDateCol.setCellValueFactory(new PropertyValueFactory<>("dateTransaction"));
+        }
+        if (transactionStatutCol != null) {
+            transactionStatutCol.setCellValueFactory(new PropertyValueFactory<>("statut"));
+        }
 
-                CompteDTo compteDTo = new CompteDTo();
-                compteDTo.setType(CompteDTo.TypeCompte.valueOf(String.valueOf((cbbTypeCompte.getValue()))));
-                compteDTo.setSolde(new BigDecimal(soldeField.getText()));
-                compteDTo.setClientId(clientDTo.getId());
+        // Configuration table des crédits
+        if (creditMontantCol != null) {
+            creditMontantCol.setCellValueFactory(new PropertyValueFactory<>("montant"));
+            creditMontantCol.setCellFactory(column -> new TableCell<CreditDTo, BigDecimal>() {
+                @Override
+                protected void updateItem(BigDecimal item, boolean empty) {
+                    super.updateItem(item, empty);
+                    if (empty || item == null) {
+                        setText(null);
+                    } else {
+                        setText(CurrencyFormatter.format(item.doubleValue()));
+                    }
+                }
+            });
+        }
+        if (creditStatutCol != null) {
+            creditStatutCol.setCellValueFactory(new PropertyValueFactory<>("statut"));
+        }
+        if (creditDateCol != null) {
+            creditDateCol.setCellValueFactory(new PropertyValueFactory<>("dateCreation"));
+        }
 
-                ResponseEntity<CompteDTo> compteResponse = restTemplate.exchange(
-                        ApiConfig.getApiUrl() + "/api/comptes?clientId="+clientDTo.getId(),
-                        HttpMethod.POST,
-                        new HttpEntity<>(compteDTo, ApiConfig.createHeaders()),
-                        CompteDTo.class
+        // Configuration table des tickets de support
+        if (ticketSujetCol != null) {
+            ticketSujetCol.setCellValueFactory(new PropertyValueFactory<>("sujet"));
+        }
+        if (ticketStatutCol != null) {
+            ticketStatutCol.setCellValueFactory(new PropertyValueFactory<>("statut"));
+        }
+        if (ticketPrioriteCol != null) {
+            ticketPrioriteCol.setCellValueFactory(new PropertyValueFactory<>("priorite"));
+        }
+        if (ticketDateCol != null) {
+            ticketDateCol.setCellValueFactory(new PropertyValueFactory<>("dateCreation"));
+        }
+    }
+
+    private void setupButtons() {
+        if (gestionClientsBtn != null) {
+            gestionClientsBtn.setOnAction(e -> ouvrirGestionClients());
+        }
+        if (gestionComptesBtn != null) {
+            gestionComptesBtn.setOnAction(e -> ouvrirGestionComptes());
+        }
+        if (gestionCreditsBtn != null) {
+            gestionCreditsBtn.setOnAction(e -> ouvrirGestionCredits());
+        }
+        if (gestionFraisBtn != null) {
+            gestionFraisBtn.setOnAction(e -> ouvrirGestionFrais());
+        }
+        if (parametresBtn != null) {
+            parametresBtn.setOnAction(e -> ouvrirParametres());
+        }
+        if (deconnexionBtn != null) {
+            deconnexionBtn.setOnAction(e -> seDeconnecter());
+        }
+    }
+
+    private void loadDashboardData() {
+        // Charger les statistiques générales
+        loadStatistiques();
+
+        // Charger les dernières transactions
+        loadDernieresTransactions();
+
+        // Charger les demandes de crédit en attente
+        loadDemandesCredits();
+
+        // Charger les tickets de support
+        loadTicketsSupport();
+
+        // Charger les données des graphiques
+        loadChartsData();
+    }
+
+    private void loadStatistiques() {
+        // Nombre total de clients
+        ClientService.getAllClients()
+                .thenAccept(clients -> {
+                    Platform.runLater(() -> {
+                        if (totalClientsLabel != null && clients != null) {
+                            totalClientsLabel.setText(String.valueOf(clients.size()));
+                        }
+                    });
+                })
+                .exceptionally(throwable -> {
+                    handleError("Erreur lors du chargement des clients", throwable);
+                    return null;
+                });
+
+        // Vous pouvez ajouter d'autres statistiques ici
+        // Par exemple, appeler des endpoints Laravel spécifiques pour les statistiques
+    }
+
+    private void loadDernieresTransactions() {
+        // Charger les dernières transactions globales
+        // Vous devrez peut-être créer un endpoint spécifique dans Laravel
+        HttpService.getListAsync("/api/admin/transactions/recent?limit=20", TransactionDTo.class)
+                .thenAccept(transactions -> {
+                    Platform.runLater(() -> {
+                        if (dernieresTransactionsTable != null && transactions != null) {
+                            dernieresTransactionsTable.setItems(FXCollections.observableArrayList(transactions));
+
+                            if (totalTransactionsLabel != null) {
+                                totalTransactionsLabel.setText(String.valueOf(transactions.size()));
+                            }
+                        }
+                    });
+                })
+                .exceptionally(throwable -> {
+                    handleError("Erreur lors du chargement des transactions", throwable);
+                    return null;
+                });
+    }
+
+    private void loadDemandesCredits() {
+        CreditService.getAllCredits()
+                .thenAccept(credits -> {
+                    Platform.runLater(() -> {
+                        if (demandesCreditsTable != null && credits != null) {
+                            // Filtrer les crédits en attente
+                            List<CreditDTo> creditsEnAttente = credits.stream()
+                                    .filter(credit -> "en_attente".equals(credit.getStatut()))
+                                    .collect(Collectors.toList());
+
+                            demandesCreditsTable.setItems(FXCollections.observableArrayList(creditsEnAttente));
+                        }
+                    });
+                })
+                .exceptionally(throwable -> {
+                    handleError("Erreur lors du chargement des crédits", throwable);
+                    return null;
+                });
+    }
+
+    private void loadTicketsSupport() {
+        // Charger les tickets de support
+        // Vous devrez créer ce service
+        HttpService.getListAsync("/api/admin/support/tickets", TicketSupportDTo.class)
+                .thenAccept(tickets -> {
+                    Platform.runLater(() -> {
+                        if (ticketsSupportTable != null && tickets != null) {
+                            ticketsSupportTable.setItems(FXCollections.observableArrayList(tickets));
+                        }
+                    });
+                })
+                .exceptionally(throwable -> {
+                    // Gérer l'erreur silencieusement si le service n'existe pas encore
+                    return null;
+                });
+    }
+
+    private void loadChartsData() {
+        // Charger les données pour les graphiques
+        if (transactionsChart != null) {
+            // Exemple de données pour le graphique en secteurs
+            Platform.runLater(() -> {
+                transactionsChart.getData().clear();
+                transactionsChart.getData().addAll(
+                        new PieChart.Data("Virements", 45),
+                        new PieChart.Data("Dépôts", 30),
+                        new PieChart.Data("Retraits", 25)
                 );
-
-                if (!compteResponse.getStatusCode().is2xxSuccessful()) {
-                    throw new Exception("Erreur lors de la création du compte : " + compteResponse.getStatusCode());
-                }
-
-                compteDTo = compteResponse.getBody();
-                if (compteDTo == null) {
-                    throw new Exception("Compte non créé, réponse vide");
-                }
-
-            } else {
-                throw new Exception("Erreur lors de la création du client : " + exchange.getStatusCode());
-            }
-
-        } catch (Exception e) {
-            WindowManager.showFxPopupError("Erreur lors de la création du client : " + e.getMessage());
-            return;
+            });
         }
 
-        WindowManager.showFxPopupSuccess("Client créé avec succès");
-        chargerDonnees();
+        if (evolutionComptesChart != null) {
+            // Exemple de données pour le graphique en barres
+            Platform.runLater(() -> {
+                XYChart.Series<String, Number> series = new XYChart.Series<>();
+                series.setName("Nouveaux comptes");
+                series.getData().add(new XYChart.Data<>("Jan", 23));
+                series.getData().add(new XYChart.Data<>("Fév", 14));
+                series.getData().add(new XYChart.Data<>("Mar", 35));
+                series.getData().add(new XYChart.Data<>("Avr", 28));
+
+                evolutionComptesChart.getData().clear();
+                evolutionComptesChart.getData().add(series);
+            });
+        }
     }
 
-    @FXML
-    public void handleAction(ActionEvent actionEvent) {
+    // Actions des boutons
 
+    private void ouvrirGestionClients() {
+        try {
+            WindowManager.openWindow("/fxml/admin/gestion-clients.fxml", "Gestion des clients");
+        } catch (Exception e) {
+            handleError("Erreur lors de l'ouverture de la gestion des clients", e);
+        }
+    }
+
+    private void ouvrirGestionComptes() {
+        try {
+            WindowManager.openWindow("/fxml/admin/gestion-comptes.fxml", "Gestion des comptes");
+        } catch (Exception e) {
+            handleError("Erreur lors de l'ouverture de la gestion des comptes", e);
+        }
+    }
+
+    private void ouvrirGestionCredits() {
+        try {
+            WindowManager.openWindow("/fxml/admin/gestion-credits.fxml", "Gestion des crédits");
+        } catch (Exception e) {
+            handleError("Erreur lors de l'ouverture de la gestion des crédits", e);
+        }
+    }
+
+    private void ouvrirGestionFrais() {
+        try {
+            WindowManager.openWindow("/fxml/admin/gestion-frais.fxml", "Gestion des frais");
+        } catch (Exception e) {
+            handleError("Erreur lors de l'ouverture de la gestion des frais", e);
+        }
+    }
+
+    private void ouvrirParametres() {
+        try {
+            WindowManager.openWindow("/fxml/admin/parametres.fxml", "Paramètres");
+        } catch (Exception e) {
+            handleError("Erreur lors de l'ouverture des paramètres", e);
+        }
+    }
+
+    private void seDeconnecter() {
+        AuthService.logout()
+                .thenRun(() -> {
+                    Platform.runLater(this::redirectToLogin);
+                })
+                .exceptionally(throwable -> {
+                    Platform.runLater(() -> {
+                        ApiConfig.logout();
+                        redirectToLogin();
+                    });
+                    return null;
+                });
+    }
+
+    private void redirectToLogin() {
+        try {
+            WindowManager.closeWindow();
+            WindowManager.openWindow("/fxml/connexion.fxml", "Connexion");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void handleError(String message, Throwable throwable) {
+        Platform.runLater(() -> {
+            String errorMessage = message;
+            if (throwable != null && throwable.getMessage() != null) {
+                errorMessage += ": " + throwable.getMessage();
+            }
+            WindowManager.showError("Erreur", "Erreur de chargement", errorMessage);
+        });
     }
 }

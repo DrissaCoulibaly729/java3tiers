@@ -1,155 +1,193 @@
 package com.groupeisi.minisystemebancaire.controllers;
 
-import gm.rahmanproperties.optibank.config.ApiConfig;
-import gm.rahmanproperties.optibank.utils.WindowManager;
+import com.groupeisi.minisystemebancaire.config.ApiConfig;
+import com.groupeisi.minisystemebancaire.services.AuthService;
+import com.groupeisi.minisystemebancaire.utils.ValidationUtils;
+import com.groupeisi.minisystemebancaire.utils.WindowManager;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
-import javafx.scene.control.PasswordField;
-import javafx.scene.control.TextField;
-import org.springframework.http.*;
-import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.ResourceAccessException;
-import org.springframework.web.client.RestTemplate;
+import javafx.fxml.Initializable;
+import javafx.scene.control.*;
 
-import java.util.List;
-import java.util.Map;
+import java.net.URL;
+import java.util.ResourceBundle;
 
-public class ConnexionController {
-    @FXML private TextField usernameField;
+public class ConnexionController implements Initializable {
+
+    @FXML private TextField emailField;
     @FXML private PasswordField passwordField;
+    @FXML private Button connexionButton;
+    @FXML private Button inscriptionButton;
+    @FXML private Hyperlink motDePasseOublieLink;
+    @FXML private Label messageLabel;
+    @FXML private ProgressIndicator loadingIndicator;
 
-    private final RestTemplate restTemplate = new RestTemplate();
-    private final String AUTH_URL = ApiConfig.getApiUrl() + "/auth";
+    @Override
+    public void initialize(URL location, ResourceBundle resources) {
+        // Masquer l'indicateur de chargement au démarrage
+        if (loadingIndicator != null) {
+            loadingIndicator.setVisible(false);
+        }
 
-    public record LoginRequest(String username, String password) {}
+        // Configurer les actions
+        connexionButton.setOnAction(e -> seConnecter());
+
+        if (inscriptionButton != null) {
+            inscriptionButton.setOnAction(e -> ouvrirInscription());
+        }
+
+        if (motDePasseOublieLink != null) {
+            motDePasseOublieLink.setOnAction(e -> ouvrirMotDePasseOublie());
+        }
+
+        // Permettre la connexion avec Entrée
+        passwordField.setOnAction(e -> seConnecter());
+    }
 
     @FXML
-    private void handleLogin() {
-        String username = usernameField.getText();
+    private void seConnecter() {
+        String email = emailField.getText().trim();
         String password = passwordField.getText();
 
-        if (!validateInput(username, password)) {
+        // Validation des champs
+        if (!validerChamps(email, password)) {
             return;
         }
 
-        LoginRequest loginRequest = new LoginRequest(username, password);
+        // Afficher l'indicateur de chargement
+        setLoading(true);
+        clearMessage();
 
-        try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
+        // Effectuer la connexion
+        AuthService.login(email, password)
+                .thenAccept(response -> {
+                    Platform.runLater(() -> {
+                        setLoading(false);
 
-            HttpEntity<LoginRequest> requestEntity = new HttpEntity<>(loginRequest, headers);
+                        if (response != null && response.getToken() != null) {
+                            // Connexion réussie
+                            try {
+                                // Rediriger vers le tableau de bord approprié
+                                redirectToDashboard(response.getUser().getEmail());
+                            } catch (Exception e) {
+                                showError("Erreur lors de l'ouverture du tableau de bord: " + e.getMessage());
+                            }
+                        } else {
+                            showError("Identifiants invalides");
+                        }
+                    });
+                })
+                .exceptionally(throwable -> {
+                    Platform.runLater(() -> {
+                        setLoading(false);
 
-            ResponseEntity<Map> response = restTemplate.postForEntity(
-                    AUTH_URL + "/login",
-                    requestEntity,
-                    Map.class
-            );
+                        // Gérer les différents types d'erreurs
+                        String errorMessage = "Erreur de connexion";
 
-            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
-                String token = (String) response.getBody().get("token");
+                        if (throwable.getCause() != null) {
+                            String causeMessage = throwable.getCause().getMessage();
+                            if (causeMessage.contains("401")) {
+                                errorMessage = "Email ou mot de passe incorrect";
+                            } else if (causeMessage.contains("403")) {
+                                errorMessage = "Compte désactivé";
+                            } else if (causeMessage.contains("500")) {
+                                errorMessage = "Erreur serveur, veuillez réessayer plus tard";
+                            } else {
+                                errorMessage = "Impossible de se connecter au serveur";
+                            }
+                        }
 
-                if (token != null && !token.isEmpty()) {
-                    ApiConfig.setAuthToken(token);
-                    System.out.println("Authentication Token received: " + token.substring(0, Math.min(token.length(), 10)) + "...");
-                    fetchUserInfoAndRedirect(token);
-                    WindowManager.showFxPopupSuccess("Connexion avec success");
-                    WindowManager.closeWindow();
-                } else {
-                    WindowManager.showFxPopupError("Token manquant\n"+
-                            "Le serveur n'a pas fourni de jeton d'authentification.");
-                }
-            }
-        } catch (HttpClientErrorException e) {
-            handleLoginError(e);
-        } catch (ResourceAccessException e) {
-            System.err.println("Network/Connection Error during login: " + e.getMessage());
-            WindowManager.showFxPopupError("Serveur injoignable\n"+
-                    "Impossible de se connecter au serveur. Vérifiez votre connexion internet.");
-        } catch (Exception e) {
-            System.err.println("Unhandled Exception during login: " + e.getMessage());
-            e.printStackTrace();
-            WindowManager.showFxPopupError("Une erreur inattendue est survenue\n"+
-                    "Veuillez réessayer plus tard.");
-        }
+                        showError(errorMessage);
+                    });
+                    return null;
+                });
     }
 
-    private void fetchUserInfoAndRedirect(String token) {
-        try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("Authorization", "Bearer " + token);
-
-            ResponseEntity<Map> userResponse = restTemplate.exchange(
-                    ApiConfig.getApiUrl() + "/auth/fetch-user/"+ usernameField.getText().trim(),
-                    HttpMethod.GET,
-                    new HttpEntity<>(headers),
-                    Map.class
-            );
-
-            System.out.println("User Info Response: " + userResponse.getBody());
-
-            if (userResponse.getStatusCode() == HttpStatus.OK && userResponse.getBody() != null) {
-                Map<String, Object> userInfo = userResponse.getBody();
-                List<String> roles = (List<String>) userInfo.get("roles");
-                String role = roles.get(0).toUpperCase();
-                System.out.println("User Role: " + role);
-
-                Object roleObj = userInfo.get("roles");
-
-                if (roleObj instanceof List<?> rolesList && !rolesList.isEmpty()) {
-//                    String role = rolesList.get(0).toString().toUpperCase();
-                    switch (role) {
-                        case "ROLE_ADMIN" -> WindowManager.openWindow("/fxml/admin/dashboard_admin.fxml", "Dashboard Administrateur");
-                        case "ROLE_CLIENT" -> WindowManager.openWindow("/fxml/client/dashboard_client.fxml", "Dashboard Client");
-                        default -> WindowManager.showFxPopupError("Rôle non reconnu\nVotre rôle (" + role + ") ne vous permet pas d'accéder à l'application.");
-                    }
-                } else {
-                    WindowManager.showFxPopupError("Impossible de déterminer votre rôle utilisateur.");
-                }
-            } else {
-                WindowManager.showFxPopupError("Informations utilisateur manquantes\n"+
-                        "Impossible de récupérer vos informations.");
-            }
-        } catch (Exception e) {
-            System.err.println("Error fetching user info: " + e.getMessage());
-            WindowManager.showFxPopupError("Problème de chargement\n"+
-                    "Impossible de charger votre tableau de bord.");
-        }
-    }
-
-    @FXML
-    public void handleForgotPassword() {
-        WindowManager.closeWindow();
-        WindowManager.openWindow("/fxml/client/forgot_password.fxml", "Modification mot de passe");
-    }
-
-    private void handleLoginError(HttpClientErrorException e) {
-        System.err.println("HTTP Client Error during login: " + e.getStatusCode() + " - " + e.getResponseBodyAsString());
-
-        if (e.getStatusCode() == HttpStatus.UNAUTHORIZED) {
-            WindowManager.showFxPopupError("Identifiants invalides\n"+
-                    "Nom d'utilisateur ou mot de passe incorrect.");
-        } else if (e.getStatusCode() == HttpStatus.BAD_REQUEST) {
-            WindowManager.showFxPopupError("Données invalides\n"+
-                    "Veuillez vérifier vos informations.");
-        } else {
-            WindowManager.showFxPopupError("Erreur serveur\n"+
-                    "Code d'erreur : " + e.getStatusCode());
-        }
-    }
-
-    private boolean validateInput(String username, String password) {
-        if (username == null || username.trim().isEmpty()) {
-            WindowManager.showFxPopupError("Nom d'utilisateur requis\n"+
-                    "Veuillez saisir votre nom d'utilisateur.");
+    private boolean validerChamps(String email, String password) {
+        if (!ValidationUtils.isNotEmpty(email)) {
+            showError("Veuillez saisir votre email");
+            emailField.requestFocus();
             return false;
         }
 
-        if (password == null || password.trim().isEmpty()) {
-            WindowManager.showFxPopupError("Mot de passe requis\n"+
-                    "Veuillez saisir votre mot de passe.");
+        if (!ValidationUtils.isValidEmail(email)) {
+            showError("Format d'email invalide");
+            emailField.requestFocus();
+            return false;
+        }
+
+        if (!ValidationUtils.isNotEmpty(password)) {
+            showError("Veuillez saisir votre mot de passe");
+            passwordField.requestFocus();
             return false;
         }
 
         return true;
+    }
+
+    private void redirectToDashboard(String userEmail) throws Exception {
+        // Vérifier si c'est un admin ou un client
+        if (isAdmin(userEmail)) {
+            WindowManager.closeWindow();
+            WindowManager.openWindow("/fxml/admin/dashboard-admin.fxml", "Administration - Tableau de bord");
+        } else {
+            WindowManager.closeWindow();
+            WindowManager.openWindow("/fxml/client/dashboard-client.fxml", "Espace Client - Tableau de bord");
+        }
+    }
+
+    private boolean isAdmin(String email) {
+        // Logique pour déterminer si l'utilisateur est admin
+        // Cela pourrait être basé sur l'email ou sur un rôle retourné par l'API
+        return email.contains("admin") || email.endsWith("@admin.bank");
+    }
+
+    @FXML
+    private void ouvrirInscription() {
+        try {
+            WindowManager.openWindow("/fxml/inscription.fxml", "Inscription");
+        } catch (Exception e) {
+            showError("Erreur lors de l'ouverture de la fenêtre d'inscription: " + e.getMessage());
+        }
+    }
+
+    @FXML
+    private void ouvrirMotDePasseOublie() {
+        try {
+            WindowManager.openWindow("/fxml/forgot-password.fxml", "Mot de passe oublié");
+        } catch (Exception e) {
+            showError("Erreur lors de l'ouverture de la fenêtre: " + e.getMessage());
+        }
+    }
+
+    private void setLoading(boolean loading) {
+        if (loadingIndicator != null) {
+            loadingIndicator.setVisible(loading);
+        }
+        connexionButton.setDisable(loading);
+        emailField.setDisable(loading);
+        passwordField.setDisable(loading);
+    }
+
+    private void showError(String message) {
+        if (messageLabel != null) {
+            messageLabel.setText(message);
+            messageLabel.setStyle("-fx-text-fill: red;");
+        } else {
+            WindowManager.showError("Erreur", "Erreur de connexion", message);
+        }
+    }
+
+    private void showSuccess(String message) {
+        if (messageLabel != null) {
+            messageLabel.setText(message);
+            messageLabel.setStyle("-fx-text-fill: green;");
+        }
+    }
+
+    private void clearMessage() {
+        if (messageLabel != null) {
+            messageLabel.setText("");
+        }
     }
 }

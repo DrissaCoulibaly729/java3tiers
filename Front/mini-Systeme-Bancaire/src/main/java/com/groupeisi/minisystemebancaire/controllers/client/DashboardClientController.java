@@ -47,85 +47,19 @@ public class DashboardClientController implements Initializable {
     @FXML private JFXButton cartesBtn;
     @FXML private JFXButton creditsBtn;
     @FXML private JFXButton supportBtn;
-
-    // Services
-    private final ClientService clientService = new ClientService();
-    private final CompteService compteService = new CompteService();
-    private final TransactionService transactionService = new TransactionService();
+    @FXML private JFXButton deconnexionBtn;
 
     private ClientDTo clientConnecte;
+    private Long clientId;
 
     @Override
-    public void initialize(URL url, ResourceBundle rb) {
-        configurerTables();
-        configurerBoutons();
-        chargerDonneesClient();
-    }
-
-    private void configurerTables() {
-        // Configuration de la table des comptes
-        accountNumberCol.setCellValueFactory(new PropertyValueFactory<>("numeroCompte"));
-        accountTypeCol.setCellValueFactory(new PropertyValueFactory<>("typeCompte"));
-        accountBalanceCol.setCellValueFactory(new PropertyValueFactory<>("solde"));
-        accountBalanceCol.setCellFactory(column -> new TableCell<CompteDTo, BigDecimal>() {
-            @Override
-            protected void updateItem(BigDecimal item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty || item == null) {
-                    setText(null);
-                } else {
-                    setText(CurrencyFormatter.format(item.doubleValue()));
-                }
-            }
-        });
-
-        // Configuration de la table des transactions
-        transactionTypeCol.setCellValueFactory(new PropertyValueFactory<>("type"));
-        transactionMontantCol.setCellValueFactory(new PropertyValueFactory<>("montant"));
-        transactionMontantCol.setCellFactory(column -> new TableCell<TransactionDTo, BigDecimal>() {
-            @Override
-            protected void updateItem(BigDecimal item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty || item == null) {
-                    setText(null);
-                } else {
-                    setText(CurrencyFormatter.format(item.doubleValue()));
-                }
-            }
-        });
-
-        transactionDateCol.setCellValueFactory(new PropertyValueFactory<>("createdAt"));
-        transactionDateCol.setCellFactory(column -> new TableCell<TransactionDTo, String>() {
-            @Override
-            protected void updateItem(String item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty || item == null) {
-                    setText(null);
-                } else {
-                    TransactionDTo transaction = getTableRow().getItem();
-                    if (transaction != null && transaction.getCreatedAt() != null) {
-                        setText(transaction.getCreatedAt().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")));
-                    }
-                }
-            }
-        });
-
-        transactionStatutCol.setCellValueFactory(new PropertyValueFactory<>("statut"));
-    }
-
-    private void configurerBoutons() {
-        virementsBtn.setOnAction(e -> ouvrirFenetre("/fxml/client/virements.fxml", "Virements"));
-        cartesBtn.setOnAction(e -> ouvrirFenetre("/fxml/client/cartes.fxml", "Gestion des Cartes"));
-        creditsBtn.setOnAction(e -> ouvrirFenetre("/fxml/client/credits.fxml", "Crédits"));
-        supportBtn.setOnAction(e -> ouvrirFenetre("/fxml/client/support.fxml", "Support Client"));
-    }
-
-    private void chargerDonneesClient() {
-        Long clientId = ApiConfig.getCurrentUserId();
+    public void initialize(URL location, ResourceBundle resources) {
+        // Vérifier si l'utilisateur est connecté
+        clientId = ApiConfig.getCurrentUserId();
         if (clientId == null) {
+            // Rediriger vers la connexion si pas connecté
             Platform.runLater(() -> {
-                WindowManager.showFxPopupError("Session expirée\nVeuillez vous reconnecter.");
-                // Rediriger vers la connexion
+                WindowManager.showError("Erreur", "Session expirée", "Veuillez vous reconnecter.");
                 try {
                     WindowManager.closeWindow();
                     WindowManager.openWindow("/fxml/connexion.fxml", "Connexion");
@@ -136,12 +70,104 @@ public class DashboardClientController implements Initializable {
             return;
         }
 
+        // Configurer les tables
+        setupTables();
+
+        // Configurer les boutons
+        setupButtons();
+
+        // Charger les données
+        loadDashboardData();
+    }
+
+    private void setupTables() {
+        // Configuration de la table des comptes
+        if (accountNumberCol != null) {
+            accountNumberCol.setCellValueFactory(new PropertyValueFactory<>("numeroCompte"));
+        }
+        if (accountTypeCol != null) {
+            accountTypeCol.setCellValueFactory(new PropertyValueFactory<>("type"));
+        }
+        if (accountBalanceCol != null) {
+            accountBalanceCol.setCellValueFactory(new PropertyValueFactory<>("solde"));
+            accountBalanceCol.setCellFactory(column -> new TableCell<CompteDTo, BigDecimal>() {
+                @Override
+                protected void updateItem(BigDecimal item, boolean empty) {
+                    super.updateItem(item, empty);
+                    if (empty || item == null) {
+                        setText(null);
+                    } else {
+                        setText(CurrencyFormatter.format(item.doubleValue()));
+                    }
+                }
+            });
+        }
+
+        // Configuration de la table des transactions
+        if (transactionTypeCol != null) {
+            transactionTypeCol.setCellValueFactory(new PropertyValueFactory<>("type"));
+        }
+        if (transactionMontantCol != null) {
+            transactionMontantCol.setCellValueFactory(new PropertyValueFactory<>("montant"));
+            transactionMontantCol.setCellFactory(column -> new TableCell<TransactionDTo, BigDecimal>() {
+                @Override
+                protected void updateItem(BigDecimal item, boolean empty) {
+                    super.updateItem(item, empty);
+                    if (empty || item == null) {
+                        setText(null);
+                    } else {
+                        setText(CurrencyFormatter.format(item.doubleValue()));
+                    }
+                }
+            });
+        }
+        if (transactionDateCol != null) {
+            transactionDateCol.setCellValueFactory(new PropertyValueFactory<>("dateTransaction"));
+            transactionDateCol.setCellFactory(column -> new TableCell<TransactionDTo, String>() {
+                @Override
+                protected void updateItem(String item, boolean empty) {
+                    super.updateItem(item, empty);
+                    if (empty || item == null) {
+                        setText(null);
+                    } else {
+                        // Formatter la date si nécessaire
+                        setText(item);
+                    }
+                }
+            });
+        }
+        if (transactionStatutCol != null) {
+            transactionStatutCol.setCellValueFactory(new PropertyValueFactory<>("statut"));
+        }
+    }
+
+    private void setupButtons() {
+        if (virementsBtn != null) {
+            virementsBtn.setOnAction(e -> ouvrirVirements());
+        }
+        if (cartesBtn != null) {
+            cartesBtn.setOnAction(e -> ouvrirCartes());
+        }
+        if (creditsBtn != null) {
+            creditsBtn.setOnAction(e -> ouvrirCredits());
+        }
+        if (supportBtn != null) {
+            supportBtn.setOnAction(e -> ouvrirSupport());
+        }
+        if (deconnexionBtn != null) {
+            deconnexionBtn.setOnAction(e -> seDeconnecter());
+        }
+    }
+
+    private void loadDashboardData() {
         // Charger les informations du client
-        clientService.getClientById(clientId)
+        ClientService.getClientById(clientId)
                 .thenAccept(client -> {
                     this.clientConnecte = client;
                     Platform.runLater(() -> {
-                        welcomeLabel.setText("Bienvenue, " + client.getPrenom() + " " + client.getNom());
+                        if (welcomeLabel != null && client != null) {
+                            welcomeLabel.setText("Bienvenue, " + client.getPrenom() + " " + client.getNom());
+                        }
                     });
                 })
                 .exceptionally(throwable -> {
@@ -150,16 +176,21 @@ public class DashboardClientController implements Initializable {
                 });
 
         // Charger les comptes
-        compteService.getComptesByClient(clientId)
+        CompteService.getComptesByClient(clientId)
                 .thenAccept(comptes -> {
                     Platform.runLater(() -> {
-                        comptesTable.setItems(FXCollections.observableArrayList(comptes));
+                        if (comptesTable != null && comptes != null) {
+                            comptesTable.setItems(FXCollections.observableArrayList(comptes));
 
-                        // Calculer le solde total
-                        BigDecimal soldeTotal = comptes.stream()
-                                .map(CompteDTo::getSolde)
-                                .reduce(BigDecimal.ZERO, BigDecimal::add);
-                        soldeLabel.setText(CurrencyFormatter.format(soldeTotal.doubleValue()));
+                            // Calculer le solde total
+                            BigDecimal soldeTotal = comptes.stream()
+                                    .map(CompteDTo::getSolde)
+                                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                            if (soldeLabel != null) {
+                                soldeLabel.setText(CurrencyFormatter.format(soldeTotal.doubleValue()));
+                            }
+                        }
                     });
                 })
                 .exceptionally(throwable -> {
@@ -168,76 +199,131 @@ public class DashboardClientController implements Initializable {
                 });
 
         // Charger les dernières transactions
-        transactionService.getTransactionsByClient(clientId)
+        TransactionService.getDernieresTransactions(clientId, 10)
                 .thenAccept(transactions -> {
                     Platform.runLater(() -> {
-                        // Prendre les 10 dernières transactions
-                        List<TransactionDTo> dernieresTransactions = transactions.stream()
-                                .sorted((t1, t2) -> t2.getCreatedAt().compareTo(t1.getCreatedAt()))
-                                .limit(10)
-                                .toList();
+                        if (dernieresTransactionsTable != null && transactions != null) {
+                            dernieresTransactionsTable.setItems(FXCollections.observableArrayList(transactions));
 
-                        dernieresTransactionsTable.setItems(FXCollections.observableArrayList(dernieresTransactions));
-                        nombreTransactionsLabel.setText(String.valueOf(transactions.size()));
-
-                        // Mettre à jour le graphique des dépenses
-                        mettreAJourGraphiqueDepenses(transactions);
+                            if (nombreTransactionsLabel != null) {
+                                nombreTransactionsLabel.setText(String.valueOf(transactions.size()));
+                            }
+                        }
                     });
                 })
                 .exceptionally(throwable -> {
                     handleError("Erreur lors du chargement des transactions", throwable);
                     return null;
                 });
+
+        // Charger les données pour le graphique
+        loadChartData();
     }
 
-    private void mettreAJourGraphiqueDepenses(List<TransactionDTo> transactions) {
-        Map<String, BigDecimal> depensesParType = new HashMap<>();
+    private void loadChartData() {
+        if (depensesChart == null) return;
 
-        transactions.stream()
-                .filter(t -> "Retrait".equals(t.getType()) || "Virement".equals(t.getType()))
-                .forEach(transaction -> {
-                    depensesParType.merge(transaction.getType(),
-                            transaction.getMontant(),
-                            BigDecimal::add);
+        // Exemple de données pour le graphique des dépenses
+        // Vous pouvez adapter cela en fonction de votre API Laravel
+        TransactionService.getDernieresTransactions(clientId, 50)
+                .thenAccept(transactions -> {
+                    Platform.runLater(() -> {
+                        Map<String, BigDecimal> depensesParType = new HashMap<>();
+
+                        if (transactions != null) {
+                            for (TransactionDTo transaction : transactions) {
+                                if ("retrait".equals(transaction.getType()) || "virement".equals(transaction.getType())) {
+                                    String type = transaction.getType();
+                                    depensesParType.merge(type, transaction.getMontant(), BigDecimal::add);
+                                }
+                            }
+                        }
+
+                        // Créer les données pour le PieChart
+                        depensesChart.getData().clear();
+                        for (Map.Entry<String, BigDecimal> entry : depensesParType.entrySet()) {
+                            PieChart.Data slice = new PieChart.Data(
+                                    entry.getKey(),
+                                    entry.getValue().doubleValue()
+                            );
+                            depensesChart.getData().add(slice);
+                        }
+                    });
+                })
+                .exceptionally(throwable -> {
+                    // Ignorer les erreurs du graphique pour ne pas perturber l'interface
+                    return null;
                 });
-
-        depensesChart.getData().clear();
-        depensesParType.forEach((type, montant) -> {
-            PieChart.Data slice = new PieChart.Data(type, montant.doubleValue());
-            depensesChart.getData().add(slice);
-        });
     }
 
-    private void ouvrirFenetre(String fxmlPath, String titre) {
+    // Actions des boutons
+
+    private void ouvrirVirements() {
         try {
-            WindowManager.openModalWindow(fxmlPath, titre);
+            WindowManager.openWindow("/fxml/client/virements.fxml", "Virements");
         } catch (Exception e) {
-            handleError("Erreur d'ouverture de fenêtre", e);
+            handleError("Erreur lors de l'ouverture des virements", e);
         }
+    }
+
+    private void ouvrirCartes() {
+        try {
+            WindowManager.openWindow("/fxml/client/cartes.fxml", "Gestion des cartes");
+        } catch (Exception e) {
+            handleError("Erreur lors de l'ouverture de la gestion des cartes", e);
+        }
+    }
+
+    private void ouvrirCredits() {
+        try {
+            WindowManager.openWindow("/fxml/client/credits.fxml", "Demandes de crédit");
+        } catch (Exception e) {
+            handleError("Erreur lors de l'ouverture des crédits", e);
+        }
+    }
+
+    private void ouvrirSupport() {
+        try {
+            WindowManager.openWindow("/fxml/client/support.fxml", "Support client");
+        } catch (Exception e) {
+            handleError("Erreur lors de l'ouverture du support", e);
+        }
+    }
+
+    private void seDeconnecter() {
+        AuthService.logout()
+                .thenRun(() -> {
+                    Platform.runLater(() -> {
+                        try {
+                            WindowManager.closeWindow();
+                            WindowManager.openWindow("/fxml/connexion.fxml", "Connexion");
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    });
+                })
+                .exceptionally(throwable -> {
+                    // Même en cas d'erreur, on déconnecte localement
+                    Platform.runLater(() -> {
+                        ApiConfig.logout();
+                        try {
+                            WindowManager.closeWindow();
+                            WindowManager.openWindow("/fxml/connexion.fxml", "Connexion");
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    });
+                    return null;
+                });
     }
 
     private void handleError(String message, Throwable throwable) {
         Platform.runLater(() -> {
             String errorMessage = message;
-            if (throwable != null) {
-                errorMessage += "\n" + throwable.getMessage();
+            if (throwable != null && throwable.getMessage() != null) {
+                errorMessage += ": " + throwable.getMessage();
             }
-            WindowManager.showFxPopupError(errorMessage);
-            System.err.println("Erreur: " + message);
-            if (throwable != null) {
-                throwable.printStackTrace();
-            }
+            WindowManager.showError("Erreur", "Erreur de chargement", errorMessage);
         });
-    }
-
-    @FXML
-    public void handleLogout() {
-        ApiConfig.clearSession();
-        try {
-            WindowManager.closeWindow();
-            WindowManager.openWindow("/fxml/connexion.fxml", "Connexion");
-        } catch (Exception e) {
-            handleError("Erreur de déconnexion", e);
-        }
     }
 }

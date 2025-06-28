@@ -3,6 +3,8 @@ package com.groupeisi.minisystemebancaire.dtos;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
+
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Data
@@ -15,8 +17,9 @@ public class ClientDTo {
     private String email;
     private String telephone;
     private String adresse;
-    private String cni;
-    private String statut; // "Actif", "Suspendu"
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+    private LocalDate dateNaissance;
+    private String numeroCNI;
+    private Boolean actif;
+    private LocalDateTime dateCreation;
+    private LocalDateTime dateModification;
 }

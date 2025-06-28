@@ -3,6 +3,7 @@ package com.groupeisi.minisystemebancaire.dtos;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -11,13 +12,12 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class TransactionDTo {
     private Long id;
-    private String type; // "Dépôt", "Retrait", "Virement"
+    private String type; // depot, retrait, virement, etc.
     private BigDecimal montant;
     private String description;
-    private String statut; // "Effectué", "En cours", "Rejeté"
+    private String statut; // en_attente, validee, annulee
     private Long compteSourceId;
-    private Long compteDestId;
-    private CompteDTo compteSource;
-    private CompteDTo compteDestination;
-    private LocalDateTime createdAt;
+    private Long compteDestinationId;
+    private LocalDateTime dateTransaction;
+    private LocalDateTime dateCreation;
 }

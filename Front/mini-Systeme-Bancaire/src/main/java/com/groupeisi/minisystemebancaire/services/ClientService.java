@@ -1,76 +1,44 @@
 package com.groupeisi.minisystemebancaire.services;
 
-import com.groupeisi.minisystemebancaire.config.ApiConfig;
 import com.groupeisi.minisystemebancaire.dtos.ClientDTo;
+
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 public class ClientService {
-    private final LaravelApiService apiService = LaravelApiService.getInstance();
 
-    public CompletableFuture<List<ClientDTo>> getAllClients() {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                String response = apiService.get(ApiConfig.Endpoints.CLIENTS);
-                return apiService.fromJsonList(response, ClientDTo.class);
-            } catch (Exception e) {
-                throw new RuntimeException("Erreur lors du chargement des clients", e);
-            }
-        });
+    /**
+     * Obtenir un client par son ID
+     */
+    public static CompletableFuture<ClientDTo> getClientById(Long clientId) {
+        return HttpService.getAsync("/api/clients/" + clientId, ClientDTo.class);
     }
 
-    public CompletableFuture<ClientDTo> getClientById(Long id) {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                String response = apiService.get(ApiConfig.Endpoints.CLIENTS + "/" + id);
-                return apiService.fromJson(response, ClientDTo.class);
-            } catch (Exception e) {
-                throw new RuntimeException("Erreur lors du chargement du client", e);
-            }
-        });
+    /**
+     * Mettre à jour le profil client
+     */
+    public static CompletableFuture<ClientDTo> updateClient(Long clientId, ClientDTo client) {
+        return HttpService.putAsync("/api/clients/" + clientId, client, ClientDTo.class);
     }
 
-    public CompletableFuture<ClientDTo> createClient(ClientDTo client) {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                String response = apiService.post(ApiConfig.Endpoints.CLIENTS, client);
-                return apiService.fromJson(response, ClientDTo.class);
-            } catch (Exception e) {
-                throw new RuntimeException("Erreur lors de la création du client", e);
-            }
-        });
+    /**
+     * Obtenir tous les clients (pour admin)
+     */
+    public static CompletableFuture<List<ClientDTo>> getAllClients() {
+        return HttpService.getListAsync("/api/clients", ClientDTo.class);
     }
 
-    public CompletableFuture<ClientDTo> updateClient(Long id, ClientDTo client) {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                String response = apiService.put(ApiConfig.Endpoints.CLIENTS + "/" + id, client);
-                return apiService.fromJson(response, ClientDTo.class);
-            } catch (Exception e) {
-                throw new RuntimeException("Erreur lors de la mise à jour du client", e);
-            }
-        });
+    /**
+     * Rechercher des clients
+     */
+    public static CompletableFuture<List<ClientDTo>> searchClients(String query) {
+        return HttpService.getListAsync("/api/clients/search?q=" + query, ClientDTo.class);
     }
 
-    public CompletableFuture<Void> suspendClient(Long id) {
-        return CompletableFuture.runAsync(() -> {
-            try {
-                String endpoint = String.format(ApiConfig.Endpoints.CLIENT_SUSPEND, id);
-                apiService.put(endpoint, null);
-            } catch (Exception e) {
-                throw new RuntimeException("Erreur lors de la suspension du client", e);
-            }
-        });
-    }
-
-    public CompletableFuture<Void> reactivateClient(Long id) {
-        return CompletableFuture.runAsync(() -> {
-            try {
-                String endpoint = String.format(ApiConfig.Endpoints.CLIENT_REACTIVATE, id);
-                apiService.put(endpoint, null);
-            } catch (Exception e) {
-                throw new RuntimeException("Erreur lors de la réactivation du client", e);
-            }
-        });
+    /**
+     * Désactiver/Activer un client
+     */
+    public static CompletableFuture<ClientDTo> toggleClientStatus(Long clientId) {
+        return HttpService.putAsync("/api/clients/" + clientId + "/toggle-status", null, ClientDTo.class);
     }
 }

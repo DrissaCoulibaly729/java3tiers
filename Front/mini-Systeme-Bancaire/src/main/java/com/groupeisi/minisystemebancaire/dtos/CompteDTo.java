@@ -3,6 +3,7 @@ package com.groupeisi.minisystemebancaire.dtos;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -12,11 +13,10 @@ import java.time.LocalDateTime;
 public class CompteDTo {
     private Long id;
     private String numeroCompte;
-    private String typeCompte; // "Épargne", "Courant"
+    private String type; // courant, epargne, etc.
     private BigDecimal solde;
-    private String statut; // "Actif", "Fermé", "Suspendu"
+    private Boolean actif;
     private Long clientId;
-    private ClientDTo client;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+    private LocalDateTime dateCreation;
+    private LocalDateTime dateModification;
 }

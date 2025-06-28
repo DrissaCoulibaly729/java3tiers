@@ -1,281 +1,516 @@
 package com.groupeisi.minisystemebancaire.controllers.client;
 
 import com.jfoenix.controls.JFXButton;
-import com.jfoenix.controls.JFXSpinner;
+import com.jfoenix.controls.JFXComboBox;
 import com.jfoenix.controls.JFXTextField;
-import com.jfoenix.controls.JFXTooltip;
-import de.jensd.fx.glyphs.materialdesignicons.MaterialDesignIcon;
-import de.jensd.fx.glyphs.materialdesignicons.MaterialDesignIconView;
-import gm.rahmanproperties.optibank.config.ApiConfig;
-import gm.rahmanproperties.optibank.dtos.CarteBancaireDTo;
-import gm.rahmanproperties.optibank.dtos.CompteDTo;
-import gm.rahmanproperties.optibank.utils.WindowManager;
+import com.jfoenix.controls.JFXPasswordField;
+import com.groupeisi.minisystemebancaire.config.ApiConfig;
+import com.groupeisi.minisystemebancaire.dtos.CarteBancaireDTo;
+import com.groupeisi.minisystemebancaire.dtos.CompteDTo;
+import com.groupeisi.minisystemebancaire.services.HttpService;
+import com.groupeisi.minisystemebancaire.services.CompteService;
+import com.groupeisi.minisystemebancaire.utils.CurrencyFormatter;
+import com.groupeisi.minisystemebancaire.utils.ValidationUtils;
+import com.groupeisi.minisystemebancaire.utils.WindowManager;
 import javafx.application.Platform;
+import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
-import javafx.scene.control.Label;
-import javafx.scene.layout.VBox;
-import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.client.RestTemplate;
+import javafx.scene.control.*;
+import javafx.scene.control.cell.PropertyValueFactory;
 
+import java.math.BigDecimal;
 import java.net.URL;
+import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.ResourceBundle;
 
 public class CarteBancaireCreditCardController implements Initializable {
-    @FXML
-    private VBox cardContainer;
-    @FXML private Label cardNumberLabel;
-    @FXML private Label cardExpiryLabel;
-    @FXML private Label cardStatusLabel;
-    @FXML private JFXButton requestCardButton;
-    @FXML private JFXButton blockCardButton;
-    @FXML private JFXButton unblockCardButton;
-    @FXML private JFXSpinner loadingSpinner;
-    @FXML private JFXTextField pinTextField;
 
-    private final RestTemplate restTemplate = new RestTemplate();
-    private final String API_URL = ApiConfig.getApiUrl() + "/api/cartes";
-    private CarteBancaireDTo currentCard;
-    private CompteDTo currentAccount;
-    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("MM/yy");
+    // Tables et colonnes
+    @FXML private TableView<CarteBancaireDTo> cartesTable;
+    @FXML private TableColumn<CarteBancaireDTo, String> numeroCarteCol;
+    @FXML private TableColumn<CarteBancaireDTo, String> typeCarteCol;
+    @FXML private TableColumn<CarteBancaireDTo, String> statutCol;
+    @FXML private TableColumn<CarteBancaireDTo, LocalDate> dateExpirationCol;
+    @FXML private TableColumn<CarteBancaireDTo, BigDecimal> plafondJournalierCol;
+
+    // Formulaire de demande
+    @FXML private JFXComboBox<String> typeCarteCombo;
+    @FXML private JFXComboBox<CompteDTo> compteCombo;
+    @FXML private JFXTextField plafondJournalierField;
+    @FXML private JFXTextField plafondMensuelField;
+    @FXML private JFXPasswordField pinField;
+    @FXML private JFXPasswordField confirmPinField;
+
+    // Boutons
+    @FXML private JFXButton demanderCarteBtn;
+    @FXML private JFXButton bloquerCarteBtn;
+    @FXML private JFXButton debloquerCarteBtn;
+    @FXML private JFXButton modifierPlafondBtn;
+    @FXML private JFXButton actualiserBtn;
+
+    // Informations
+    @FXML private Label infoNombreCartesLabel;
+    @FXML private Label infoCartesActivesLabel;
+    @FXML private Label infoCartesBloquees;
+
+    private Long clientId;
+    private CarteBancaireDTo carteSelectionnee;
+    private List<CompteDTo> comptesClient;
 
     @Override
-    public void initialize(URL url, ResourceBundle rb) {
-        setupUI();
-        chargerCartesClient();
+    public void initialize(URL location, ResourceBundle resources) {
+        // Vérifier l'authentification
+        clientId = ApiConfig.getCurrentUserId();
+        if (clientId == null) {
+            redirectToLogin();
+            return;
+        }
+
+        configurerTable();
+        configurerFormulaire();
+        configurerBoutons();
+        chargerDonnees();
     }
 
-    private void setupUI() {
-        loadingSpinner.setVisible(false);
-        blockCardButton.setDisable(true);
-        unblockCardButton.setDisable(true);
+    private void configurerTable() {
+        // Configuration des colonnes
+        if (numeroCarteCol != null) {
+            numeroCarteCol.setCellValueFactory(new PropertyValueFactory<>("numeroCarte"));
+            numeroCarteCol.setCellFactory(column -> new TableCell<CarteBancaireDTo, String>() {
+                @Override
+                protected void updateItem(String item, boolean empty) {
+                    super.updateItem(item, empty);
+                    if (empty || item == null) {
+                        setText(null);
+                    } else {
+                        // Masquer une partie du numéro de carte pour la sécurité
+                        setText(item.replaceAll("\\d(?=\\d{4})", "*"));
+                    }
+                }
+            });
+        }
 
-        // Configuration des icônes des boutons
-        requestCardButton.setGraphic(new MaterialDesignIconView(MaterialDesignIcon.CREDIT_CARD_PLUS, "20px"));
-        blockCardButton.setGraphic(new MaterialDesignIconView(MaterialDesignIcon.LOCK, "20px"));
-        unblockCardButton.setGraphic(new MaterialDesignIconView(MaterialDesignIcon.LOCK_OPEN, "20px"));
+        if (typeCarteCol != null) {
+            typeCarteCol.setCellValueFactory(new PropertyValueFactory<>("type"));
+        }
 
-        // Style des boutons
-        requestCardButton.getStyleClass().add("button-primary");
-        blockCardButton.getStyleClass().add("button-danger");
-        unblockCardButton.getStyleClass().add("button-success");
+        if (statutCol != null) {
+            statutCol.setCellValueFactory(new PropertyValueFactory<>("statut"));
+            statutCol.setCellFactory(column -> new TableCell<CarteBancaireDTo, String>() {
+                @Override
+                protected void updateItem(String item, boolean empty) {
+                    super.updateItem(item, empty);
+                    if (empty || item == null) {
+                        setText(null);
+                        setStyle("");
+                    } else {
+                        setText(item);
+                        switch (item.toLowerCase()) {
+                            case "active":
+                                setStyle("-fx-text-fill: green;");
+                                break;
+                            case "bloquee":
+                                setStyle("-fx-text-fill: red;");
+                                break;
+                            case "expiree":
+                                setStyle("-fx-text-fill: orange;");
+                                break;
+                            default:
+                                setStyle("");
+                        }
+                    }
+                }
+            });
+        }
 
-        // Validation du code PIN
-        pinTextField.textProperty().addListener((obs, old, newValue) -> {
-            if (!newValue.matches("\\d{0,4}")) {
-                pinTextField.setText(old);
+        if (dateExpirationCol != null) {
+            dateExpirationCol.setCellValueFactory(new PropertyValueFactory<>("dateExpiration"));
+            dateExpirationCol.setCellFactory(column -> new TableCell<CarteBancaireDTo, LocalDate>() {
+                @Override
+                protected void updateItem(LocalDate item, boolean empty) {
+                    super.updateItem(item, empty);
+                    if (empty || item == null) {
+                        setText(null);
+                    } else {
+                        setText(item.format(DateTimeFormatter.ofPattern("MM/yy")));
+                    }
+                }
+            });
+        }
+
+        if (plafondJournalierCol != null) {
+            plafondJournalierCol.setCellValueFactory(new PropertyValueFactory<>("plafondJournalier"));
+            plafondJournalierCol.setCellFactory(column -> new TableCell<CarteBancaireDTo, BigDecimal>() {
+                @Override
+                protected void updateItem(BigDecimal item, boolean empty) {
+                    super.updateItem(item, empty);
+                    if (empty || item == null) {
+                        setText(null);
+                    } else {
+                        setText(CurrencyFormatter.format(item.doubleValue()));
+                    }
+                }
+            });
+        }
+
+        // Gestion de la sélection
+        if (cartesTable != null) {
+            cartesTable.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
+                carteSelectionnee = newSelection;
+                mettreAJourBoutons();
+            });
+        }
+    }
+
+    private void configurerFormulaire() {
+        // Types de cartes disponibles
+        if (typeCarteCombo != null) {
+            typeCarteCombo.setItems(FXCollections.observableArrayList("debit", "credit"));
+            typeCarteCombo.setValue("debit");
+        }
+
+        // Validation des champs numériques
+        if (plafondJournalierField != null) {
+            plafondJournalierField.textProperty().addListener((obs, old, newValue) -> {
+                if (!ValidationUtils.isValidAmount(newValue) && !newValue.isEmpty()) {
+                    plafondJournalierField.setText(old);
+                }
+            });
+        }
+
+        if (plafondMensuelField != null) {
+            plafondMensuelField.textProperty().addListener((obs, old, newValue) -> {
+                if (!ValidationUtils.isValidAmount(newValue) && !newValue.isEmpty()) {
+                    plafondMensuelField.setText(old);
+                }
+            });
+        }
+
+        // Validation du PIN
+        if (pinField != null) {
+            pinField.textProperty().addListener((obs, old, newValue) -> {
+                if (!newValue.matches("\\d{0,4}")) {
+                    pinField.setText(old);
+                }
+            });
+        }
+
+        if (confirmPinField != null) {
+            confirmPinField.textProperty().addListener((obs, old, newValue) -> {
+                if (!newValue.matches("\\d{0,4}")) {
+                    confirmPinField.setText(old);
+                }
+            });
+        }
+    }
+
+    private void configurerBoutons() {
+        if (demanderCarteBtn != null) {
+            demanderCarteBtn.setOnAction(e -> demanderCarte());
+        }
+        if (bloquerCarteBtn != null) {
+            bloquerCarteBtn.setOnAction(e -> bloquerCarte());
+        }
+        if (debloquerCarteBtn != null) {
+            debloquerCarteBtn.setOnAction(e -> debloquerCarte());
+        }
+        if (modifierPlafondBtn != null) {
+            modifierPlafondBtn.setOnAction(e -> modifierPlafond());
+        }
+        if (actualiserBtn != null) {
+            actualiserBtn.setOnAction(e -> chargerCartes());
+        }
+
+        mettreAJourBoutons();
+    }
+
+    private void chargerDonnees() {
+        chargerComptes();
+        chargerCartes();
+    }
+
+    private void chargerComptes() {
+        CompteService.getComptesByClient(clientId)
+                .thenAccept(comptes -> {
+                    Platform.runLater(() -> {
+                        this.comptesClient = comptes;
+                        if (compteCombo != null && comptes != null) {
+                            compteCombo.setItems(FXCollections.observableArrayList(comptes));
+
+                            // Converter pour afficher le numéro de compte
+                            compteCombo.setConverter(new javafx.util.StringConverter<CompteDTo>() {
+                                @Override
+                                public String toString(CompteDTo compte) {
+                                    return compte != null ? compte.getNumeroCompte() + " (" + compte.getType() + ")" : "";
+                                }
+
+                                @Override
+                                public CompteDTo fromString(String string) {
+                                    return null;
+                                }
+                            });
+                        }
+                    });
+                })
+                .exceptionally(throwable -> {
+                    Platform.runLater(() -> {
+                        WindowManager.showError("Erreur",
+                                "Impossible de charger les comptes",
+                                throwable.getMessage());
+                    });
+                    return null;
+                });
+    }
+
+    private void chargerCartes() {
+        HttpService.getListAsync("/api/cartes/client/" + clientId, CarteBancaireDTo.class)
+                .thenAccept(cartes -> {
+                    Platform.runLater(() -> {
+                        if (cartesTable != null && cartes != null) {
+                            cartesTable.setItems(FXCollections.observableArrayList(cartes));
+                            mettreAJourStatistiques(cartes);
+                        }
+                    });
+                })
+                .exceptionally(throwable -> {
+                    Platform.runLater(() -> {
+                        WindowManager.showError("Erreur",
+                                "Impossible de charger les cartes",
+                                throwable.getMessage());
+                    });
+                    return null;
+                });
+    }
+
+    private void mettreAJourStatistiques(List<CarteBancaireDTo> cartes) {
+        if (cartes == null) return;
+
+        int nombreTotal = cartes.size();
+        long cartesActives = cartes.stream().filter(c -> "active".equals(c.getStatut())).count();
+        long cartesBloquees = cartes.stream().filter(c -> "bloquee".equals(c.getStatut())).count();
+
+        if (infoNombreCartesLabel != null) {
+            infoNombreCartesLabel.setText(String.valueOf(nombreTotal));
+        }
+        if (infoCartesActivesLabel != null) {
+            infoCartesActivesLabel.setText(String.valueOf(cartesActives));
+        }
+        if (infoCartesBloquees != null) {
+            infoCartesBloquees.setText(String.valueOf(cartesBloquees));
+        }
+    }
+
+    @FXML
+    private void demanderCarte() {
+        if (!validerFormulaire()) return;
+
+        Map<String, Object> demande = new HashMap<>();
+        demande.put("type", typeCarteCombo.getValue());
+        demande.put("compte_id", compteCombo.getValue().getId());
+        demande.put("plafond_journalier", new BigDecimal(plafondJournalierField.getText()));
+        demande.put("plafond_mensuel", new BigDecimal(plafondMensuelField.getText()));
+        demande.put("pin", pinField.getText());
+
+        HttpService.postAsync("/api/cartes", demande, CarteBancaireDTo.class)
+                .thenAccept(carte -> {
+                    Platform.runLater(() -> {
+                        if (carte != null) {
+                            viderFormulaire();
+                            chargerCartes();
+                            WindowManager.showSuccess("Succès",
+                                    "Demande envoyée",
+                                    "Votre demande de carte a été envoyée avec succès.");
+                        }
+                    });
+                })
+                .exceptionally(throwable -> {
+                    Platform.runLater(() -> {
+                        WindowManager.showError("Erreur",
+                                "Impossible de créer la carte",
+                                throwable.getMessage());
+                    });
+                    return null;
+                });
+    }
+
+    @FXML
+    private void bloquerCarte() {
+        if (carteSelectionnee == null) {
+            WindowManager.showWarning("Attention",
+                    "Aucune carte sélectionnée",
+                    "Veuillez sélectionner une carte à bloquer.");
+            return;
+        }
+
+        Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
+        confirmation.setTitle("Confirmation");
+        confirmation.setHeaderText("Bloquer la carte");
+        confirmation.setContentText("Êtes-vous sûr de vouloir bloquer cette carte ?");
+
+        confirmation.showAndWait().ifPresent(response -> {
+            if (response == ButtonType.OK) {
+                Map<String, String> request = new HashMap<>();
+                request.put("statut", "bloquee");
+
+                HttpService.putAsync("/api/cartes/" + carteSelectionnee.getId() + "/statut",
+                                request, CarteBancaireDTo.class)
+                        .thenAccept(carte -> {
+                            Platform.runLater(() -> {
+                                chargerCartes();
+                                WindowManager.showSuccess("Succès",
+                                        "Carte bloquée",
+                                        "La carte a été bloquée avec succès.");
+                            });
+                        })
+                        .exceptionally(throwable -> {
+                            Platform.runLater(() -> {
+                                WindowManager.showError("Erreur",
+                                        "Impossible de bloquer la carte",
+                                        throwable.getMessage());
+                            });
+                            return null;
+                        });
             }
         });
-
-        // Ajout des tooltips
-//        requestCardButton.setTooltip(new JFXTooltip("Demander une nouvelle carte"));
-//        blockCardButton.setTooltip(new JFXTooltip("Bloquer la carte"));
-//        unblockCardButton.setTooltip(new JFXTooltip("Débloquer la carte"));
-    }
-
-    public void setCompte(CompteDTo compte) {
-        this.currentAccount = compte;
-        loadCardData();
-    }
-
-    private void loadCardData() {
-        if (currentAccount == null) return;
-
-        showLoading(true);
-        new Thread(() -> {
-            try {
-                ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
-                    API_URL + "/compte/" + currentAccount.getClientId(),
-                    HttpMethod.GET,
-                    null,
-                    new ParameterizedTypeReference<>() {}
-                );
-
-            } catch (Exception e) {
-                Platform.runLater(() -> {
-                    showLoading(false);
-                    WindowManager.showFxPopupError("Impossible de charger les données de la carte"+ e.getMessage());
-                });
-            }
-        }).start();
     }
 
     @FXML
-    private void requestCard() {
-        if (!validatePin()) return;
-
-        showLoading(true);
-        Map<String, Object> request = new HashMap<>();
-        request.put("pin", pinTextField.getText());
-        request.put("compteId", currentAccount.getClientId());
-
-        new Thread(() -> {
-            try {
-                ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
-                    API_URL,
-                    HttpMethod.POST,
-                    new HttpEntity<>(request, ApiConfig.createHeaders()),
-                    new ParameterizedTypeReference<>() {}
-                );
-
-            } catch (Exception e) {
-                Platform.runLater(() -> {
-                    showLoading(false);
-                    WindowManager.showError("Erreur", "Impossible de créer la carte", e.getMessage());
-                });
-            }
-        }).start();
-    }
-
-    @FXML
-    private void blockCard() {
-        if (currentCard == null) return;
-
-        WindowManager.showConfirmation(
-            "Confirmation",
-            "Êtes-vous sûr de vouloir bloquer cette carte ?",
-            "Cette action est irréversible.",
-            () -> {
-                showLoading(true);
-                new Thread(() -> {
-                    try {
-                        ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
-                            API_URL + "/" + currentCard.getId() + "/bloquer",
-                            HttpMethod.POST,
-                            null,
-                            new ParameterizedTypeReference<>() {}
-                        );
-                    } catch (Exception e) {
-                        Platform.runLater(() -> {
-                            showLoading(false);
-                            WindowManager.showError("Erreur", "Impossible de bloquer la carte", e.getMessage());
-                        });
-                    }
-                }).start();
-            }
-        );
-    }
-
-    @FXML
-    private void unblockCard() {
-        if (currentCard == null) return;
-
-        WindowManager.showConfirmation(
-            "Confirmation",
-            "Êtes-vous sûr de vouloir débloquer cette carte ?",
-            "Cette action nécessitera une validation supplémentaire.",
-            () -> {
-                showLoading(true);
-                new Thread(() -> {
-                    try {
-                        ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
-                            API_URL + "/" + currentCard.getId() + "/debloquer",
-                            HttpMethod.POST,
-                            null,
-                            new ParameterizedTypeReference<>() {}
-                        );
-                    } catch (Exception e) {
-                        Platform.runLater(() -> {
-                            showLoading(false);
-                            WindowManager.showError("Erreur", "Impossible de débloquer la carte", e.getMessage());
-                        });
-                    }
-                }).start();
-            }
-        );
-    }
-
-    private void updateCardDisplay() {
-        if (currentCard != null) {
-            cardNumberLabel.setText(formatCardNumber(currentCard.getNumero()));
-            cardExpiryLabel.setText(currentCard.getDateExpiration().format(String.valueOf(DATE_FORMATTER)));
-            cardStatusLabel.setText(currentCard.getStatut().toString());
-
-//            blockCardButton.setDisable(currentCard.getStatut() != StatutCarte.ACTIVE);
-//            unblockCardButton.setDisable(currentCard.getStatut() != StatutCarte.BLOQUEE);
-
-            cardContainer.setVisible(true);
-//            cardContainer.getStyleClass().setAll("card-container",
-//                currentCard.getStatut() == StatutCarte.ACTIVE ? "card-active" : "card-blocked");
-        } else {
-            cardContainer.setVisible(false);
+    private void debloquerCarte() {
+        if (carteSelectionnee == null) {
+            WindowManager.showWarning("Attention",
+                    "Aucune carte sélectionnée",
+                    "Veuillez sélectionner une carte à débloquer.");
+            return;
         }
+
+        Map<String, String> request = new HashMap<>();
+        request.put("statut", "active");
+
+        HttpService.putAsync("/api/cartes/" + carteSelectionnee.getId() + "/statut",
+                        request, CarteBancaireDTo.class)
+                .thenAccept(carte -> {
+                    Platform.runLater(() -> {
+                        chargerCartes();
+                        WindowManager.showSuccess("Succès",
+                                "Carte débloquée",
+                                "La carte a été débloquée avec succès.");
+                    });
+                })
+                .exceptionally(throwable -> {
+                    Platform.runLater(() -> {
+                        WindowManager.showError("Erreur",
+                                "Impossible de débloquer la carte",
+                                throwable.getMessage());
+                    });
+                    return null;
+                });
     }
 
-    private boolean validatePin() {
-        String pin = pinTextField.getText();
-        if (pin == null || !pin.matches("\\d{4}")) {
-            WindowManager.showError("Erreur", "Code PIN invalide",
-                "Le code PIN doit contenir exactement 4 chiffres.");
+    @FXML
+    private void modifierPlafond() {
+        if (carteSelectionnee == null) {
+            WindowManager.showWarning("Attention",
+                    "Aucune carte sélectionnée",
+                    "Veuillez sélectionner une carte pour modifier les plafonds.");
+            return;
+        }
+
+        // TODO: Ouvrir une fenêtre de modification des plafonds
+        WindowManager.showWarning("Fonctionnalité",
+                "En cours de développement",
+                "Cette fonctionnalité sera disponible prochainement.");
+    }
+
+    private boolean validerFormulaire() {
+        if (typeCarteCombo.getValue() == null) {
+            WindowManager.showError("Erreur de validation",
+                    "Type de carte manquant",
+                    "Veuillez sélectionner un type de carte.");
             return false;
         }
+
+        if (compteCombo.getValue() == null) {
+            WindowManager.showError("Erreur de validation",
+                    "Compte manquant",
+                    "Veuillez sélectionner un compte.");
+            return false;
+        }
+
+        if (!ValidationUtils.isNotEmpty(plafondJournalierField.getText()) ||
+                !ValidationUtils.isValidAmount(plafondJournalierField.getText())) {
+            WindowManager.showError("Erreur de validation",
+                    "Plafond journalier invalide",
+                    "Veuillez saisir un plafond journalier valide.");
+            plafondJournalierField.requestFocus();
+            return false;
+        }
+
+        if (!ValidationUtils.isNotEmpty(plafondMensuelField.getText()) ||
+                !ValidationUtils.isValidAmount(plafondMensuelField.getText())) {
+            WindowManager.showError("Erreur de validation",
+                    "Plafond mensuel invalide",
+                    "Veuillez saisir un plafond mensuel valide.");
+            plafondMensuelField.requestFocus();
+            return false;
+        }
+
+        if (!ValidationUtils.isNotEmpty(pinField.getText()) || pinField.getText().length() != 4) {
+            WindowManager.showError("Erreur de validation",
+                    "PIN invalide",
+                    "Le PIN doit contenir exactement 4 chiffres.");
+            pinField.requestFocus();
+            return false;
+        }
+
+        if (!pinField.getText().equals(confirmPinField.getText())) {
+            WindowManager.showError("Erreur de validation",
+                    "Confirmation PIN",
+                    "Les codes PIN ne correspondent pas.");
+            confirmPinField.requestFocus();
+            return false;
+        }
+
         return true;
     }
 
-    private String formatCardNumber(String numero) {
-        if (numero == null || numero.length() != 16) return "XXXX XXXX XXXX XXXX";
-        return String.format("%s %s %s %s",
-            numero.substring(0, 4),
-            numero.substring(4, 8),
-            numero.substring(8, 12),
-            numero.substring(12, 16));
+    private void viderFormulaire() {
+        if (typeCarteCombo != null) typeCarteCombo.setValue("debit");
+        if (compteCombo != null) compteCombo.setValue(null);
+        if (plafondJournalierField != null) plafondJournalierField.clear();
+        if (plafondMensuelField != null) plafondMensuelField.clear();
+        if (pinField != null) pinField.clear();
+        if (confirmPinField != null) confirmPinField.clear();
     }
 
-    private void showLoading(boolean show) {
-        loadingSpinner.setVisible(show);
-        requestCardButton.setDisable(show);
-//        blockCardButton.setDisable(show || currentCard == null || currentCard.getStatut() != StatutCarte.ACTIVE);
-//        unblockCardButton.setDisable(show || currentCard == null || currentCard.getStatut() != StatutCarte.BLOQUEE);
-    }
+    private void mettreAJourBoutons() {
+        boolean carteSelectionnee = this.carteSelectionnee != null;
 
-    private void chargerCartesClient() {
-        Long compteId = 1L;
-        try {
-            CarteBancaireDTo[] cartes = restTemplate.getForObject(
-                API_URL + "/compte/" + compteId,
-                CarteBancaireDTo[].class
-            );
-            // TODO: Update UI with cards
-        } catch (Exception e) {
-            // TODO: Handle error
+        if (bloquerCarteBtn != null) {
+            bloquerCarteBtn.setDisable(!carteSelectionnee ||
+                    !"active".equals(this.carteSelectionnee != null ? this.carteSelectionnee.getStatut() : ""));
+        }
+
+        if (debloquerCarteBtn != null) {
+            debloquerCarteBtn.setDisable(!carteSelectionnee ||
+                    !"bloquee".equals(this.carteSelectionnee != null ? this.carteSelectionnee.getStatut() : ""));
+        }
+
+        if (modifierPlafondBtn != null) {
+            modifierPlafondBtn.setDisable(!carteSelectionnee);
         }
     }
 
-    @FXML
-    private void signalerPerte(Long carteId) {
+    private void redirectToLogin() {
         try {
-            restTemplate.postForObject(
-                API_URL + "/" + carteId + "/signaler-perte",
-                null,
-                Void.class
-            );
-            // TODO: Update UI
+            WindowManager.closeWindow();
+            WindowManager.openWindow("/fxml/connexion.fxml", "Connexion");
         } catch (Exception e) {
-            // TODO: Handle error
-        }
-    }
-
-    @FXML
-    private void changerCodePin(Long carteId, String ancienPin, String nouveauPin) {
-        try {
-            var request = Map.of(
-                "ancienPin", ancienPin,
-                "nouveauPin", nouveauPin
-            );
-            restTemplate.postForObject(
-                API_URL + "/" + carteId + "/changer-code",
-                request,
-                Void.class
-            );
-            // TODO: Show success message
-        } catch (Exception e) {
-            // TODO: Handle error
+            e.printStackTrace();
         }
     }
 }

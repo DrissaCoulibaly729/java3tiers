@@ -5,23 +5,20 @@ module com.groupeisi.minisystemebancaire {
 
     // Modules réseau et HTTP pour communication avec Laravel
     requires java.net.http;
+    requires okhttp3;
 
     // Modules pour JSON (communication avec Laravel API)
     requires com.google.gson;
-    requires gson.javatime.serialisers;
+
+    // Modules JFoenix
+    requires com.jfoenix;
 
     // Modules Lombok pour les DTOs
     requires static lombok;
 
-    // Modules pour logging
-    requires org.apache.logging.log4j;
-    requires org.apache.logging.log4j.core;
-
-    // Modules pour PDF et Excel
+    // Modules pour PDF (iText seulement)
     requires itextpdf;
     requires java.desktop;
-    requires org.apache.poi.poi;
-    requires org.apache.poi.ooxml;
 
     // Exports
     exports com.groupeisi.minisystemebancaire;

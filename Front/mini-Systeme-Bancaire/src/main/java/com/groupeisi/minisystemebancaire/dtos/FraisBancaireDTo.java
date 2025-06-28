@@ -3,6 +3,7 @@ package com.groupeisi.minisystemebancaire.dtos;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -11,10 +12,11 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class FraisBancaireDTo {
     private Long id;
-    private String typeFrais; // "Maintenance", "Virement", "Retrait", "Découvert"
-    private BigDecimal montant;
+    private String libelle;
     private String description;
-    private Long compteId;
-    private CompteDTo compte;
-    private LocalDateTime createdAt;
+    private BigDecimal montant;
+    private String type; // fixe, pourcentage
+    private Boolean actif;
+    private LocalDateTime dateCreation;
+    private LocalDateTime dateModification;
 }

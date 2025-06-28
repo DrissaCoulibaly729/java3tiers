@@ -3,6 +3,8 @@ package com.groupeisi.minisystemebancaire.dtos;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
+
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -12,11 +14,11 @@ import java.time.LocalDateTime;
 public class CarteBancaireDTo {
     private Long id;
     private String numeroCarte;
-    private String typeCarte; // "Débit", "Crédit"
+    private String type; // debit, credit
     private LocalDate dateExpiration;
-    private String statut; // "Active", "Bloquée", "Expirée"
+    private String statut; // active, bloquee, expiree
+    private BigDecimal plafondJournalier;
+    private BigDecimal plafondMensuel;
     private Long compteId;
-    private CompteDTo compte;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+    private LocalDateTime dateCreation;
 }
