@@ -46,11 +46,11 @@ public class ConnexionController implements Initializable {
 
     @FXML
     private void seConnecter() {
-        String email = emailField.getText().trim();
+        String identifier = emailField.getText().trim(); // Peut être email ou username
         String password = passwordField.getText();
 
         // Validation des champs
-        if (!validerChamps(email, password)) {
+        if (!validerChamps(identifier, password)) {
             return;
         }
 
@@ -58,63 +58,94 @@ public class ConnexionController implements Initializable {
         setLoading(true);
         clearMessage();
 
-        // Effectuer la connexion
+        // Déterminer si c'est un admin ou un client
+        if (isAdminFormat(identifier)) {
+            // Tentative de connexion admin
+            connecterAdmin(identifier, password);
+        } else {
+            // Tentative de connexion client
+            connecterClient(identifier, password);
+        }
+    }
+
+    private void connecterAdmin(String username, String password) {
+        System.out.println("Tentative de connexion admin: " + username);
+
+        AuthService.loginAdmin(username, password)
+                .thenAccept(response -> {
+                    System.out.println("Réponse reçue: " + response);
+                    Platform.runLater(() -> {
+                        setLoading(false);
+                        if (response != null) {
+                            try {
+                                showSuccess("Connexion réussie en tant qu'administrateur");
+                                System.out.println("Tentative d'ouverture du dashboard admin...");
+                                redirectToAdminDashboard();
+                                System.out.println("Dashboard admin ouvert avec succès !");
+                            } catch (Exception e) {
+                                System.out.println("ERREUR lors de la redirection: " + e.getMessage());
+                                e.printStackTrace();
+                                showError("Erreur lors de la redirection: " + e.getMessage());
+                            }
+                        } else {
+                            showError("Identifiants administrateur invalides");
+                        }
+                    });
+                })
+                .exceptionally(throwable -> {
+                    System.out.println("Erreur complète: " + throwable.getMessage());
+                    throwable.printStackTrace();
+                    Platform.runLater(() -> {
+                        setLoading(false);
+                        showError("Erreur de connexion administrateur: " + throwable.getMessage());
+                    });
+                    return null;
+                });
+    }
+
+    private void connecterClient(String email, String password) {
         AuthService.login(email, password)
                 .thenAccept(response -> {
                     Platform.runLater(() -> {
                         setLoading(false);
-
                         if (response != null && response.getToken() != null) {
-                            // Connexion réussie
                             try {
-                                // Rediriger vers le tableau de bord approprié
-                                redirectToDashboard(response.getUser().getEmail());
+                                showSuccess("Connexion réussie");
+                                redirectToClientDashboard();
                             } catch (Exception e) {
-                                showError("Erreur lors de l'ouverture du tableau de bord: " + e.getMessage());
+                                showError("Erreur lors de la redirection: " + e.getMessage());
                             }
                         } else {
-                            showError("Identifiants invalides");
+                            showError("Email ou mot de passe incorrect");
                         }
                     });
                 })
                 .exceptionally(throwable -> {
                     Platform.runLater(() -> {
                         setLoading(false);
-
-                        // Gérer les différents types d'erreurs
-                        String errorMessage = "Erreur de connexion";
-
-                        if (throwable.getCause() != null) {
-                            String causeMessage = throwable.getCause().getMessage();
-                            if (causeMessage.contains("401")) {
-                                errorMessage = "Email ou mot de passe incorrect";
-                            } else if (causeMessage.contains("403")) {
-                                errorMessage = "Compte désactivé";
-                            } else if (causeMessage.contains("500")) {
-                                errorMessage = "Erreur serveur, veuillez réessayer plus tard";
-                            } else {
-                                errorMessage = "Impossible de se connecter au serveur";
-                            }
-                        }
-
-                        showError(errorMessage);
+                        showError("Erreur de connexion: " + getErrorMessage(throwable));
                     });
                     return null;
                 });
     }
 
-    private boolean validerChamps(String email, String password) {
-        if (!ValidationUtils.isNotEmpty(email)) {
-            showError("Veuillez saisir votre email");
+    private boolean validerChamps(String identifier, String password) {
+        if (!ValidationUtils.isNotEmpty(identifier)) {
+            showError("Veuillez saisir votre email ou nom d'utilisateur");
             emailField.requestFocus();
             return false;
         }
 
-        if (!ValidationUtils.isValidEmail(email)) {
-            showError("Format d'email invalide");
-            emailField.requestFocus();
-            return false;
+        // Validation spécifique selon le type
+        if (!isAdminFormat(identifier)) {
+            // Pour les clients, vérifier que c'est un email valide
+            if (!ValidationUtils.isValidEmail(identifier)) {
+                showError("Format d'email invalide");
+                emailField.requestFocus();
+                return false;
+            }
         }
+        // Pour les admins, pas de validation spéciale sur le username
 
         if (!ValidationUtils.isNotEmpty(password)) {
             showError("Veuillez saisir votre mot de passe");
@@ -125,21 +156,38 @@ public class ConnexionController implements Initializable {
         return true;
     }
 
-    private void redirectToDashboard(String userEmail) throws Exception {
-        // Vérifier si c'est un admin ou un client
-        if (isAdmin(userEmail)) {
-            WindowManager.closeWindow();
-            WindowManager.openWindow("/fxml/admin/dashboard-admin.fxml", "Administration - Tableau de bord");
-        } else {
-            WindowManager.closeWindow();
-            WindowManager.openWindow("/fxml/client/dashboard-client.fxml", "Espace Client - Tableau de bord");
-        }
+    private boolean isAdminFormat(String identifier) {
+        // Détermine si l'identifiant ressemble à un username admin
+        // Logique: si ça ne contient pas @ et fait moins de 50 caractères, c'est probablement un username admin
+        return !identifier.contains("@") && identifier.length() < 50;
     }
 
-    private boolean isAdmin(String email) {
-        // Logique pour déterminer si l'utilisateur est admin
-        // Cela pourrait être basé sur l'email ou sur un rôle retourné par l'API
-        return email.contains("admin") || email.endsWith("@admin.bank");
+    private void redirectToClientDashboard() throws Exception {
+        WindowManager.closeWindow();
+        WindowManager.openWindow("/com/groupeisi/minisystemebancaire/client/dashboard-client.fxml", "Espace Client - Tableau de bord");
+    }
+
+    private void redirectToAdminDashboard() throws Exception {
+        // Debug : voir ce qui est disponible
+        System.out.println("Ressource trouvée : " + WindowManager.class.getResource("/com/groupeisi/minisystemebancaire/admin/"));
+
+        WindowManager.closeWindow();
+        WindowManager.openWindow("/com/groupeisi/minisystemebancaire/admin/test-admin.fxml", "Administration - Tableau de bord");
+    }
+
+    private String getErrorMessage(Throwable throwable) {
+        String errorMessage = "Erreur de connexion";
+        if (throwable.getCause() != null) {
+            String causeMessage = throwable.getCause().getMessage();
+            if (causeMessage.contains("401")) {
+                errorMessage = "Identifiants invalides";
+            } else if (causeMessage.contains("500")) {
+                errorMessage = "Erreur serveur. Veuillez réessayer plus tard";
+            } else {
+                errorMessage = "Impossible de se connecter au serveur";
+            }
+        }
+        return errorMessage;
     }
 
     @FXML

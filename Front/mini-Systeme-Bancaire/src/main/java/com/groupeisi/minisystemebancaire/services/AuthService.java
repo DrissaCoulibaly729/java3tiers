@@ -193,4 +193,51 @@ public class AuthService {
         public String getNumeroCNI() { return numeroCNI; }
         public void setNumeroCNI(String numeroCNI) { this.numeroCNI = numeroCNI; }
     }
+
+    // Ajoutez cette méthode dans votre classe AuthService
+
+    /**
+     * Connexion administrateur
+     */
+    public static CompletableFuture<AdminLoginResponse> loginAdmin(String username, String password) {
+        Map<String, String> credentials = new HashMap<>();
+        credentials.put("username", username);
+        credentials.put("password", password);
+
+        return HttpService.postAsync("/api/admins/login", credentials, AdminLoginResponse.class)
+                .thenApply(response -> {
+                    if (response != null && response.getId() != null) {
+                        // Sauvegarder les données admin
+                        ApiConfig.setCurrentUserId(response.getId());
+                        // Pour les admins, vous pourriez vouloir un token différent ou gérer différemment
+                    }
+                    return response;
+                });
+    }
+
+    // Classe DTO pour la réponse de connexion admin
+    public static class AdminLoginResponse {
+        private Long id;
+        private String username;
+        private String role;
+
+        // Constructeurs
+        public AdminLoginResponse() {}
+
+        public AdminLoginResponse(Long id, String username, String role) {
+            this.id = id;
+            this.username = username;
+            this.role = role;
+        }
+
+        // Getters et Setters
+        public Long getId() { return id; }
+        public void setId(Long id) { this.id = id; }
+
+        public String getUsername() { return username; }
+        public void setUsername(String username) { this.username = username; }
+
+        public String getRole() { return role; }
+        public void setRole(String role) { this.role = role; }
+    }
 }

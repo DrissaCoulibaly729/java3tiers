@@ -20,8 +20,6 @@ module com.groupeisi.minisystemebancaire {
     requires itextpdf;
     requires java.desktop;
 
-
-
     // Accès à tous les modules non nommés (pour POI)
     requires java.xml;
     requires java.logging;
@@ -44,4 +42,6 @@ module com.groupeisi.minisystemebancaire {
 
     // Opens pour Gson (communication avec Laravel)
     opens com.groupeisi.minisystemebancaire.dtos to com.google.gson;
+    // ⭐ AJOUT IMPORTANT : Opens services pour Gson
+    opens com.groupeisi.minisystemebancaire.services to com.google.gson;
 }

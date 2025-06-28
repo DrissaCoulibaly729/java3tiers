@@ -19,7 +19,7 @@
                </font>
             </Text>
             <!-- Correction: usernameField -> emailField -->
-            <TextField fx:id="emailField" layoutX="95.0" layoutY="82.0" prefHeight="40.0" prefWidth="348.0" promptText="Adresse electronique" styleClass="jfx-text-field">
+            <TextField fx:id="emailField" layoutX="95.0" layoutY="82.0" prefHeight="40.0" prefWidth="348.0" promptText="Email ou nom d'utilisateur" styleClass="jfx-text-field">
                <font>
                   <Font name="JetBrains Mono Regular" size="13.0" />
                </font>
