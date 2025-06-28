@@ -97,15 +97,22 @@ public class ConnexionController implements Initializable {
     }
 
     private void connecterClient(String email, String password) {
+        System.out.println("Tentative de connexion client: " + email);
+
         AuthService.login(email, password)
                 .thenAccept(response -> {
+                    System.out.println("Réponse client reçue: " + response);
                     Platform.runLater(() -> {
                         setLoading(false);
-                        if (response != null && response.getToken() != null) {
+                        if (response != null && response.getId() != null) {
                             try {
                                 showSuccess("Connexion réussie");
+                                System.out.println("Tentative d'ouverture du dashboard client...");
                                 redirectToClientDashboard();
+                                System.out.println("Dashboard client ouvert avec succès !");
                             } catch (Exception e) {
+                                System.out.println("ERREUR lors de la redirection client: " + e.getMessage());
+                                e.printStackTrace();
                                 showError("Erreur lors de la redirection: " + e.getMessage());
                             }
                         } else {
@@ -114,6 +121,8 @@ public class ConnexionController implements Initializable {
                     });
                 })
                 .exceptionally(throwable -> {
+                    System.out.println("Erreur connexion client: " + throwable.getMessage());
+                    throwable.printStackTrace();
                     Platform.runLater(() -> {
                         setLoading(false);
                         showError("Erreur de connexion: " + getErrorMessage(throwable));
@@ -156,8 +165,14 @@ public class ConnexionController implements Initializable {
     }
 
     private void redirectToClientDashboard() throws Exception {
+        System.out.println("DEBUG: Début de redirectToClientDashboard");
+
         WindowManager.closeWindow();
-        WindowManager.openWindow("/fxml/client/dashboard-client.fxml", "Espace Client - Tableau de bord");
+        System.out.println("DEBUG: Fenêtre fermée");
+
+        // Utiliser le fichier dashboard_client.fxml simplifié
+        WindowManager.openWindow("/com/groupeisi/minisystemebancaire/client/dashboard_client.fxml", "Espace Client - Tableau de bord");
+        System.out.println("DEBUG: Nouvelle fenêtre ouverte");
     }
 
     private void redirectToAdminDashboard() throws Exception {

@@ -8,24 +8,42 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Service d'authentification pour communiquer avec Laravel Sanctum/Passport
+ * Service d'authentification pour communiquer avec Laravel
  */
 public class AuthService {
 
     /**
-     * Connexion utilisateur
+     * Connexion client
      */
-    public static CompletableFuture<LoginResponse> login(String email, String password) {
+    public static CompletableFuture<ClientLoginResponse> login(String email, String password) {
         Map<String, String> credentials = new HashMap<>();
         credentials.put("email", email);
         credentials.put("password", password);
 
-        return HttpService.postAsync("/api/auth/login", credentials, LoginResponse.class)
+        return HttpService.postAsync("/api/clients/login", credentials, ClientLoginResponse.class)
                 .thenApply(response -> {
-                    if (response != null && response.getToken() != null) {
-                        // Sauvegarder le token et l'utilisateur
-                        ApiConfig.setAuthToken(response.getToken());
-                        ApiConfig.setCurrentUserId(response.getUser().getId());
+                    if (response != null && response.getId() != null) {
+                        // Sauvegarder l'utilisateur (pas de token pour les clients dans votre système)
+                        ApiConfig.setCurrentUserId(response.getId());
+                    }
+                    return response;
+                });
+    }
+
+    /**
+     * Connexion administrateur
+     */
+    public static CompletableFuture<com.groupeisi.minisystemebancaire.dtos.AdminLoginDTo> loginAdmin(String username, String password) {
+        Map<String, String> credentials = new HashMap<>();
+        credentials.put("username", username);
+        credentials.put("password", password);
+
+        return HttpService.postAsync("/api/admins/login", credentials, com.groupeisi.minisystemebancaire.dtos.AdminLoginDTo.class)
+                .thenApply(response -> {
+                    if (response != null && response.getId() != null) {
+                        // Sauvegarder les données admin (pas de token pour les admins dans votre système)
+                        ApiConfig.setCurrentUserId(response.getId());
+                        // Note: Vous pourriez vouloir adapter votre système pour les admins
                     }
                     return response;
                 });
@@ -106,24 +124,63 @@ public class AuthService {
     }
 
     // Classes pour les réponses
-    public static class LoginResponse {
-        private String token;
-        private String tokenType;
-        private ClientDTo user;
-        private long expiresIn;
 
-        // Getters et setters
-        public String getToken() { return token; }
-        public void setToken(String token) { this.token = token; }
+    /**
+     * Réponse de connexion client
+     */
+    public static class ClientLoginResponse {
+        private Long id;
+        private String nom;
+        private String prenom;
+        private String email;
+        private String statut;
 
-        public String getTokenType() { return tokenType; }
-        public void setTokenType(String tokenType) { this.tokenType = tokenType; }
+        // Constructeurs
+        public ClientLoginResponse() {}
 
-        public ClientDTo getUser() { return user; }
-        public void setUser(ClientDTo user) { this.user = user; }
+        // Getters et Setters
+        public Long getId() { return id; }
+        public void setId(Long id) { this.id = id; }
 
-        public long getExpiresIn() { return expiresIn; }
-        public void setExpiresIn(long expiresIn) { this.expiresIn = expiresIn; }
+        public String getNom() { return nom; }
+        public void setNom(String nom) { this.nom = nom; }
+
+        public String getPrenom() { return prenom; }
+        public void setPrenom(String prenom) { this.prenom = prenom; }
+
+        public String getEmail() { return email; }
+        public void setEmail(String email) { this.email = email; }
+
+        public String getStatut() { return statut; }
+        public void setStatut(String statut) { this.statut = statut; }
+    }
+
+    /**
+     * Réponse de connexion admin
+     */
+    public static class AdminLoginResponse {
+        private Long id;
+        private String username;
+        private String role;
+
+        // Constructeurs
+        public AdminLoginResponse() {}
+
+        public AdminLoginResponse(Long id, String username, String role) {
+            this.id = id;
+            this.username = username;
+            this.role = role;
+        }
+
+        // Getters et Setters
+        public Long getId() { return id; }
+        public void setId(Long id) { this.id = id; }
+
+        public String getUsername() { return username; }
+        public void setUsername(String username) { this.username = username; }
+
+        public String getRole() { return role; }
+        public void setRole(String role) { this.role = role; }
     }
 
     public static class RegisterResponse {
@@ -192,52 +249,5 @@ public class AuthService {
 
         public String getNumeroCNI() { return numeroCNI; }
         public void setNumeroCNI(String numeroCNI) { this.numeroCNI = numeroCNI; }
-    }
-
-    // Ajoutez cette méthode dans votre classe AuthService
-
-    /**
-     * Connexion administrateur
-     */
-    public static CompletableFuture<AdminLoginResponse> loginAdmin(String username, String password) {
-        Map<String, String> credentials = new HashMap<>();
-        credentials.put("username", username);
-        credentials.put("password", password);
-
-        return HttpService.postAsync("/api/admins/login", credentials, AdminLoginResponse.class)
-                .thenApply(response -> {
-                    if (response != null && response.getId() != null) {
-                        // Sauvegarder les données admin
-                        ApiConfig.setCurrentUserId(response.getId());
-                        // Pour les admins, vous pourriez vouloir un token différent ou gérer différemment
-                    }
-                    return response;
-                });
-    }
-
-    // Classe DTO pour la réponse de connexion admin
-    public static class AdminLoginResponse {
-        private Long id;
-        private String username;
-        private String role;
-
-        // Constructeurs
-        public AdminLoginResponse() {}
-
-        public AdminLoginResponse(Long id, String username, String role) {
-            this.id = id;
-            this.username = username;
-            this.role = role;
-        }
-
-        // Getters et Setters
-        public Long getId() { return id; }
-        public void setId(Long id) { this.id = id; }
-
-        public String getUsername() { return username; }
-        public void setUsername(String username) { this.username = username; }
-
-        public String getRole() { return role; }
-        public void setRole(String role) { this.role = role; }
     }
 }
