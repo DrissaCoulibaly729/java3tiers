@@ -1,10 +1,13 @@
-package gm.rahmanproperties.optibank.dtos;
+package com.groupeisi.minisystemebancaire.dtos;
 
 import lombok.Data;
-
-import java.util.Set;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+import java.time.LocalDateTime;
 
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class ClientDTo {
     private Long id;
     private String nom;
@@ -12,23 +15,8 @@ public class ClientDTo {
     private String email;
     private String telephone;
     private String adresse;
-//    private String dateNaissance;
-//    private String profession;
-    private Set<Role> roles = Set.of(Role.ROLE_CLIENT);
-    private String username;
-    private String password;
-//    private StatutClient statut;
-
-    public enum StatutClient {
-        ACTIF,
-        INACTIF,
-        BLOQUE,
-        EN_ATTENTE
-    }
-
-    public enum Role {
-        ROLE_CLIENT,
-        ROLE_ADMIN,
-        ROLE_AGENT
-    }
+    private String cni;
+    private String statut; // "Actif", "Suspendu"
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 }

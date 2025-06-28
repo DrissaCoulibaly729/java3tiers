@@ -1,33 +1,22 @@
-package gm.rahmanproperties.optibank.dtos;
+package com.groupeisi.minisystemebancaire.dtos;
 
 import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 import java.time.LocalDateTime;
 
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class TicketSupportDTo {
     private Long id;
-    private String reference;
     private String sujet;
     private String description;
+    private String statut; // "Ouvert", "En cours", "Résolu", "Fermé"
+    private String priorite; // "Basse", "Normale", "Haute", "Urgente"
     private String reponse;
-    private PrioriteTicket priorite;
-    private StatutTicket statut;
     private Long clientId;
-    private LocalDateTime dateCreation;
-    private LocalDateTime dateModification;
-
-    public enum PrioriteTicket {
-        BASSE,
-        MOYENNE,
-        HAUTE,
-        URGENTE
-    }
-
-    public enum StatutTicket {
-        OUVERT,
-        EN_COURS,
-        RESOLU,
-        FERME,
-        EN_ATTENTE
-    }
+    private ClientDTo client;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 }

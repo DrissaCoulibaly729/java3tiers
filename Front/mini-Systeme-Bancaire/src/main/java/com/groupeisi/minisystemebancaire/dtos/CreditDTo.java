@@ -1,31 +1,23 @@
-package gm.rahmanproperties.optibank.dtos;
+package com.groupeisi.minisystemebancaire.dtos;
 
 import lombok.Data;
-
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 import java.math.BigDecimal;
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class CreditDTo {
     private Long id;
-    private String reference;
     private BigDecimal montant;
-    private BigDecimal tauxAnnuel;
-    private Integer dureeEnMois;
-    private BigDecimal mensualite;
-    private StatutCredit statut;
+    private BigDecimal tauxInteret;
+    private Integer dureeRemboursement; // en mois
+    private String statut; // "En attente", "Accepté", "Refusé"
+    private String motif;
     private Long clientId;
-    private LocalDate dateDebut;
-    private LocalDate dateFin;
-    private String motifRejet;
-    private BigDecimal montantRestant;
-
-    public enum StatutCredit {
-        EN_ATTENTE,
-        APPROUVE,
-        REJETE,
-        EN_COURS,
-        TERMINE,
-        EN_RETARD
-    }
+    private ClientDTo client;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 }

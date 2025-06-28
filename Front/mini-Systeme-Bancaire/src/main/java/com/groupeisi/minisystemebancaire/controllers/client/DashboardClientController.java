@@ -1,10 +1,12 @@
 package com.groupeisi.minisystemebancaire.controllers.client;
 
 import com.jfoenix.controls.JFXButton;
-import gm.rahmanproperties.optibank.config.ApiConfig;
-import gm.rahmanproperties.optibank.dtos.*;
-import gm.rahmanproperties.optibank.utils.CurrencyFormatter;
-import gm.rahmanproperties.optibank.utils.WindowManager;
+import com.groupeisi.minisystemebancaire.config.ApiConfig;
+import com.groupeisi.minisystemebancaire.dtos.*;
+import com.groupeisi.minisystemebancaire.services.*;
+import com.groupeisi.minisystemebancaire.utils.CurrencyFormatter;
+import com.groupeisi.minisystemebancaire.utils.WindowManager;
+import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -14,13 +16,12 @@ import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.cell.PropertyValueFactory;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpMethod;
-import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
 import java.net.URL;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.ResourceBundle;
 
@@ -32,9 +33,14 @@ public class DashboardClientController implements Initializable {
     @FXML private TableView<CompteDTo> comptesTable;
     @FXML private TableColumn<CompteDTo, String> accountNumberCol;
     @FXML private TableColumn<CompteDTo, String> accountTypeCol;
-    @FXML private TableColumn<CompteDTo, Double> accountBalanceCol;
+    @FXML private TableColumn<CompteDTo, BigDecimal> accountBalanceCol;
 
     @FXML private TableView<TransactionDTo> dernieresTransactionsTable;
+    @FXML private TableColumn<TransactionDTo, String> transactionTypeCol;
+    @FXML private TableColumn<TransactionDTo, BigDecimal> transactionMontantCol;
+    @FXML private TableColumn<TransactionDTo, String> transactionDateCol;
+    @FXML private TableColumn<TransactionDTo, String> transactionStatutCol;
+
     @FXML private PieChart depensesChart;
 
     @FXML private JFXButton virementsBtn;
@@ -42,13 +48,18 @@ public class DashboardClientController implements Initializable {
     @FXML private JFXButton creditsBtn;
     @FXML private JFXButton supportBtn;
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    // Services
+    private final ClientService clientService = new ClientService();
+    private final CompteService compteService = new CompteService();
+    private final TransactionService transactionService = new TransactionService();
+
     private ClientDTo clientConnecte;
 
     @Override
     public void initialize(URL url, ResourceBundle rb) {
         configurerTables();
-        chargerClientConnecte();
+        configurerBoutons();
+        chargerDonneesClient();
     }
 
     private void configurerTables() {
@@ -56,175 +67,177 @@ public class DashboardClientController implements Initializable {
         accountNumberCol.setCellValueFactory(new PropertyValueFactory<>("numeroCompte"));
         accountTypeCol.setCellValueFactory(new PropertyValueFactory<>("typeCompte"));
         accountBalanceCol.setCellValueFactory(new PropertyValueFactory<>("solde"));
-        accountBalanceCol.setCellFactory(column -> new TableCell<CompteDTo, Double>() {
+        accountBalanceCol.setCellFactory(column -> new TableCell<CompteDTo, BigDecimal>() {
             @Override
-            protected void updateItem(Double item, boolean empty) {
+            protected void updateItem(BigDecimal item, boolean empty) {
                 super.updateItem(item, empty);
                 if (empty || item == null) {
                     setText(null);
                 } else {
-                    setText(CurrencyFormatter.format(item));
+                    setText(CurrencyFormatter.format(item.doubleValue()));
                 }
             }
         });
 
         // Configuration de la table des transactions
-        TableColumn<TransactionDTo, String> dateCol = new TableColumn<>("Date");
-        dateCol.setCellValueFactory(new PropertyValueFactory<>("dateTransaction"));
-
-        TableColumn<TransactionDTo, Double> montantCol = new TableColumn<>("Montant");
-        montantCol.setCellValueFactory(new PropertyValueFactory<>("montant"));
-        montantCol.setCellFactory(column -> new TableCell<TransactionDTo, Double>() {
+        transactionTypeCol.setCellValueFactory(new PropertyValueFactory<>("type"));
+        transactionMontantCol.setCellValueFactory(new PropertyValueFactory<>("montant"));
+        transactionMontantCol.setCellFactory(column -> new TableCell<TransactionDTo, BigDecimal>() {
             @Override
-            protected void updateItem(Double item, boolean empty) {
+            protected void updateItem(BigDecimal item, boolean empty) {
                 super.updateItem(item, empty);
                 if (empty || item == null) {
                     setText(null);
                 } else {
-                    setText(CurrencyFormatter.format(item));
+                    setText(CurrencyFormatter.format(item.doubleValue()));
                 }
             }
         });
 
-        TableColumn<TransactionDTo, String> descriptionCol = new TableColumn<>("Description");
-        descriptionCol.setCellValueFactory(new PropertyValueFactory<>("description"));
-
-        dernieresTransactionsTable.getColumns().setAll(dateCol, montantCol, descriptionCol);
-    }
-
-    private void chargerClientConnecte() {
-        try {
-            clientConnecte = restTemplate.exchange(
-                    ApiConfig.getApiUrl() + "/api/clients/"+ clientConnecte.getId(),
-                    HttpMethod.GET,
-                    new HttpEntity<>(null, ApiConfig.createHeaders()),
-                    ClientDTo.class
-            ).getBody();
-
-            if (clientConnecte != null) {
-                welcomeLabel.setText("Bienvenue, " + clientConnecte.getPrenom() + " " + clientConnecte.getNom());
-                chargerComptes();
-                chargerTransactions();
+        transactionDateCol.setCellValueFactory(new PropertyValueFactory<>("createdAt"));
+        transactionDateCol.setCellFactory(column -> new TableCell<TransactionDTo, String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    TransactionDTo transaction = getTableRow().getItem();
+                    if (transaction != null && transaction.getCreatedAt() != null) {
+                        setText(transaction.getCreatedAt().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")));
+                    }
+                }
             }
-        } catch (Exception e) {
-            WindowManager.showError("Erreur",
-                    "Impossible de charger les données du client",
-                    e.getMessage());
-        }
+        });
+
+        transactionStatutCol.setCellValueFactory(new PropertyValueFactory<>("statut"));
     }
 
-    private void chargerComptes() {
-        try {
-            CompteDTo[] comptes = restTemplate.exchange(
-                    ApiConfig.getApiUrl() + "/api/comptes/client/" + clientConnecte.getId(),
-                    HttpMethod.GET,
-                    new HttpEntity<>(null, ApiConfig.createHeaders()),
-                    CompteDTo[].class
-            ).getBody();
-
-            if (comptes != null) {
-                comptesTable.setItems(FXCollections.observableArrayList(comptes));
-                mettreAJourSoldeTotal(comptes);
-            }
-        } catch (Exception e) {
-            WindowManager.showError("Erreur",
-                    "Impossible de charger les comptes",
-                    e.getMessage());
-        }
+    private void configurerBoutons() {
+        virementsBtn.setOnAction(e -> ouvrirFenetre("/fxml/client/virements.fxml", "Virements"));
+        cartesBtn.setOnAction(e -> ouvrirFenetre("/fxml/client/cartes.fxml", "Gestion des Cartes"));
+        creditsBtn.setOnAction(e -> ouvrirFenetre("/fxml/client/credits.fxml", "Crédits"));
+        supportBtn.setOnAction(e -> ouvrirFenetre("/fxml/client/support.fxml", "Support Client"));
     }
 
-    private void chargerTransactions() {
-        try {
-            TransactionDTo[] transactions = restTemplate.exchange(
-                    ApiConfig.getApiUrl() + "/api/transactions/client/" + clientConnecte.getId() + "?limit=5",
-                    HttpMethod.GET,
-                    new HttpEntity<>(null, ApiConfig.createHeaders()),
-                    TransactionDTo[].class
-            ).getBody();
-
-            if (transactions != null) {
-                dernieresTransactionsTable.setItems(FXCollections.observableArrayList(transactions));
-                nombreTransactionsLabel.setText(String.valueOf(transactions.length));
-                mettreAJourGraphiqueDepenses(transactions);
-            }
-        } catch (Exception e) {
-            WindowManager.showError("Erreur",
-                    "Impossible de charger les transactions",
-                    e.getMessage());
+    private void chargerDonneesClient() {
+        Long clientId = ApiConfig.getCurrentUserId();
+        if (clientId == null) {
+            Platform.runLater(() -> {
+                WindowManager.showFxPopupError("Session expirée\nVeuillez vous reconnecter.");
+                // Rediriger vers la connexion
+                try {
+                    WindowManager.closeWindow();
+                    WindowManager.openWindow("/fxml/connexion.fxml", "Connexion");
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            });
+            return;
         }
+
+        // Charger les informations du client
+        clientService.getClientById(clientId)
+                .thenAccept(client -> {
+                    this.clientConnecte = client;
+                    Platform.runLater(() -> {
+                        welcomeLabel.setText("Bienvenue, " + client.getPrenom() + " " + client.getNom());
+                    });
+                })
+                .exceptionally(throwable -> {
+                    handleError("Erreur lors du chargement du profil client", throwable);
+                    return null;
+                });
+
+        // Charger les comptes
+        compteService.getComptesByClient(clientId)
+                .thenAccept(comptes -> {
+                    Platform.runLater(() -> {
+                        comptesTable.setItems(FXCollections.observableArrayList(comptes));
+
+                        // Calculer le solde total
+                        BigDecimal soldeTotal = comptes.stream()
+                                .map(CompteDTo::getSolde)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+                        soldeLabel.setText(CurrencyFormatter.format(soldeTotal.doubleValue()));
+                    });
+                })
+                .exceptionally(throwable -> {
+                    handleError("Erreur lors du chargement des comptes", throwable);
+                    return null;
+                });
+
+        // Charger les dernières transactions
+        transactionService.getTransactionsByClient(clientId)
+                .thenAccept(transactions -> {
+                    Platform.runLater(() -> {
+                        // Prendre les 10 dernières transactions
+                        List<TransactionDTo> dernieresTransactions = transactions.stream()
+                                .sorted((t1, t2) -> t2.getCreatedAt().compareTo(t1.getCreatedAt()))
+                                .limit(10)
+                                .toList();
+
+                        dernieresTransactionsTable.setItems(FXCollections.observableArrayList(dernieresTransactions));
+                        nombreTransactionsLabel.setText(String.valueOf(transactions.size()));
+
+                        // Mettre à jour le graphique des dépenses
+                        mettreAJourGraphiqueDepenses(transactions);
+                    });
+                })
+                .exceptionally(throwable -> {
+                    handleError("Erreur lors du chargement des transactions", throwable);
+                    return null;
+                });
     }
 
-    private void mettreAJourSoldeTotal(CompteDTo[] comptes) {
-        double soldeTotal = 0;
-        for (CompteDTo compte : comptes) {
-            soldeTotal += Integer.parseInt(String.valueOf(compte.getSolde()));
-        }
-        soldeLabel.setText(CurrencyFormatter.format(soldeTotal));
-    }
+    private void mettreAJourGraphiqueDepenses(List<TransactionDTo> transactions) {
+        Map<String, BigDecimal> depensesParType = new HashMap<>();
 
-    private void mettreAJourGraphiqueDepenses(TransactionDTo[] transactions) {
-        Map<String, Double> categoriesDepenses = analyserCategoriesDepenses(transactions);
+        transactions.stream()
+                .filter(t -> "Retrait".equals(t.getType()) || "Virement".equals(t.getType()))
+                .forEach(transaction -> {
+                    depensesParType.merge(transaction.getType(),
+                            transaction.getMontant(),
+                            BigDecimal::add);
+                });
+
         depensesChart.getData().clear();
+        depensesParType.forEach((type, montant) -> {
+            PieChart.Data slice = new PieChart.Data(type, montant.doubleValue());
+            depensesChart.getData().add(slice);
+        });
+    }
 
-        categoriesDepenses.forEach((categorie, montant) -> {
-            if (montant > 0) {
-                depensesChart.getData().add(new PieChart.Data(categorie, montant));
+    private void ouvrirFenetre(String fxmlPath, String titre) {
+        try {
+            WindowManager.openModalWindow(fxmlPath, titre);
+        } catch (Exception e) {
+            handleError("Erreur d'ouverture de fenêtre", e);
+        }
+    }
+
+    private void handleError(String message, Throwable throwable) {
+        Platform.runLater(() -> {
+            String errorMessage = message;
+            if (throwable != null) {
+                errorMessage += "\n" + throwable.getMessage();
+            }
+            WindowManager.showFxPopupError(errorMessage);
+            System.err.println("Erreur: " + message);
+            if (throwable != null) {
+                throwable.printStackTrace();
             }
         });
     }
 
-    private Map<String, Double> analyserCategoriesDepenses(TransactionDTo[] transactions) {
-        Map<String, Double> result = new HashMap<>();
-        result.put("Achats", 0.0);
-        result.put("Services", 0.0);
-        result.put("Virements", 0.0);
-        result.put("Autres", 0.0);
-
-        for (TransactionDTo transaction : transactions) {
-            if (transaction.getMontant().equals(BigDecimal.ZERO)) {
-                double montant = Math.abs(Integer.parseInt(String.valueOf(transaction.getMontant())));
-                String categorie = determinerCategorie(transaction);
-                result.put(categorie, result.getOrDefault(categorie, 0.0) + montant);
-            }
+    @FXML
+    public void handleLogout() {
+        ApiConfig.clearSession();
+        try {
+            WindowManager.closeWindow();
+            WindowManager.openWindow("/fxml/connexion.fxml", "Connexion");
+        } catch (Exception e) {
+            handleError("Erreur de déconnexion", e);
         }
-
-        return result;
-    }
-
-    private String determinerCategorie(TransactionDTo transaction) {
-        if (transaction.getDescription().toLowerCase().contains("achat")) {
-            return "Achats";
-        } else if (transaction.getDescription().toLowerCase().contains("service")) {
-            return "Services";
-        } else if (transaction.getDescription().toLowerCase().contains("virement")) {
-            return "Virements";
-        }
-        return "Autres";
-    }
-
-    @FXML
-    private void ouvrirVirements() {
-        WindowManager.openWindow("/fxml/client/client_transaction.fxml", "Effectuer un virement");
-    }
-
-    @FXML
-    private void ouvrirCartesBancaires() {
-        WindowManager.openWindow("/fxml/client/carte_bancaire.fxml", "Mes cartes bancaires");
-    }
-
-    @FXML
-    private void ouvrirCredits() {
-        WindowManager.openModalWindow("/fxml/client/credit_carte.fxml", "Mes crédits");
-    }
-
-    @FXML
-    private void ouvrirSupport() {
-        WindowManager.openWindow("/fxml/client/support.fxml", "Support client");
-    }
-
-    @FXML
-    private void actualiserDonnees() {
-        chargerComptes();
-        chargerTransactions();
     }
 }
