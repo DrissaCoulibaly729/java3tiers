@@ -125,18 +125,14 @@ public class AdminDashboardController {
                     setStyle("");
                 } else {
                     setText(item);
-                    switch (item) {
-                        case "Validé":
-                            setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
-                            break;
-                        case "Rejeté":
-                            setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
-                            break;
-                        case "En attente":
-                            setStyle("-fx-text-fill: #f39c12; -fx-font-weight: bold;");
-                            break;
-                        default:
-                            setStyle("");
+                    if ("Validé".equals(item)) {
+                        setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
+                    } else if ("Rejeté".equals(item)) {
+                        setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
+                    } else if ("En attente".equals(item)) {
+                        setStyle("-fx-text-fill: #f39c12; -fx-font-weight: bold;");
+                    } else {
+                        setStyle("");
                     }
                 }
             }

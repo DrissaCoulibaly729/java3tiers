@@ -131,6 +131,12 @@ public class ClientLoginController {
         navigateTo("/com/groupeisi/minisystemebancaire/client/UI_Register.fxml", event);
     }
 
+    @FXML
+    private void handleRegister(ActionEvent event) {
+        // Alias pour handleInscription pour compatibilité FXML
+        handleInscription(event);
+    }
+
     private void ouvrirDashboardClient(ActionEvent event) {
         try {
             System.out.println("🚀 Navigation vers le dashboard client...");

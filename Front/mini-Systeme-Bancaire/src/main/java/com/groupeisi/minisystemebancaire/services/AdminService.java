@@ -4,6 +4,7 @@ import com.google.gson.reflect.TypeToken;
 import com.groupeisi.minisystemebancaire.dto.AdminDTO;
 
 import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.util.List;
 
 public class AdminService extends ApiService {
@@ -78,22 +79,53 @@ public class AdminService extends ApiService {
             String json = gson.toJson(loginRequest);
 
             System.out.println("🔐 Tentative de connexion admin...");
-            System.out.println("📤 Données envoyées: " + json);
+            System.out.println("📤 JSON envoyé: " + json);
 
             HttpRequest request = createRequest("/admins/login")
                     .POST(HttpRequest.BodyPublishers.ofString(json))
                     .build();
 
-            AdminDTO admin = sendRequest(request, AdminDTO.class);
+            // Ajouter plus de logs pour déboguer
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
-            if (admin != null) {
-                System.out.println("✅ Connexion admin réussie pour: " + admin.getUsername());
+            System.out.println("📡 Status: " + response.statusCode());
+            System.out.println("📄 Réponse brute: " + response.body());
+
+            if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                if (response.body() == null || response.body().trim().isEmpty()) {
+                    System.out.println("❌ Réponse vide du serveur");
+                    return null;
+                }
+
+                try {
+                    AdminDTO admin = gson.fromJson(response.body(), AdminDTO.class);
+                    System.out.println("✅ Connexion admin réussie pour: " + admin.getUsername());
+                    return admin;
+                } catch (Exception parseException) {
+                    System.out.println("❌ Erreur de parsing JSON: " + parseException.getMessage());
+                    System.out.println("📄 JSON à parser: " + response.body());
+                    throw new RuntimeException("Erreur de parsing de la réponse");
+                }
+            } else if (response.statusCode() == 401) {
+                System.out.println("❌ Identifiants incorrects (401)");
+                throw new RuntimeException("Identifiants incorrects");
+            } else {
+                System.out.println("❌ Erreur serveur: " + response.statusCode() + " - " + response.body());
+                throw new RuntimeException("Erreur serveur: " + response.statusCode());
             }
 
-            return admin;
+        } catch (java.net.ConnectException e) {
+            throw new RuntimeException("Impossible de se connecter au serveur. Vérifiez que le backend Laravel est démarré sur http://localhost:8000");
+        } catch (java.io.IOException e) {
+            throw new RuntimeException("Erreur de communication réseau: " + e.getMessage(), e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Requête interrompue: " + e.getMessage(), e);
         } catch (Exception e) {
-            System.err.println("❌ Identifiants admin incorrects");
-            throw new RuntimeException("Identifiants incorrects");
+            if (e instanceof RuntimeException) {
+                throw e;
+            }
+            throw new RuntimeException("Erreur de communication avec l'API: " + e.getMessage(), e);
         }
     }
 

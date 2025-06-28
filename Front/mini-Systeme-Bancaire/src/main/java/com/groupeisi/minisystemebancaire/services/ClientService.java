@@ -4,6 +4,7 @@ import com.google.gson.reflect.TypeToken;
 import com.groupeisi.minisystemebancaire.dto.ClientDTO;
 
 import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.util.List;
 
 public class ClientService extends ApiService {
@@ -88,22 +89,56 @@ public class ClientService extends ApiService {
             String json = gson.toJson(loginRequest);
 
             System.out.println("🔐 Tentative de connexion client...");
-            System.out.println("📤 Données envoyées: " + json);
+            System.out.println("📤 JSON envoyé: " + json);
 
             HttpRequest request = createRequest("/clients/login")
                     .POST(HttpRequest.BodyPublishers.ofString(json))
                     .build();
 
-            ClientDTO client = sendRequest(request, ClientDTO.class);
+            // Ajouter plus de logs pour déboguer
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
-            if (client != null) {
-                System.out.println("✅ Connexion client réussie pour: " + client.getEmail());
+            System.out.println("📡 Status: " + response.statusCode());
+            System.out.println("📄 Réponse brute: " + response.body());
+
+            if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                if (response.body() == null || response.body().trim().isEmpty()) {
+                    System.out.println("❌ Réponse vide du serveur");
+                    return null;
+                }
+
+                try {
+                    ClientDTO client = gson.fromJson(response.body(), ClientDTO.class);
+                    System.out.println("✅ Connexion client réussie pour: " + client.getEmail());
+                    return client;
+                } catch (Exception parseException) {
+                    System.out.println("❌ Erreur de parsing JSON: " + parseException.getMessage());
+                    System.out.println("📄 JSON à parser: " + response.body());
+                    throw new RuntimeException("Erreur de parsing de la réponse");
+                }
+            } else if (response.statusCode() == 401) {
+                System.out.println("❌ Identifiants incorrects (401)");
+                throw new RuntimeException("Identifiants incorrects");
+            } else if (response.statusCode() == 403) {
+                System.out.println("❌ Compte suspendu (403)");
+                throw new RuntimeException("Compte suspendu");
+            } else {
+                System.out.println("❌ Erreur serveur: " + response.statusCode() + " - " + response.body());
+                throw new RuntimeException("Erreur serveur: " + response.statusCode());
             }
 
-            return client;
+        } catch (java.net.ConnectException e) {
+            throw new RuntimeException("Impossible de se connecter au serveur. Vérifiez que le backend Laravel est démarré sur http://localhost:8000");
+        } catch (java.io.IOException e) {
+            throw new RuntimeException("Erreur de communication réseau: " + e.getMessage(), e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Requête interrompue: " + e.getMessage(), e);
         } catch (Exception e) {
-            System.err.println("❌ Identifiants incorrects ou compte suspendu");
-            throw new RuntimeException("Identifiants incorrects ou compte suspendu");
+            if (e instanceof RuntimeException) {
+                throw e;
+            }
+            throw new RuntimeException("Erreur de communication avec l'API: " + e.getMessage(), e);
         }
     }
 

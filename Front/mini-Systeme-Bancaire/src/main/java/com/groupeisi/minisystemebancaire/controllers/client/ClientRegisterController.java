@@ -21,7 +21,7 @@ public class ClientRegisterController {
     @FXML private TextField txtPrenom;
     @FXML private TextField txtEmail;
     @FXML private TextField txtTelephone;
-    @FXML private TextField txtAdresse;
+    @FXML private TextArea txtAdresse;  // ✅ Changé en TextArea
     @FXML private PasswordField txtPassword;
     @FXML private PasswordField txtConfirmPassword;
     @FXML private Button btnInscrire;

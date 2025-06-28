@@ -1,305 +1,415 @@
 package com.groupeisi.minisystemebancaire.controllers.admin;
 
 import com.groupeisi.minisystemebancaire.dto.TransactionDTO;
-import com.groupeisi.minisystemebancaire.dto.CompteDTO;
 import com.groupeisi.minisystemebancaire.services.TransactionService;
-import com.groupeisi.minisystemebancaire.services.CompteService;
+import com.groupeisi.minisystemebancaire.utils.SessionManager;
+import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
+import javafx.scene.Node;
+import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.stage.Stage;
 
 import java.io.IOException;
-import java.time.format.DateTimeFormatter;
+import java.time.LocalDate;
 import java.util.List;
 
 public class AdminTransactionsController {
 
-    @FXML private TextField txtMontant, txtDescription, txtRechercheTransaction;
-    @FXML private ChoiceBox<String> choiceTypeTransaction;
-    @FXML private ChoiceBox<CompteDTO> choiceCompteSource, choiceCompteDestination;
-    @FXML private TableView<TransactionDTO> tableTransactions, tableTransactionsSuspectes;
-    @FXML private TableColumn<TransactionDTO, String> colType, colStatut, colTypeSuspecte, colStatutSuspecte;
-    @FXML private TableColumn<TransactionDTO, Double> colMontant, colMontantSuspecte;
-    @FXML private TableColumn<TransactionDTO, String> colDate, colDateSuspecte, colCompteSource, colCompteSourceSuspecte;
-    @FXML private Button btnEnregistrerTransaction, btnAnnulerTransaction, btnValiderSuspecte, btnRejeterSuspecte, btnDeconnexion;
+    @FXML private TableView<TransactionDTO> tableTransactions;
+    @FXML private TableColumn<TransactionDTO, String> colType;
+    @FXML private TableColumn<TransactionDTO, Double> colMontant;
+    @FXML private TableColumn<TransactionDTO, String> colDate;
+    @FXML private TableColumn<TransactionDTO, String> colStatut;
+    @FXML private TableColumn<TransactionDTO, String> colCompteSource;
+    @FXML private TableColumn<TransactionDTO, String> colCompteDestination;
+    @FXML private ComboBox<String> cmbStatutFiltre;
+    @FXML private ComboBox<String> cmbTypeFiltre;
+    @FXML private DatePicker dateDebut;
+    @FXML private DatePicker dateFin;
+    @FXML private TextField txtMontantMin;
+    @FXML private TextField txtMontantMax;
+    @FXML private Button btnFiltrer;
+    @FXML private Button btnReinitialiser;
+    @FXML private Button btnValider;
+    @FXML private Button btnRejeter;
+    @FXML private Button btnAnnuler;
+    @FXML private Button btnExporter;
+    @FXML private Label lblMessage;
+    @FXML private Label lblNombreTransactions;
 
     private final TransactionService transactionService = new TransactionService();
-    private final CompteService compteService = new CompteService();
+    private TransactionDTO selectedTransaction;
+    private List<TransactionDTO> allTransactions;
 
     @FXML
-    private void initialize() {
-        setupComponents();
-        setupTableColumns();
-        loadData();
-    }
-
-    private void setupComponents() {
-        choiceTypeTransaction.setItems(FXCollections.observableArrayList("Dépôt", "Retrait", "Virement"));
-
-        // Gestion des changements de type de transaction
-        choiceTypeTransaction.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
-            updateFormBasedOnTransactionType(newVal);
-        });
-    }
-
-    private void updateFormBasedOnTransactionType(String type) {
-        if (type == null) return;
-
-        switch (type) {
-            case "Dépôt":
-                choiceCompteSource.setVisible(false);
-                choiceCompteDestination.setVisible(true);
-                break;
-            case "Retrait":
-                choiceCompteSource.setVisible(true);
-                choiceCompteDestination.setVisible(false);
-                break;
-            case "Virement":
-                choiceCompteSource.setVisible(true);
-                choiceCompteDestination.setVisible(true);
-                break;
+    public void initialize() {
+        if (!SessionManager.isAdminLoggedIn()) {
+            showAlert(Alert.AlertType.ERROR, "Erreur", "Accès non autorisé");
+            return;
         }
+
+        setupUI();
+        setupTableColumns();
+        loadTransactions();
+    }
+
+    private void setupUI() {
+        // Configuration des filtres
+        cmbStatutFiltre.setItems(FXCollections.observableArrayList(
+                "Tous", "Validé", "Rejeté", "En attente"
+        ));
+        cmbStatutFiltre.setValue("Tous");
+
+        cmbTypeFiltre.setItems(FXCollections.observableArrayList(
+                "Tous", "Dépôt", "Retrait", "Virement"
+        ));
+        cmbTypeFiltre.setValue("Tous");
+
+        // Configuration des boutons
+        btnFiltrer.setOnAction(this::handleFiltrer);
+        btnReinitialiser.setOnAction(this::handleReinitialiser);
+        btnValider.setOnAction(this::handleValider);
+        btnRejeter.setOnAction(this::handleRejeter);
+        btnAnnuler.setOnAction(this::handleAnnuler);
+        btnExporter.setOnAction(this::handleExporter);
+
+        // Sélection de transaction
+        tableTransactions.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
+            selectedTransaction = newSelection;
+            updateButtonStates();
+        });
+
+        // Dates par défaut (dernier mois)
+        dateFin.setValue(LocalDate.now());
+        dateDebut.setValue(LocalDate.now().minusMonths(1));
+
+        lblMessage.setText("");
+        updateButtonStates();
     }
 
     private void setupTableColumns() {
-        // Table transactions normales
         colType.setCellValueFactory(new PropertyValueFactory<>("type"));
         colMontant.setCellValueFactory(new PropertyValueFactory<>("montant"));
+        colDate.setCellValueFactory(new PropertyValueFactory<>("date"));
         colStatut.setCellValueFactory(new PropertyValueFactory<>("statut"));
 
-        colDate.setCellValueFactory(cellData -> {
-            if (cellData.getValue().getDate() != null) {
-                return new javafx.beans.property.SimpleStringProperty(
-                        cellData.getValue().getDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))
-                );
-            }
-            return new javafx.beans.property.SimpleStringProperty("");
-        });
-
+        // Colonnes des comptes
         colCompteSource.setCellValueFactory(cellData -> {
             TransactionDTO transaction = cellData.getValue();
             if (transaction.getCompteSource() != null) {
                 return new javafx.beans.property.SimpleStringProperty(transaction.getCompteSource().getNumero());
+            } else {
+                return new javafx.beans.property.SimpleStringProperty("Compte ID: " + transaction.getCompteSourceId());
             }
-            return new javafx.beans.property.SimpleStringProperty("N/A");
         });
 
-        // Table transactions suspectes (mêmes colonnes)
-        colTypeSuspecte.setCellValueFactory(new PropertyValueFactory<>("type"));
-        colMontantSuspecte.setCellValueFactory(new PropertyValueFactory<>("montant"));
-        colStatutSuspecte.setCellValueFactory(new PropertyValueFactory<>("statut"));
-
-        colDateSuspecte.setCellValueFactory(cellData -> {
-            if (cellData.getValue().getDate() != null) {
-                return new javafx.beans.property.SimpleStringProperty(
-                        cellData.getValue().getDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))
-                );
-            }
-            return new javafx.beans.property.SimpleStringProperty("");
-        });
-
-        colCompteSourceSuspecte.setCellValueFactory(cellData -> {
+        colCompteDestination.setCellValueFactory(cellData -> {
             TransactionDTO transaction = cellData.getValue();
-            if (transaction.getCompteSource() != null) {
-                return new javafx.beans.property.SimpleStringProperty(transaction.getCompteSource().getNumero());
+            if (transaction.getCompteDestination() != null) {
+                return new javafx.beans.property.SimpleStringProperty(transaction.getCompteDestination().getNumero());
+            } else if (transaction.getCompteDestId() != null) {
+                return new javafx.beans.property.SimpleStringProperty("Compte ID: " + transaction.getCompteDestId());
+            } else {
+                return new javafx.beans.property.SimpleStringProperty("-");
             }
-            return new javafx.beans.property.SimpleStringProperty("N/A");
+        });
+
+        // Formatage du montant
+        colMontant.setCellFactory(column -> new TableCell<TransactionDTO, Double>() {
+            @Override
+            protected void updateItem(Double item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(String.format("%.2f FCFA", item));
+                }
+            }
+        });
+
+        // Formatage du statut
+        colStatut.setCellFactory(column -> new TableCell<TransactionDTO, String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setStyle("");
+                } else {
+                    setText(item);
+                    if ("Validé".equals(item)) {
+                        setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
+                    } else if ("Rejeté".equals(item)) {
+                        setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
+                    } else if ("En attente".equals(item)) {
+                        setStyle("-fx-text-fill: #f39c12; -fx-font-weight: bold;");
+                    } else {
+                        setStyle("");
+                    }
+                }
+            }
         });
     }
 
+    private void loadTransactions() {
+        Thread loadThread = new Thread(() -> {
+            try {
+                allTransactions = transactionService.getAllTransactions();
+
+                Platform.runLater(() -> {
+                    ObservableList<TransactionDTO> transactionsData = FXCollections.observableArrayList(allTransactions);
+                    tableTransactions.setItems(transactionsData);
+                    updateTransactionCount(allTransactions.size());
+                });
+
+            } catch (Exception e) {
+                Platform.runLater(() -> {
+                    showAlert(Alert.AlertType.ERROR, "Erreur",
+                            "Impossible de charger les transactions: " + e.getMessage());
+                });
+            }
+        });
+
+        loadThread.setDaemon(true);
+        loadThread.start();
+    }
+
     @FXML
-    private void handleEnregistrerTransaction() {
-        if (!validateTransactionForm()) return;
+    private void handleFiltrer(ActionEvent event) {
+        if (allTransactions == null) {
+            return;
+        }
+
+        String statutFiltre = cmbStatutFiltre.getValue();
+        String typeFiltre = cmbTypeFiltre.getValue();
+        LocalDate debut = dateDebut.getValue();
+        LocalDate fin = dateFin.getValue();
+
+        double montantMin = 0;
+        double montantMax = Double.MAX_VALUE;
 
         try {
-            // ✅ CORRECTION : Utiliser setters au lieu de constructeur problématique
-            TransactionDTO transaction = new TransactionDTO();
-            transaction.setType(choiceTypeTransaction.getValue());
-            transaction.setMontant(Double.parseDouble(txtMontant.getText()));
-            transaction.setDescription(txtDescription.getText().trim());
-            transaction.setStatut("Validé");
-
-            switch (choiceTypeTransaction.getValue()) {
-                case "Dépôt":
-                    transaction.setCompteDestId(choiceCompteDestination.getValue().getId());
-                    break;
-                case "Retrait":
-                    transaction.setCompteSourceId(choiceCompteSource.getValue().getId());
-                    break;
-                case "Virement":
-                    transaction.setCompteSourceId(choiceCompteSource.getValue().getId());
-                    transaction.setCompteDestId(choiceCompteDestination.getValue().getId());
-                    break;
+            if (!txtMontantMin.getText().trim().isEmpty()) {
+                montantMin = Double.parseDouble(txtMontantMin.getText());
             }
-
-            // ✅ CORRECTION : Utiliser createTransaction au lieu de enregistrerTransaction
-            transactionService.createTransaction(transaction);
-
-            showAlert(Alert.AlertType.INFORMATION, "Succès", "Transaction enregistrée avec succès !");
-            clearForm();
-            loadTransactions();
-
+            if (!txtMontantMax.getText().trim().isEmpty()) {
+                montantMax = Double.parseDouble(txtMontantMax.getText());
+            }
         } catch (NumberFormatException e) {
-            showAlert(Alert.AlertType.ERROR, "Erreur", "Le montant doit être un nombre valide");
-        } catch (Exception e) {
-            showAlert(Alert.AlertType.ERROR, "Erreur", "Erreur lors de l'enregistrement : " + e.getMessage());
+            showMessage("Montants de filtrage invalides", "error");
+            return;
         }
+
+        final double finalMontantMin = montantMin;
+        final double finalMontantMax = montantMax;
+
+        List<TransactionDTO> filteredTransactions = allTransactions.stream()
+                .filter(t -> "Tous".equals(statutFiltre) || statutFiltre.equals(t.getStatut()))
+                .filter(t -> "Tous".equals(typeFiltre) || typeFiltre.equals(t.getType()))
+                .filter(t -> debut == null || t.getDate().toLocalDate().isAfter(debut.minusDays(1)))
+                .filter(t -> fin == null || t.getDate().toLocalDate().isBefore(fin.plusDays(1)))
+                .filter(t -> t.getMontant() >= finalMontantMin && t.getMontant() <= finalMontantMax)
+                .toList();
+
+        ObservableList<TransactionDTO> filteredData = FXCollections.observableArrayList(filteredTransactions);
+        tableTransactions.setItems(filteredData);
+        updateTransactionCount(filteredTransactions.size());
+
+        showMessage(filteredTransactions.size() + " transaction(s) trouvée(s)", "success");
     }
 
     @FXML
-    private void handleAnnulerTransaction() {
-        TransactionDTO selectedTransaction = tableTransactions.getSelectionModel().getSelectedItem();
+    private void handleReinitialiser(ActionEvent event) {
+        cmbStatutFiltre.setValue("Tous");
+        cmbTypeFiltre.setValue("Tous");
+        dateDebut.setValue(LocalDate.now().minusMonths(1));
+        dateFin.setValue(LocalDate.now());
+        txtMontantMin.clear();
+        txtMontantMax.clear();
+
+        if (allTransactions != null) {
+            ObservableList<TransactionDTO> allData = FXCollections.observableArrayList(allTransactions);
+            tableTransactions.setItems(allData);
+            updateTransactionCount(allTransactions.size());
+        }
+
+        showMessage("Filtres réinitialisés", "success");
+    }
+
+    @FXML
+    private void handleValider(ActionEvent event) {
         if (selectedTransaction == null) {
-            showAlert(Alert.AlertType.WARNING, "Sélection", "Veuillez sélectionner une transaction");
+            showMessage("Veuillez sélectionner une transaction", "error");
+            return;
+        }
+
+        if (!"En attente".equals(selectedTransaction.getStatut())) {
+            showMessage("Seules les transactions en attente peuvent être validées", "error");
             return;
         }
 
         Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
-        confirmation.setTitle("Confirmation");
-        confirmation.setContentText("Êtes-vous sûr de vouloir annuler cette transaction ?");
+        confirmation.setTitle("Validation de transaction");
+        confirmation.setHeaderText("Valider la transaction");
+        confirmation.setContentText("Êtes-vous sûr de vouloir valider cette transaction ?");
 
-        if (confirmation.showAndWait().get() == ButtonType.OK) {
+        confirmation.showAndWait().ifPresent(response -> {
+            if (response == ButtonType.OK) {
+                Thread validationThread = new Thread(() -> {
+                    try {
+                        transactionService.validerTransaction(selectedTransaction.getId());
+
+                        Platform.runLater(() -> {
+                            showMessage("Transaction validée avec succès !", "success");
+                            loadTransactions();
+                        });
+
+                    } catch (Exception e) {
+                        Platform.runLater(() -> {
+                            showMessage("Erreur: " + e.getMessage(), "error");
+                        });
+                    }
+                });
+
+                validationThread.setDaemon(true);
+                validationThread.start();
+            }
+        });
+    }
+
+    @FXML
+    private void handleRejeter(ActionEvent event) {
+        if (selectedTransaction == null) {
+            showMessage("Veuillez sélectionner une transaction", "error");
+            return;
+        }
+
+        if (!"En attente".equals(selectedTransaction.getStatut())) {
+            showMessage("Seules les transactions en attente peuvent être rejetées", "error");
+            return;
+        }
+
+        // Dialog pour saisir le motif de rejet
+        TextInputDialog dialog = new TextInputDialog();
+        dialog.setTitle("Rejet de transaction");
+        dialog.setHeaderText("Rejeter la transaction");
+        dialog.setContentText("Motif du rejet:");
+
+        dialog.showAndWait().ifPresent(motif -> {
+            if (!motif.trim().isEmpty()) {
+                Thread rejetThread = new Thread(() -> {
+                    try {
+                        transactionService.rejeterTransaction(selectedTransaction.getId(), motif);
+
+                        Platform.runLater(() -> {
+                            showMessage("Transaction rejetée avec succès !", "success");
+                            loadTransactions();
+                        });
+
+                    } catch (Exception e) {
+                        Platform.runLater(() -> {
+                            showMessage("Erreur: " + e.getMessage(), "error");
+                        });
+                    }
+                });
+
+                rejetThread.setDaemon(true);
+                rejetThread.start();
+            }
+        });
+    }
+
+    @FXML
+    private void handleAnnuler(ActionEvent event) {
+        if (selectedTransaction == null) {
+            showMessage("Veuillez sélectionner une transaction", "error");
+            return;
+        }
+
+        if ("Rejeté".equals(selectedTransaction.getStatut())) {
+            showMessage("Une transaction déjà rejetée ne peut pas être annulée", "error");
+            return;
+        }
+
+        Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
+        confirmation.setTitle("Annulation de transaction");
+        confirmation.setHeaderText("Annuler la transaction");
+        confirmation.setContentText("Êtes-vous sûr de vouloir annuler cette transaction ? Cette action est irréversible.");
+
+        confirmation.showAndWait().ifPresent(response -> {
+            if (response == ButtonType.OK) {
+                Thread annulationThread = new Thread(() -> {
+                    try {
+                        transactionService.annulerTransaction(selectedTransaction.getId());
+
+                        Platform.runLater(() -> {
+                            showMessage("Transaction annulée avec succès !", "success");
+                            loadTransactions();
+                        });
+
+                    } catch (Exception e) {
+                        Platform.runLater(() -> {
+                            showMessage("Erreur: " + e.getMessage(), "error");
+                        });
+                    }
+                });
+
+                annulationThread.setDaemon(true);
+                annulationThread.start();
+            }
+        });
+    }
+
+    @FXML
+    private void handleExporter(ActionEvent event) {
+        showMessage("Fonctionnalité d'export en cours de développement", "info");
+        // TODO: Implémenter l'export vers Excel/PDF
+    }
+
+    @FXML
+    private void handleVoirTransactionsSuspectes(ActionEvent event) {
+        Thread suspectesThread = new Thread(() -> {
             try {
-                transactionService.annulerTransaction(selectedTransaction.getId());
-                showAlert(Alert.AlertType.INFORMATION, "Succès", "Transaction annulée avec succès");
-                loadTransactions();
+                List<TransactionDTO> transactionsSuspectes = transactionService.getTransactionsSuspectes();
+
+                Platform.runLater(() -> {
+                    ObservableList<TransactionDTO> suspectesData = FXCollections.observableArrayList(transactionsSuspectes);
+                    tableTransactions.setItems(suspectesData);
+                    updateTransactionCount(transactionsSuspectes.size());
+                    showMessage(transactionsSuspectes.size() + " transaction(s) suspecte(s) trouvée(s)", "warning");
+                });
+
             } catch (Exception e) {
-                showAlert(Alert.AlertType.ERROR, "Erreur", "Erreur lors de l'annulation : " + e.getMessage());
+                Platform.runLater(() -> {
+                    showMessage("Erreur lors du chargement des transactions suspectes: " + e.getMessage(), "error");
+                });
             }
-        }
+        });
+
+        suspectesThread.setDaemon(true);
+        suspectesThread.start();
     }
 
-    @FXML
-    private void handleValiderSuspecte() {
-        TransactionDTO selectedTransaction = tableTransactionsSuspectes.getSelectionModel().getSelectedItem();
-        if (selectedTransaction == null) {
-            showAlert(Alert.AlertType.WARNING, "Sélection", "Veuillez sélectionner une transaction suspecte");
-            return;
-        }
+    private void updateButtonStates() {
+        boolean hasSelection = selectedTransaction != null;
+        boolean canValidate = hasSelection && "En attente".equals(selectedTransaction.getStatut());
+        boolean canReject = hasSelection && "En attente".equals(selectedTransaction.getStatut());
+        boolean canCancel = hasSelection && !"Rejeté".equals(selectedTransaction.getStatut());
 
-        try {
-            selectedTransaction.setStatut("Validé");
-            transactionService.updateTransaction(selectedTransaction);
-            showAlert(Alert.AlertType.INFORMATION, "Succès", "Transaction validée");
-            loadTransactionsSuspectes();
-        } catch (Exception e) {
-            showAlert(Alert.AlertType.ERROR, "Erreur", "Erreur lors de la validation : " + e.getMessage());
-        }
+        btnValider.setDisable(!canValidate);
+        btnRejeter.setDisable(!canReject);
+        btnAnnuler.setDisable(!canCancel);
     }
 
-    @FXML
-    private void handleRejeterSuspecte() {
-        TransactionDTO selectedTransaction = tableTransactionsSuspectes.getSelectionModel().getSelectedItem();
-        if (selectedTransaction == null) {
-            showAlert(Alert.AlertType.WARNING, "Sélection", "Veuillez sélectionner une transaction suspecte");
-            return;
-        }
-
-        try {
-            transactionService.annulerTransaction(selectedTransaction.getId());
-            showAlert(Alert.AlertType.INFORMATION, "Succès", "Transaction rejetée");
-            loadTransactionsSuspectes();
-        } catch (Exception e) {
-            showAlert(Alert.AlertType.ERROR, "Erreur", "Erreur lors du rejet : " + e.getMessage());
-        }
-    }
-
-    private boolean validateTransactionForm() {
-        if (choiceTypeTransaction.getValue() == null) {
-            showAlert(Alert.AlertType.WARNING, "Validation", "Veuillez sélectionner un type de transaction");
-            return false;
-        }
-
-        if (txtMontant.getText().trim().isEmpty()) {
-            showAlert(Alert.AlertType.WARNING, "Validation", "Veuillez saisir un montant");
-            return false;
-        }
-
-        try {
-            double montant = Double.parseDouble(txtMontant.getText());
-            if (montant <= 0) {
-                showAlert(Alert.AlertType.WARNING, "Validation", "Le montant doit être positif");
-                return false;
-            }
-        } catch (NumberFormatException e) {
-            showAlert(Alert.AlertType.WARNING, "Validation", "Le montant doit être un nombre valide");
-            return false;
-        }
-
-        String type = choiceTypeTransaction.getValue();
-
-        if ("Dépôt".equals(type) && choiceCompteDestination.getValue() == null) {
-            showAlert(Alert.AlertType.WARNING, "Validation", "Veuillez sélectionner un compte de destination");
-            return false;
-        }
-
-        if ("Retrait".equals(type) && choiceCompteSource.getValue() == null) {
-            showAlert(Alert.AlertType.WARNING, "Validation", "Veuillez sélectionner un compte source");
-            return false;
-        }
-
-        if ("Virement".equals(type)) {
-            if (choiceCompteSource.getValue() == null || choiceCompteDestination.getValue() == null) {
-                showAlert(Alert.AlertType.WARNING, "Validation", "Veuillez sélectionner les comptes source et destination");
-                return false;
-            }
-
-            if (choiceCompteSource.getValue().getId().equals(choiceCompteDestination.getValue().getId())) {
-                showAlert(Alert.AlertType.WARNING, "Validation", "Les comptes source et destination doivent être différents");
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    private void clearForm() {
-        choiceTypeTransaction.getSelectionModel().clearSelection();
-        choiceCompteSource.getSelectionModel().clearSelection();
-        choiceCompteDestination.getSelectionModel().clearSelection();
-        txtMontant.clear();
-        txtDescription.clear();
-    }
-
-    private void loadData() {
-        try {
-            // Charger les comptes
-            List<CompteDTO> comptes = compteService.getAllComptes();
-            choiceCompteSource.setItems(FXCollections.observableArrayList(comptes));
-            choiceCompteDestination.setItems(FXCollections.observableArrayList(comptes));
-
-            loadTransactions();
-            loadTransactionsSuspectes();
-
-        } catch (Exception e) {
-            showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible de charger les données");
-        }
-    }
-
-    private void loadTransactions() {
-        try {
-            List<TransactionDTO> transactions = transactionService.getAllTransactions();
-            ObservableList<TransactionDTO> transactionsData = FXCollections.observableArrayList(transactions);
-            tableTransactions.setItems(transactionsData);
-        } catch (Exception e) {
-            showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible de charger les transactions");
-        }
-    }
-
-    private void loadTransactionsSuspectes() {
-        try {
-            List<TransactionDTO> transactionsSuspectes = transactionService.getTransactionsSuspectes();
-            ObservableList<TransactionDTO> suspectesData = FXCollections.observableArrayList(transactionsSuspectes);
-            tableTransactionsSuspectes.setItems(suspectesData);
-        } catch (Exception e) {
-            showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible de charger les transactions suspectes");
-        }
+    private void updateTransactionCount(int count) {
+        lblNombreTransactions.setText("Total: " + count + " transaction(s)");
     }
 
     // Navigation methods
@@ -307,31 +417,29 @@ public class AdminTransactionsController {
     @FXML private void handleGestionClients() { navigateToPage("UI_Gestion_Clients"); }
     @FXML private void handleGestionComptes() { navigateToPage("UI_Gestion_Comptes"); }
     @FXML private void handleGestionCredits() { navigateToPage("UI_Gestion_Credits"); }
-    @FXML private void handleGestionCartes() { navigateToPage("UI_Gestion_Cartes_Bancaires"); }
-
-    @FXML
-    private void handleLogout() {
-        try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/groupeisi/minisystemebancaire/UI_Main.fxml"));
-            Scene scene = new Scene(loader.load());
-            Stage stage = (Stage) btnDeconnexion.getScene().getWindow();
-            stage.setScene(scene);
-            stage.centerOnScreen();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+    @FXML private void handleServiceClient() { navigateToPage("UI_Service_Client_Rapports"); }
+    @FXML private void handleDeconnexion() {
+        SessionManager.logout();
+        navigateToPage("../UI_Main");
     }
 
-    private void navigateToPage(String pageName) {
+    private void navigateToPage(String page) {
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/groupeisi/minisystemebancaire/admin/" + pageName + ".fxml"));
-            Scene scene = new Scene(loader.load());
-            Stage stage = (Stage) btnEnregistrerTransaction.getScene().getWindow();
+            String path = "/com/groupeisi/minisystemebancaire/admin/" + page + ".fxml";
+            if (page.startsWith("../")) {
+                path = "/com/groupeisi/minisystemebancaire/" + page.substring(3) + ".fxml";
+            }
+
+            FXMLLoader loader = new FXMLLoader(getClass().getResource(path));
+            Parent root = loader.load();
+
+            Stage stage = (Stage) lblMessage.getScene().getWindow();
+            Scene scene = new Scene(root);
             stage.setScene(scene);
             stage.centerOnScreen();
         } catch (IOException e) {
             e.printStackTrace();
-            showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible de charger la page " + pageName);
+            showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible de naviguer vers " + page);
         }
     }
 
@@ -341,5 +449,28 @@ public class AdminTransactionsController {
         alert.setHeaderText(null);
         alert.setContentText(message);
         alert.showAndWait();
+    }
+
+    private void showMessage(String message, String type) {
+        lblMessage.setText(message);
+        String style;
+        switch (type) {
+            case "error":
+                style = "-fx-text-fill: #e74c3c; -fx-font-weight: bold;";
+                break;
+            case "success":
+                style = "-fx-text-fill: #27ae60; -fx-font-weight: bold;";
+                break;
+            case "warning":
+                style = "-fx-text-fill: #f39c12; -fx-font-weight: bold;";
+                break;
+            case "info":
+                style = "-fx-text-fill: #3498db; -fx-font-weight: bold;";
+                break;
+            default:
+                style = "";
+                break;
+        }
+        lblMessage.setStyle(style);
     }
 }

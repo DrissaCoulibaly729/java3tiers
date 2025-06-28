@@ -9,85 +9,128 @@
             fx:controller="com.groupeisi.minisystemebancaire.controllers.client.ClientRegisterController">
 
     <center>
-        <ScrollPane fitToWidth="true" style="-fx-background-color: linear-gradient(to bottom, #00b894, #00a085);">
-            <VBox alignment="CENTER" spacing="30" style="-fx-padding: 50;">
+        <ScrollPane fitToWidth="true" style="-fx-background-color: transparent;">
+            <VBox alignment="CENTER" spacing="25"
+                  style="-fx-background-color: linear-gradient(to bottom, #667eea, #764ba2); -fx-padding: 30;">
 
                 <!-- Titre -->
                 <Label text="📝 Inscription Client"
-                       style="-fx-font-size: 28px; -fx-font-weight: bold; -fx-text-fill: white;">
+                       style="-fx-font-size: 32px; -fx-font-weight: bold; -fx-text-fill: white;">
                     <font>
-                        <Font name="System Bold" size="28.0"/>
+                        <Font name="System Bold" size="32.0"/>
                     </font>
                 </Label>
 
                 <!-- Formulaire d'inscription -->
-                <VBox alignment="CENTER" spacing="20"
-                      style="-fx-background-color: white; -fx-background-radius: 15; -fx-padding: 40;
-                             -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 15, 0, 0, 5);
-                             -fx-min-width: 400;">
+                <VBox alignment="CENTER" spacing="20" maxWidth="500"
+                      style="-fx-background-color: rgba(255,255,255,0.95); -fx-background-radius: 15; -fx-padding: 40;">
 
-                    <GridPane hgap="15" vgap="15" alignment="CENTER">
-                        <columnConstraints>
-                            <ColumnConstraints hgrow="NEVER" minWidth="100"/>
-                            <ColumnConstraints hgrow="ALWAYS" minWidth="250"/>
-                        </columnConstraints>
+                    <!-- Nom et Prénom -->
+                    <HBox spacing="15" alignment="CENTER">
+                        <VBox spacing="8" HBox.hgrow="ALWAYS">
+                            <Label text="👤 Nom"
+                                   style="-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;"/>
+                            <TextField fx:id="txtNom" promptText="Votre nom"
+                                       style="-fx-pref-width: 200; -fx-font-size: 14px; -fx-padding: 12;
+                                              -fx-background-radius: 8; -fx-border-radius: 8;
+                                              -fx-border-color: #bdc3c7; -fx-border-width: 1;"/>
+                        </VBox>
 
-                        <Label text="Nom :" style="-fx-font-weight: bold;" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
-                        <TextField fx:id="txtNom" promptText="Entrez votre nom"
-                                   style="-fx-padding: 10; -fx-background-radius: 5;"
-                                   GridPane.columnIndex="1" GridPane.rowIndex="0"/>
-
-                        <Label text="Prénom :" style="-fx-font-weight: bold;" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
-                        <TextField fx:id="txtPrenom" promptText="Entrez votre prénom"
-                                   style="-fx-padding: 10; -fx-background-radius: 5;"
-                                   GridPane.columnIndex="1" GridPane.rowIndex="1"/>
-
-                        <Label text="Email :" style="-fx-font-weight: bold;" GridPane.columnIndex="0" GridPane.rowIndex="2"/>
-                        <TextField fx:id="txtEmail" promptText="votre.email@example.com"
-                                   style="-fx-padding: 10; -fx-background-radius: 5;"
-                                   GridPane.columnIndex="1" GridPane.rowIndex="2"/>
-
-                        <Label text="Téléphone :" style="-fx-font-weight: bold;" GridPane.columnIndex="0" GridPane.rowIndex="3"/>
-                        <TextField fx:id="txtTelephone" promptText="+221 XX XXX XX XX"
-                                   style="-fx-padding: 10; -fx-background-radius: 5;"
-                                   GridPane.columnIndex="1" GridPane.rowIndex="3"/>
-
-                        <Label text="Adresse :" style="-fx-font-weight: bold;" GridPane.columnIndex="0" GridPane.rowIndex="4"/>
-                        <TextArea fx:id="txtAdresse" promptText="Entrez votre adresse complète"
-                                  prefRowCount="3" style="-fx-background-radius: 5;"
-                                  GridPane.columnIndex="1" GridPane.rowIndex="4"/>
-
-                        <Label text="Mot de passe :" style="-fx-font-weight: bold;" GridPane.columnIndex="0" GridPane.rowIndex="5"/>
-                        <PasswordField fx:id="txtPassword" promptText="Minimum 6 caractères"
-                                       style="-fx-padding: 10; -fx-background-radius: 5;"
-                                       GridPane.columnIndex="1" GridPane.rowIndex="5"/>
-
-                        <Label text="Confirmer :" style="-fx-font-weight: bold;" GridPane.columnIndex="0" GridPane.rowIndex="6"/>
-                        <PasswordField fx:id="txtConfirmPassword" promptText="Confirmer le mot de passe"
-                                       style="-fx-padding: 10; -fx-background-radius: 5;"
-                                       GridPane.columnIndex="1" GridPane.rowIndex="6"/>
-                    </GridPane>
-
-                    <Label fx:id="lblMessage" style="-fx-font-size: 12px;"/>
-
-                    <HBox alignment="CENTER" spacing="15">
-                        <Button fx:id="btnRegister" onAction="#handleRegister" text="S'inscrire"
-                                style="-fx-background-color: #00b894; -fx-text-fill: white;
-                                       -fx-font-weight: bold; -fx-padding: 12 25; -fx-background-radius: 8;">
-                            <cursor>
-                                <javafx.scene.Cursor fx:constant="HAND"/>
-                            </cursor>
-                        </Button>
-
-                        <Button fx:id="btnRetour" onAction="#handleRetour" text="Retour"
-                                style="-fx-background-color: #636e72; -fx-text-fill: white;
-                                       -fx-padding: 12 25; -fx-background-radius: 8;">
-                            <cursor>
-                                <javafx.scene.Cursor fx:constant="HAND"/>
-                            </cursor>
-                        </Button>
+                        <VBox spacing="8" HBox.hgrow="ALWAYS">
+                            <Label text="👤 Prénom"
+                                   style="-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;"/>
+                            <TextField fx:id="txtPrenom" promptText="Votre prénom"
+                                       style="-fx-pref-width: 200; -fx-font-size: 14px; -fx-padding: 12;
+                                              -fx-background-radius: 8; -fx-border-radius: 8;
+                                              -fx-border-color: #bdc3c7; -fx-border-width: 1;"/>
+                        </VBox>
                     </HBox>
 
+                    <!-- Email -->
+                    <VBox spacing="8">
+                        <Label text="📧 Adresse Email"
+                               style="-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;"/>
+                        <TextField fx:id="txtEmail" promptText="votre@email.com"
+                                   style="-fx-pref-width: 420; -fx-font-size: 14px; -fx-padding: 12;
+                                          -fx-background-radius: 8; -fx-border-radius: 8;
+                                          -fx-border-color: #bdc3c7; -fx-border-width: 1;"/>
+                    </VBox>
+
+                    <!-- Téléphone -->
+                    <VBox spacing="8">
+                        <Label text="📱 Téléphone"
+                               style="-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;"/>
+                        <TextField fx:id="txtTelephone" promptText="+221XXXXXXXXX"
+                                   style="-fx-pref-width: 420; -fx-font-size: 14px; -fx-padding: 12;
+                                          -fx-background-radius: 8; -fx-border-radius: 8;
+                                          -fx-border-color: #bdc3c7; -fx-border-width: 1;"/>
+                    </VBox>
+
+                    <!-- Adresse -->
+                    <VBox spacing="8">
+                        <Label text="🏠 Adresse"
+                               style="-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;"/>
+                        <TextArea fx:id="txtAdresse" promptText="Votre adresse complète"
+                                  prefRowCount="3" wrapText="true"
+                                  style="-fx-pref-width: 420; -fx-font-size: 14px; -fx-padding: 12;
+                                         -fx-background-radius: 8; -fx-border-radius: 8;
+                                         -fx-border-color: #bdc3c7; -fx-border-width: 1;"/>
+                    </VBox>
+
+                    <!-- Mot de passe -->
+                    <VBox spacing="8">
+                        <Label text="🔒 Mot de Passe"
+                               style="-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;"/>
+                        <PasswordField fx:id="txtPassword" promptText="Minimum 6 caractères"
+                                       style="-fx-pref-width: 420; -fx-font-size: 14px; -fx-padding: 12;
+                                              -fx-background-radius: 8; -fx-border-radius: 8;
+                                              -fx-border-color: #bdc3c7; -fx-border-width: 1;"/>
+                    </VBox>
+
+                    <!-- Confirmation mot de passe -->
+                    <VBox spacing="8">
+                        <Label text="🔒 Confirmer le Mot de Passe"
+                               style="-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;"/>
+                        <PasswordField fx:id="txtConfirmPassword" promptText="Confirmez votre mot de passe"
+                                       style="-fx-pref-width: 420; -fx-font-size: 14px; -fx-padding: 12;
+                                              -fx-background-radius: 8; -fx-border-radius: 8;
+                                              -fx-border-color: #bdc3c7; -fx-border-width: 1;"/>
+                    </VBox>
+
+                    <!-- Message d'erreur/succès -->
+                    <Label fx:id="lblMessage" text=""
+                           style="-fx-font-size: 12px; -fx-font-weight: bold;"
+                           wrapText="true" maxWidth="380"/>
+
+                    <!-- Boutons -->
+                    <VBox spacing="15" alignment="CENTER">
+                        <Button fx:id="btnInscrire" text="S'inscrire" onAction="#handleInscription"
+                                style="-fx-background-color: #27ae60; -fx-text-fill: white;
+                                       -fx-font-size: 16px; -fx-font-weight: bold;
+                                       -fx-background-radius: 8; -fx-padding: 15 40 15 40;
+                                       -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.2), 5, 0, 0, 2);">
+                            <cursor>
+                                <javafx.scene.Cursor fx:constant="HAND"/>
+                            </cursor>
+                        </Button>
+
+                        <!-- Séparateur -->
+                        <Separator maxWidth="200"/>
+
+                        <!-- Lien connexion -->
+                        <Label text="Déjà un compte ?"
+                               style="-fx-font-size: 12px; -fx-text-fill: #7f8c8d;"/>
+
+                        <Button fx:id="btnRetour" text="🔐 Se connecter" onAction="#handleRetour"
+                                style="-fx-background-color: #3498db; -fx-text-fill: white;
+                                       -fx-font-size: 14px; -fx-font-weight: bold;
+                                       -fx-background-radius: 8; -fx-padding: 10 25 10 25;
+                                       -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.2), 5, 0, 0, 2);">
+                            <cursor>
+                                <javafx.scene.Cursor fx:constant="HAND"/>
+                            </cursor>
+                        </Button>
+                    </VBox>
                 </VBox>
 
             </VBox>
