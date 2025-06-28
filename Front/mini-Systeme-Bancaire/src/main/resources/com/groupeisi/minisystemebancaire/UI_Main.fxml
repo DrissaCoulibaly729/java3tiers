@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.*?>
+<?import javafx.scene.text.*?>
+
+<BorderPane xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="com.groupeisi.minisystemebancaire.controllers.MainController">
+
+    <center>
+        <VBox alignment="CENTER" spacing="40"
+              style="-fx-background-color: linear-gradient(to bottom, #74b9ff, #0984e3); -fx-padding: 50;">
+
+            <!-- Titre principal -->
+            <Label text="🏦 Mini Système Bancaire"
+                   style="-fx-font-size: 36px; -fx-font-weight: bold; -fx-text-fill: white;">
+                <font>
+                    <Font name="System Bold" size="36.0"/>
+                </font>
+            </Label>
+
+            <Label text="Choisissez votre type de connexion"
+                   style="-fx-font-size: 18px; -fx-text-fill: white; -fx-opacity: 0.9;">
+                <font>
+                    <Font size="18.0"/>
+                </font>
+            </Label>
+
+            <!-- Conteneur des boutons -->
+            <HBox alignment="CENTER" spacing="50">
+
+                <!-- Bouton Admin -->
+                <VBox alignment="CENTER" spacing="15">
+                    <Button fx:id="btnAdmin" onAction="#handleAdminClick"
+                            text="👨‍💼 ADMINISTRATEUR"
+                            style="-fx-background-color: #e17055;
+                                   -fx-text-fill: white;
+                                   -fx-font-size: 16px;
+                                   -fx-font-weight: bold;
+                                   -fx-background-radius: 15;
+                                   -fx-padding: 20 40 20 40;
+                                   -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 10, 0, 0, 5);">
+                        <cursor>
+                            <javafx.scene.Cursor fx:constant="HAND"/>
+                        </cursor>
+                    </Button>
+                    <Label text="Gestion complète du système"
+                           style="-fx-text-fill: white; -fx-font-size: 12px; -fx-opacity: 0.8;"/>
+                </VBox>
+
+                <!-- Bouton Client -->
+                <VBox alignment="CENTER" spacing="15">
+                    <Button fx:id="btnClient" onAction="#handleClientClick"
+                            text="👤 CLIENT"
+                            style="-fx-background-color: #00b894;
+                                   -fx-text-fill: white;
+                                   -fx-font-size: 16px;
+                                   -fx-font-weight: bold;
+                                   -fx-background-radius: 15;
+                                   -fx-padding: 20 40 20 40;
+                                   -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 10, 0, 0, 5);">
+                        <cursor>
+                            <javafx.scene.Cursor fx:constant="HAND"/>
+                        </cursor>
+                    </Button>
+                    <Label text="Accès aux services bancaires"
+                           style="-fx-text-fill: white; -fx-font-size: 12px; -fx-opacity: 0.8;"/>
+                </VBox>
+
+            </HBox>
+
+        </VBox>
+    </center>
+
+</BorderPane>

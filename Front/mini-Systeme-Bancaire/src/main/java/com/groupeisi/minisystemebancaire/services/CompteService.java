@@ -1,75 +1,150 @@
 package com.groupeisi.minisystemebancaire.services;
 
-import com.groupeisi.minisystemebancaire.dtos.CompteDTo;
-import com.groupeisi.minisystemebancaire.dtos.TransactionDTo;
+import com.google.gson.reflect.TypeToken;
+import com.groupeisi.minisystemebancaire.dto.CompteDTO;
 
-import java.math.BigDecimal;
-import java.util.HashMap;
+import java.net.http.HttpRequest;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 
-public class CompteService {
+public class CompteService extends ApiService {
 
-    /**
-     * Obtenir tous les comptes d'un client
-     */
-    public static CompletableFuture<List<CompteDTo>> getComptesByClient(Long clientId) {
-        return HttpService.getListAsync("/api/comptes/client/" + clientId, CompteDTo.class);
+    public List<CompteDTO> getAllComptes() {
+        try {
+            HttpRequest request = createRequest("/comptes").GET().build();
+            String response = sendRequestForString(request);
+            return gson.fromJson(response, new TypeToken<List<CompteDTO>>(){}.getType());
+        } catch (Exception e) {
+            System.err.println("❌ Erreur lors de la récupération des comptes: " + e.getMessage());
+            throw new RuntimeException("Impossible de récupérer la liste des comptes: " + e.getMessage());
+        }
     }
 
-    /**
-     * Obtenir un compte par son ID
-     */
-    public static CompletableFuture<CompteDTo> getCompteById(Long compteId) {
-        return HttpService.getAsync("/api/comptes/" + compteId, CompteDTo.class);
+    public CompteDTO getCompteById(Long id) {
+        try {
+            HttpRequest request = createRequest("/comptes/" + id).GET().build();
+            return sendRequest(request, CompteDTO.class);
+        } catch (Exception e) {
+            System.err.println("❌ Erreur lors de la récupération du compte ID " + id + ": " + e.getMessage());
+            throw new RuntimeException("Impossible de récupérer le compte: " + e.getMessage());
+        }
     }
 
-    /**
-     * Créer un nouveau compte
-     */
-    public static CompletableFuture<CompteDTo> creerCompte(String type, Long clientId) {
-        Map<String, Object> request = new HashMap<>();
-        request.put("type", type);
-        request.put("client_id", clientId);
-
-        return HttpService.postAsync("/api/comptes", request, CompteDTo.class);
+    public List<CompteDTO> getComptesByClient(Long clientId) {
+        try {
+            HttpRequest request = createRequest("/comptes/client/" + clientId).GET().build();
+            String response = sendRequestForString(request);
+            return gson.fromJson(response, new TypeToken<List<CompteDTO>>(){}.getType());
+        } catch (Exception e) {
+            System.err.println("❌ Erreur lors de la récupération des comptes du client: " + e.getMessage());
+            throw new RuntimeException("Impossible de récupérer les comptes du client: " + e.getMessage());
+        }
     }
 
-    /**
-     * Effectuer un virement
-     */
-    public static CompletableFuture<TransactionDTo> effectuerVirement(Long compteSourceId, Long compteDestinationId, BigDecimal montant, String description) {
-        Map<String, Object> request = new HashMap<>();
-        request.put("compte_source_id", compteSourceId);
-        request.put("compte_destination_id", compteDestinationId);
-        request.put("montant", montant);
-        request.put("description", description);
-
-        return HttpService.postAsync("/api/comptes/virement", request, TransactionDTo.class);
+    public List<CompteDTO> getComptesByClientId(Long clientId) {
+        return getComptesByClient(clientId);
     }
 
-    /**
-     * Effectuer un dépôt
-     */
-    public static CompletableFuture<TransactionDTo> effectuerDepot(Long compteId, BigDecimal montant, String description) {
-        Map<String, Object> request = new HashMap<>();
-        request.put("compte_id", compteId);
-        request.put("montant", montant);
-        request.put("description", description);
-
-        return HttpService.postAsync("/api/comptes/depot", request, TransactionDTo.class);
+    public CompteDTO getCompteByNumero(String numero) {
+        try {
+            HttpRequest request = createRequest("/comptes/numero/" + numero).GET().build();
+            return sendRequest(request, CompteDTO.class);
+        } catch (Exception e) {
+            System.err.println("❌ Erreur lors de la récupération du compte numéro " + numero + ": " + e.getMessage());
+            throw new RuntimeException("Impossible de récupérer le compte: " + e.getMessage());
+        }
     }
 
-    /**
-     * Effectuer un retrait
-     */
-    public static CompletableFuture<TransactionDTo> effectuerRetrait(Long compteId, BigDecimal montant, String description) {
-        Map<String, Object> request = new HashMap<>();
-        request.put("compte_id", compteId);
-        request.put("montant", montant);
-        request.put("description", description);
+    public CompteDTO createCompte(CompteDTO compte) {
+        try {
+            String json = gson.toJson(compte);
+            System.out.println("📤 Création compte avec données: " + json);
 
-        return HttpService.postAsync("/api/comptes/retrait", request, TransactionDTo.class);
+            HttpRequest request = createRequest("/comptes")
+                    .POST(HttpRequest.BodyPublishers.ofString(json))
+                    .build();
+            return sendRequest(request, CompteDTO.class);
+        } catch (Exception e) {
+            System.err.println("❌ Erreur lors de la création du compte: " + e.getMessage());
+            throw new RuntimeException("Impossible de créer le compte: " + e.getMessage());
+        }
+    }
+
+    public CompteDTO updateCompte(CompteDTO compte) {
+        try {
+            String json = gson.toJson(compte);
+            HttpRequest request = createRequest("/comptes/" + compte.getId())
+                    .PUT(HttpRequest.BodyPublishers.ofString(json))
+                    .build();
+            return sendRequest(request, CompteDTO.class);
+        } catch (Exception e) {
+            System.err.println("❌ Erreur lors de la mise à jour du compte: " + e.getMessage());
+            throw new RuntimeException("Impossible de mettre à jour le compte: " + e.getMessage());
+        }
+    }
+
+    public void deleteCompte(Long id) {
+        try {
+            HttpRequest request = createRequest("/comptes/" + id).DELETE().build();
+            sendRequestForString(request);
+        } catch (Exception e) {
+            System.err.println("❌ Erreur lors de la suppression du compte: " + e.getMessage());
+            throw new RuntimeException("Impossible de supprimer le compte: " + e.getMessage());
+        }
+    }
+
+    public void appliquerFrais(Long compteId, String type, double montant) {
+        try {
+            FraisRequest fraisRequest = new FraisRequest(type, montant);
+            String json = gson.toJson(fraisRequest);
+            HttpRequest request = createRequest("/comptes/" + compteId + "/frais")
+                    .PUT(HttpRequest.BodyPublishers.ofString(json))
+                    .build();
+            sendRequestForString(request);
+            System.out.println("✅ Frais appliqués avec succès");
+        } catch (Exception e) {
+            System.err.println("❌ Erreur lors de l'application des frais: " + e.getMessage());
+            throw new RuntimeException("Impossible d'appliquer les frais: " + e.getMessage());
+        }
+    }
+
+    public void appliquerFrais(Long compteId, FraisRequest fraisRequest) {
+        try {
+            String json = gson.toJson(fraisRequest);
+            HttpRequest request = createRequest("/comptes/" + compteId + "/frais")
+                    .PUT(HttpRequest.BodyPublishers.ofString(json))
+                    .build();
+            sendRequestForString(request);
+            System.out.println("✅ Frais appliqués avec succès");
+        } catch (Exception e) {
+            System.err.println("❌ Erreur lors de l'application des frais: " + e.getMessage());
+            throw new RuntimeException("Impossible d'appliquer les frais: " + e.getMessage());
+        }
+    }
+
+    public void fermerCompte(Long compteId) {
+        try {
+            HttpRequest request = createRequest("/comptes/" + compteId + "/fermer")
+                    .PUT(HttpRequest.BodyPublishers.noBody())
+                    .build();
+            sendRequestForString(request);
+            System.out.println("✅ Compte fermé avec succès");
+        } catch (Exception e) {
+            System.err.println("❌ Erreur lors de la fermeture du compte: " + e.getMessage());
+            throw new RuntimeException("Impossible de fermer le compte: " + e.getMessage());
+        }
+    }
+
+    // Classes internes pour les requêtes
+    public static class FraisRequest {
+        private final String type;
+        private final double montant;
+
+        public FraisRequest(String type, double montant) {
+            this.type = type;
+            this.montant = montant;
+        }
+
+        public String getType() { return type; }
+        public double getMontant() { return montant; }
     }
 }

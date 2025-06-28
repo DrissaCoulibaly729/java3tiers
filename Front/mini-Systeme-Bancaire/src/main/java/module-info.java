@@ -1,38 +1,23 @@
 module com.groupeisi.minisystemebancaire {
     // Modules JavaFX requis
+    requires java.net.http;
+    requires com.google.gson;
     requires javafx.controls;
     requires javafx.fxml;
+    requires gson.javatime.serialisers;
 
-    // Modules réseau et HTTP pour communication avec Laravel
-    requires java.net.http;
-    requires okhttp3;
-
-    // Modules pour JSON (communication avec Laravel API)
-    requires com.google.gson;
-
-    // Modules JFoenix
-    requires com.jfoenix;
-
-    // Modules Lombok pour les DTOs
-    requires static lombok;
-
-    // Modules pour PDF (iText seulement)
-    requires itextpdf;
-    requires java.desktop;
-
-    // Accès à tous les modules non nommés (pour POI)
-    requires java.xml;
-    requires java.logging;
+    // SUPPRIMÉ : jakarta.persistence (pas nécessaire pour JavaFX)
+    // SUPPRIMÉ : org.hibernate.orm.core (pas nécessaire pour JavaFX)
+    // SUPPRIMÉ : java.sql (pas nécessaire pour JavaFX)
 
     // Exports
     exports com.groupeisi.minisystemebancaire;
     exports com.groupeisi.minisystemebancaire.controllers;
     exports com.groupeisi.minisystemebancaire.controllers.admin;
     exports com.groupeisi.minisystemebancaire.controllers.client;
-    exports com.groupeisi.minisystemebancaire.dtos;
+    exports com.groupeisi.minisystemebancaire.dto;
     exports com.groupeisi.minisystemebancaire.services;
     exports com.groupeisi.minisystemebancaire.utils;
-    exports com.groupeisi.minisystemebancaire.config;
 
     // Opens pour JavaFX FXML
     opens com.groupeisi.minisystemebancaire to javafx.fxml;
@@ -40,8 +25,8 @@ module com.groupeisi.minisystemebancaire {
     opens com.groupeisi.minisystemebancaire.controllers.admin to javafx.fxml;
     opens com.groupeisi.minisystemebancaire.controllers.client to javafx.fxml;
 
-    // Opens pour Gson (communication avec Laravel)
-    opens com.groupeisi.minisystemebancaire.dtos to com.google.gson;
-    // ⭐ AJOUT IMPORTANT : Opens services pour Gson
-    opens com.groupeisi.minisystemebancaire.services to com.google.gson;
+    // Opens pour Gson
+    opens com.groupeisi.minisystemebancaire.dto to com.google.gson;
+
+    // SUPPRIMÉ : opens pour Hibernate (pas nécessaire)
 }

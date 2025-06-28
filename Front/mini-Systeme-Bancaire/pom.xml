@@ -12,45 +12,53 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <junit.version>5.10.2</junit.version>
-        <maven.compiler.source>17</maven.compiler.source>
-        <maven.compiler.target>17</maven.compiler.target>
     </properties>
 
     <dependencies>
-        <!-- JavaFX -->
         <dependency>
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-controls</artifactId>
             <version>17.0.6</version>
         </dependency>
-        <dependency>
-            <groupId>org.openjfx</groupId>
-            <artifactId>javafx-fxml</artifactId>
-            <version>17.0.6</version>
-        </dependency>
-
-        <!-- JFoenix pour les composants Material Design -->
-        <dependency>
-            <groupId>com.jfoenix</groupId>
-            <artifactId>jfoenix</artifactId>
-            <version>9.0.10</version>
-        </dependency>
-
-        <!-- HTTP Client pour communication avec Laravel API -->
-        <dependency>
-            <groupId>com.squareup.okhttp3</groupId>
-            <artifactId>okhttp</artifactId>
-            <version>4.12.0</version>
-        </dependency>
-
-        <!-- Gson pour JSON (communication avec Laravel) -->
+        <!-- https://mvnrepository.com/artifact/com.google.code.gson/gson -->
         <dependency>
             <groupId>com.google.code.gson</groupId>
             <artifactId>gson</artifactId>
             <version>2.10.1</version>
         </dependency>
+        <!-- https://mvnrepository.com/artifact/com.fatboyindustrial.gson-javatime-serialisers/gson-javatime-serialisers -->
+        <dependency>
+            <groupId>com.fatboyindustrial.gson-javatime-serialisers</groupId>
+            <artifactId>gson-javatime-serialisers</artifactId>
+            <version>1.1.1</version>
+        </dependency>
 
-        <!-- Lombok -->
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-fxml</artifactId>
+            <version>17.0.6</version>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/org.hibernate.orm/hibernate-core -->
+        <dependency>
+            <groupId>org.hibernate.orm</groupId>
+            <artifactId>hibernate-core</artifactId>
+            <version>6.6.8.Final</version>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/jakarta.persistence/jakarta.persistence-api -->
+        <dependency>
+            <groupId>jakarta.persistence</groupId>
+            <artifactId>jakarta.persistence-api</artifactId>
+            <version>3.1.0</version>
+        </dependency>
+
+        <!-- https://mvnrepository.com/artifact/org.postgresql/postgresql -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>42.7.4</version>
+        </dependency>
+
+        <!-- https://mvnrepository.com/artifact/org.projectlombok/lombok -->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
@@ -58,43 +66,6 @@
             <scope>provided</scope>
         </dependency>
 
-        <!-- Logging -->
-        <dependency>
-            <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-core</artifactId>
-            <version>2.21.1</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-api</artifactId>
-            <version>2.21.1</version>
-        </dependency>
-
-        <!-- Apache POI pour Excel -->
-        <dependency>
-            <groupId>org.apache.poi</groupId>
-            <artifactId>poi</artifactId>
-            <version>5.2.5</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.poi</groupId>
-            <artifactId>poi-ooxml</artifactId>
-            <version>5.2.5</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.poi</groupId>
-            <artifactId>poi-scratchpad</artifactId>
-            <version>5.2.5</version>
-        </dependency>
-
-        <!-- PDF generation (iText seulement) -->
-        <dependency>
-            <groupId>com.itextpdf</groupId>
-            <artifactId>itextpdf</artifactId>
-            <version>5.5.13.3</version>
-        </dependency>
-
-        <!-- Tests -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
@@ -114,36 +85,30 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.11.0</version>
+                <version>3.13.0</version>
                 <configuration>
-                    <source>17</source>
-                    <target>17</target>
-                    <compilerArgs>
-                        <!-- Permettre l'accès aux modules non exportés -->
-                        <arg>--add-exports</arg>
-                        <arg>org.apache.poi.poi/org.apache.poi.ss.usermodel=com.groupeisi.minisystemebancaire</arg>
-                        <arg>--add-exports</arg>
-                        <arg>org.apache.poi.ooxml/org.apache.poi.xssf.usermodel=com.groupeisi.minisystemebancaire</arg>
-                        <arg>--add-reads</arg>
-                        <arg>com.groupeisi.minisystemebancaire=ALL-UNNAMED</arg>
-                    </compilerArgs>
+                    <source>23</source>
+                    <target>23</target>
                 </configuration>
             </plugin>
-
             <plugin>
                 <groupId>org.openjfx</groupId>
                 <artifactId>javafx-maven-plugin</artifactId>
                 <version>0.0.8</version>
                 <executions>
                     <execution>
+                        <!-- Default configuration for running with: mvn clean javafx:run -->
                         <id>default-cli</id>
                         <configuration>
-                            <mainClass>com.groupeisi.minisystemebancaire.MainApp</mainClass>
-                            <commandlineArgs>
-                                --add-exports org.apache.poi.poi/org.apache.poi.ss.usermodel=com.groupeisi.minisystemebancaire
-                                --add-exports org.apache.poi.ooxml/org.apache.poi.xssf.usermodel=com.groupeisi.minisystemebancaire
-                                --add-reads com.groupeisi.minisystemebancaire=ALL-UNNAMED
-                            </commandlineArgs>
+                            <mainClass>
+                                com.groupeisi.minisystemebancaire/com.groupeisi.minisystemebancaire.HelloApplication
+                            </mainClass>
+                            <launcher>app</launcher>
+                            <jlinkZipName>app</jlinkZipName>
+                            <jlinkImageName>app</jlinkImageName>
+                            <noManPages>true</noManPages>
+                            <stripDebug>true</stripDebug>
+                            <noHeaderFiles>true</noHeaderFiles>
                         </configuration>
                     </execution>
                 </executions>

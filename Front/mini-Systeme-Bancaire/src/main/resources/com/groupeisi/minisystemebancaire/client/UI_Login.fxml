@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.*?>
+<?import javafx.scene.text.*?>
+
+<BorderPane xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="com.groupeisi.minisystemebancaire.controllers.client.ClientLoginController">
+
+   <center>
+      <VBox alignment="CENTER" spacing="25"
+            style="-fx-background-color: linear-gradient(to bottom, #667eea, #764ba2); -fx-padding: 50;">
+
+         <!-- Titre -->
+         <Label text="🔐 Connexion Client"
+                style="-fx-font-size: 32px; -fx-font-weight: bold; -fx-text-fill: white;">
+            <font>
+               <Font name="System Bold" size="32.0"/>
+            </font>
+         </Label>
+
+         <!-- Formulaire de connexion -->
+         <VBox alignment="CENTER" spacing="20" maxWidth="400"
+               style="-fx-background-color: rgba(255,255,255,0.95); -fx-background-radius: 15; -fx-padding: 40;">
+
+            <!-- Email -->
+            <VBox spacing="8">
+               <Label text="📧 Adresse Email"
+                      style="-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;"/>
+               <TextField fx:id="txtEmail" promptText="votre@email.com"
+                          style="-fx-pref-width: 300; -fx-font-size: 14px; -fx-padding: 12;
+                                      -fx-background-radius: 8; -fx-border-radius: 8;
+                                      -fx-border-color: #bdc3c7; -fx-border-width: 1;"/>
+            </VBox>
+
+            <!-- Mot de passe -->
+            <VBox spacing="8">
+               <Label text="🔒 Mot de Passe"
+                      style="-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;"/>
+               <PasswordField fx:id="txtPassword" promptText="Votre mot de passe"
+                              style="-fx-pref-width: 300; -fx-font-size: 14px; -fx-padding: 12;
+                                          -fx-background-radius: 8; -fx-border-radius: 8;
+                                          -fx-border-color: #bdc3c7; -fx-border-width: 1;"/>
+            </VBox>
+
+            <!-- Message d'erreur/succès -->
+            <Label fx:id="lblMessage" text=""
+                   style="-fx-font-size: 12px; -fx-font-weight: bold;"
+                   wrapText="true" maxWidth="280"/>
+
+            <!-- Boutons -->
+            <VBox spacing="15" alignment="CENTER">
+               <Button fx:id="btnLogin" text="Se connecter" onAction="#handleLogin"
+                       style="-fx-background-color: #3498db; -fx-text-fill: white;
+                                   -fx-font-size: 16px; -fx-font-weight: bold;
+                                   -fx-background-radius: 8; -fx-padding: 12 30 12 30;
+                                   -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.2), 5, 0, 0, 2);">
+                  <cursor>
+                     <javafx.scene.Cursor fx:constant="HAND"/>
+                  </cursor>
+               </Button>
+
+               <!-- Séparateur -->
+               <Separator maxWidth="200"/>
+
+               <!-- Lien inscription -->
+               <Label text="Pas encore de compte ?"
+                      style="-fx-font-size: 12px; -fx-text-fill: #7f8c8d;"/>
+
+               <Button fx:id="btnInscription" text="📝 S'inscrire" onAction="#handleRegister"
+                       style="-fx-background-color: #27ae60; -fx-text-fill: white;
+                                   -fx-font-size: 14px; -fx-font-weight: bold;
+                                   -fx-background-radius: 8; -fx-padding: 10 25 10 25;
+                                   -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.2), 5, 0, 0, 2);">
+                  <cursor>
+                     <javafx.scene.Cursor fx:constant="HAND"/>
+                  </cursor>
+               </Button>
+            </VBox>
+         </VBox>
+
+         <!-- Bouton retour -->
+         <Button fx:id="btnQuitter" text="← Retour à l'accueil" onAction="#handleQuitter"
+                 style="-fx-background-color: transparent; -fx-text-fill: white;
+                           -fx-font-size: 14px; -fx-border-color: white; -fx-border-radius: 5;
+                           -fx-background-radius: 5; -fx-padding: 8 20 8 20;">
+            <cursor>
+               <javafx.scene.Cursor fx:constant="HAND"/>
+            </cursor>
+         </Button>
+
+      </VBox>
+   </center>
+
+</BorderPane>
