@@ -2,16 +2,27 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class Remboursement extends Model
+class TicketSupport extends Model
 {
-    use HasFactory;
+    protected $fillable = [
+        'sujet', 'description', 'date_ouverture', 
+        'statut', 'reponse', 'client_id', 'admin_id'
+    ];
 
-    protected $fillable = ['montant', 'date', 'credit_id'];
+    protected $casts = [
+        'date_ouverture' => 'datetime',
+    ];
 
-    public function credit() {
-        return $this->belongsTo(Credit::class);
+    public function client(): BelongsTo
+    {
+        return $this->belongsTo(Client::class);
+    }
+
+    public function admin(): BelongsTo
+    {
+        return $this->belongsTo(Admin::class);
     }
 }

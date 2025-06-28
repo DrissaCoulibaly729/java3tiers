@@ -4,103 +4,81 @@ namespace App\Http\Controllers\Api;
 use App\Models\CarteBancaire;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
-use Illuminate\Support\Facades\Validator;
+use Carbon\Carbon;
 
 class CarteBancaireController extends Controller
 {
-    // ✅ GET /api/carte-bancaires
     public function index()
     {
-        return CarteBancaire::with('compte')->get();
+        return CarteBancaire::with('compte.client')->get();
     }
 
-    // ✅ POST /api/carte-bancaires (création)
     public function store(Request $request)
     {
         $request->validate([
-            'numero' => 'required|unique:carte_bancaires',
-            'type' => 'required',
-            'cvv' => 'required',
-            'date_expiration' => 'required',
-            'solde' => 'required|numeric',
-            'code_pin' => 'required',
             'compte_id' => 'required|exists:comptes,id',
+            'solde' => 'required|numeric|min:0',
         ]);
 
         $carte = CarteBancaire::create([
-            'numero' => $request->numero,
-            'type' => $request->type,
-            'cvv' => $request->cvv,
-            'date_expiration' => $request->date_expiration,
+            'numero' => CarteBancaire::genererNumeroCarte(),
+            'cvv' => CarteBancaire::genererCVV(),
+            'date_expiration' => Carbon::now()->addYears(3),
             'solde' => $request->solde,
-            'statut' => 'Active', // par défaut
-            'code_pin' => $request->code_pin,
             'compte_id' => $request->compte_id,
+            'code_pin' => CarteBancaire::genererPIN(),
+            'statut' => 'Active',
         ]);
 
-        return response()->json($carte, 201);
+        return response()->json($carte->load('compte'), 201);
     }
 
-    // ✅ GET /api/carte-bancaires/{id}
     public function show(CarteBancaire $carteBancaire)
     {
-        return $carteBancaire->load('compte');
+        return $carteBancaire->load('compte.client');
     }
 
-    // ✅ PUT /api/carte-bancaires/{id}
     public function update(Request $request, CarteBancaire $carteBancaire)
     {
         $request->validate([
-            'statut' => 'required|in:Active,Bloquée,Expirée',
+            'solde' => 'required|numeric|min:0',
+            'statut' => 'required|in:Active,Bloquée',
         ]);
 
-        $carteBancaire->update([
-            'statut' => $request->statut,
-        ]);
-
+        $carteBancaire->update($request->only(['solde', 'statut']));
         return response()->json($carteBancaire);
     }
 
-    // ✅ DELETE /api/carte-bancaires/{id}
     public function destroy(CarteBancaire $carteBancaire)
     {
-        if ($carteBancaire->statut !== 'Expirée') {
-            return response()->json(['error' => 'Impossible de supprimer une carte active ou bloquée.'], 403);
-        }
-
         $carteBancaire->delete();
         return response()->json(null, 204);
     }
 
-    // ✅ GET /api/compte/{id}/cartes
     public function getCartesByCompte($id)
     {
         return CarteBancaire::where('compte_id', $id)->get();
     }
 
-    // ✅ PUT /api/carte-bancaires/{id}/bloquer
     public function bloquer($id)
     {
         $carte = CarteBancaire::findOrFail($id);
         $carte->update(['statut' => 'Bloquée']);
-        return response()->json(['message' => 'Carte bloquée.']);
+        return response()->json(['message' => 'Carte bloquée avec succès']);
     }
 
-    // ✅ PUT /api/carte-bancaires/{id}/debloquer
     public function debloquer($id)
     {
         $carte = CarteBancaire::findOrFail($id);
         $carte->update(['statut' => 'Active']);
-        return response()->json(['message' => 'Carte débloquée.']);
+        return response()->json(['message' => 'Carte débloquée avec succès']);
     }
 
-    // ✅ GET /api/carte-bancaires/valide/{id}
     public function isValide($id)
     {
-        $carte = CarteBancaire::find($id);
-        if (!$carte) {
-            return response()->json(['valide' => false]);
-        }
-        return response()->json(['valide' => $carte->statut !== 'Expirée']);
+        $carte = CarteBancaire::findOrFail($id);
+        $isValide = $carte->statut === 'Active' && $carte->date_expiration > now();
+        
+        return response()->json(['valide' => $isValide]);
     }
 }

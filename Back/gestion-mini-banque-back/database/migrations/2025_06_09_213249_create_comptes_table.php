@@ -4,30 +4,24 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
+class CreateComptesTable extends Migration
 {
-    /**
-     * Run the migrations.
-     */
-    public function up(): void
+    public function up()
     {
-         Schema::create('comptes', function (Blueprint $table) {
+        Schema::create('comptes', function (Blueprint $table) {
             $table->id();
-            $table->string('numero');
-            $table->string('type');
-            $table->double('solde');
-            $table->dateTime('date_creation');
-            $table->string('statut')->default('Actif');
+            $table->string('numero')->unique();
+            $table->enum('type', ['Courant', 'Épargne']);
+            $table->decimal('solde', 15, 2)->default(0);
+            $table->timestamp('date_creation')->default(now());
+            $table->enum('statut', ['Actif', 'Fermé'])->default('Actif');
             $table->foreignId('client_id')->constrained()->onDelete('cascade');
             $table->timestamps();
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
-    public function down(): void
+    public function down()
     {
         Schema::dropIfExists('comptes');
     }
-};
+}

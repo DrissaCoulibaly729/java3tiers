@@ -75,14 +75,14 @@ public class ClientLoginController {
 
             // Récupérer le contrôleur et passer l'ID du client
             ClientDashboardController dashboardController = loader.getController();
-            dashboardController.loadDashboard(clientId);  // ✅ On envoie l'ID ici
+            dashboardController.setClientId(clientId);  // ✅ CORRECTION : utiliser setClientId au lieu de loadDashboard
 
             Stage stage = (Stage) btnLogin.getScene().getWindow();
             stage.setScene(new Scene(root));
             stage.setTitle("Tableau de Bord Client");
         } catch (Exception e) {
             e.printStackTrace();
-            showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible d'ouvrir le tableau de bord.");
+            showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible d'ouvrir le tableau de bord : " + e.getMessage());
         }
     }
 

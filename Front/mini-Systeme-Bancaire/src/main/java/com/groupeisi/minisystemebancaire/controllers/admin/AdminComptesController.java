@@ -1,11 +1,11 @@
 package com.groupeisi.minisystemebancaire.controllers.admin;
 
-
 import com.groupeisi.minisystemebancaire.dto.CompteDTO;
 import com.groupeisi.minisystemebancaire.dto.ClientDTO;
 import com.groupeisi.minisystemebancaire.services.CompteService;
 import com.groupeisi.minisystemebancaire.services.ClientService;
-import javafx.beans.property.SimpleStringProperty;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -15,346 +15,255 @@ import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.stage.Stage;
 
 import java.io.IOException;
-import java.time.LocalDateTime;
 import java.util.List;
-import javafx.util.StringConverter;
-
 
 public class AdminComptesController {
+
+    @FXML private TextField txtSoldeInitial, txtMontantFrais, txtRechercheCompte;
+    @FXML private ChoiceBox<String> choiceTypeCompte, choiceTypeFrais;
+    @FXML private ChoiceBox<ClientDTO> choiceClient;
+    @FXML private ChoiceBox<CompteDTO> choiceCompteFrais;
+    @FXML private TableView<CompteDTO> tableComptes;
+    @FXML private TableColumn<CompteDTO, String> colNumeroCompte, colType, colStatut, colClient;
+    @FXML private TableColumn<CompteDTO, Double> colSolde;
+    @FXML private Button btnOuvrirCompte, btnAppliquerFrais, btnModifierCompte, btnFermerCompte, btnDeconnexion;
+
     private final CompteService compteService = new CompteService();
     private final ClientService clientService = new ClientService();
+    private CompteDTO selectedCompte;
 
     @FXML
-    private TextField txtRechercheCompte, txtSoldeInitial, txtMontantFrais;
-    @FXML
-    private ChoiceBox<String> choiceTypeCompte, choiceTypeFrais;
-    @FXML
-    private ChoiceBox<ClientDTO> choiceClient;
-    @FXML
-    private ChoiceBox<String> choiceCompteFrais;
-    @FXML
-    private TableView<CompteDTO> tableComptes;
-    @FXML
-    private TableColumn<CompteDTO, String> colNumeroCompte, colType, colStatut;
-    @FXML
-    private TableColumn<CompteDTO, Double> colSolde;
-    @FXML
-    private TableColumn<CompteDTO, String> colClient;
-    @FXML
-    private Button btnOuvrirCompte, btnAppliquerFrais, btnModifierCompte, btnFermerCompte,btnDeconnexion;
+    private void initialize() {
+        setupComponents();
+        setupTableColumns();
+        loadData();
+        setupTableSelection();
+    }
 
-    /**
-     * ✅ Initialise le contrôleur et charge les données nécessaires.
-     */
-    @FXML
-    public void initialize() {
-        // Configuration des types de compte disponibles
-        choiceTypeCompte.getItems().addAll("Courant", "Épargne", "Entreprise");
+    private void setupComponents() {
+        choiceTypeCompte.setItems(FXCollections.observableArrayList("Courant", "Épargne"));
+        choiceTypeFrais.setItems(FXCollections.observableArrayList("Mensuel", "Transaction", "Maintenance"));
+    }
 
-        // Configuration des types de frais bancaires
-        choiceTypeFrais.getItems().addAll("Frais mensuels", "Frais de transaction", "Autres");
-
-        // Configuration des colonnes de la table
+    private void setupTableColumns() {
         colNumeroCompte.setCellValueFactory(new PropertyValueFactory<>("numero"));
-        colClient.setCellValueFactory(new PropertyValueFactory<>("clientNom"));
         colType.setCellValueFactory(new PropertyValueFactory<>("type"));
         colSolde.setCellValueFactory(new PropertyValueFactory<>("solde"));
         colStatut.setCellValueFactory(new PropertyValueFactory<>("statut"));
 
-        // Charger les clients et les comptes
-        chargerClients();
-        chargerComptes();
-        loadComptesDansChoiceBox();
-    }
-
-    /**
-     * ✅ Charge les clients dans le `ChoiceBox`
-     */
-    private void chargerClients() {
-        List<ClientDTO> clients = clientService.getAllClients();
-
-        // 🔍 Debug : Vérifier si les clients ont un ID
-        for (ClientDTO client : clients) {
-            System.out.println("Client trouvé : " + client.getNom() + " " + client.getPrenom() + ", ID: " + client.getId());
-        }
-
-        choiceClient.getItems().setAll(clients);
-
-        choiceClient.setConverter(new StringConverter<>() {
-            @Override
-            public String toString(ClientDTO client) {
-                return (client != null) ? client.getNom() + " " + client.getPrenom() : "";
-            }
-
-            @Override
-            public ClientDTO fromString(String string) {
-                return null;
-            }
-        });
-    }
-
-    /**
-    private void chargerClients() {
-        List<ClientDTO> clients = clientService.getAllClients();
-        choiceClient.getItems().setAll(clients);
-    }
-     **/
-
-    /**
-     * ✅ Charge les comptes bancaires dans la `TableView`
-     */
-    private void chargerComptes() {
-        List<CompteDTO> comptes = compteService.getAllComptes();
-
-        // Associer le client à la colonne en affichant Nom + Prénom
         colClient.setCellValueFactory(cellData -> {
-            Long clientId = cellData.getValue().getClientId();
-            // Vérifier si clientId est nul
-            if (clientId == null) {
-                return new SimpleStringProperty("Inconnu");
+            CompteDTO compte = cellData.getValue();
+            if (compte.getClient() != null) {
+                return new javafx.beans.property.SimpleStringProperty(
+                        compte.getClient().getNom() + " " + compte.getClient().getPrenom()
+                );
             }
-            ClientDTO client = clientService.getClientById(clientId);
-            return new SimpleStringProperty(client.getNom() + " " + client.getPrenom());
+            return new javafx.beans.property.SimpleStringProperty("N/A");
         });
-
-        tableComptes.getItems().setAll(comptes);
     }
 
-    /**
-     * ✅ Gère la création d'un nouveau compte bancaire
-     */
+    private void setupTableSelection() {
+        tableComptes.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
+            selectedCompte = newSelection;
+        });
+    }
+
     @FXML
-    public void handleOuvrirCompte() {
-        ClientDTO client = choiceClient.getValue();
-        String type = choiceTypeCompte.getValue();
-        double soldeInitial;
+    private void handleOuvrirCompte() {
+        if (!validateCompteForm()) return;
 
         try {
-            soldeInitial = Double.parseDouble(txtSoldeInitial.getText());
+            // ✅ CORRECTION : Utiliser setters au lieu de constructeur problématique
+            CompteDTO compte = new CompteDTO();
+            compte.setType(choiceTypeCompte.getValue());
+            compte.setSolde(Double.parseDouble(txtSoldeInitial.getText()));
+            compte.setClientId(choiceClient.getValue().getId());
+            compte.setStatut("Actif");
+
+            compteService.createCompte(compte);
+
+            showAlert(Alert.AlertType.INFORMATION, "Succès", "Compte ouvert avec succès !");
+            clearForm();
+            loadComptes();
+
+        } catch (Exception e) {
+            showAlert(Alert.AlertType.ERROR, "Erreur", "Erreur lors de l'ouverture : " + e.getMessage());
+        }
+    }
+
+    @FXML
+    private void handleAppliquerFrais() {
+        if (choiceCompteFrais.getValue() == null || choiceTypeFrais.getValue() == null ||
+                txtMontantFrais.getText().trim().isEmpty()) {
+            showAlert(Alert.AlertType.WARNING, "Validation", "Veuillez remplir tous les champs pour les frais");
+            return;
+        }
+
+        try {
+            double montant = Double.parseDouble(txtMontantFrais.getText());
+
+            // ✅ CORRECTION : Utiliser la signature correcte (Long, String, Double)
+            compteService.appliquerFrais(
+                    choiceCompteFrais.getValue().getId(),
+                    choiceTypeFrais.getValue(),
+                    montant
+            );
+
+            showAlert(Alert.AlertType.INFORMATION, "Succès", "Frais appliqués avec succès !");
+            clearForm();
+            loadComptes();
+
         } catch (NumberFormatException e) {
-            showAlert(Alert.AlertType.ERROR, "Erreur", "Veuillez entrer un montant valide.");
-            return;
+            showAlert(Alert.AlertType.ERROR, "Erreur", "Le montant doit être un nombre valide");
+        } catch (Exception e) {
+            showAlert(Alert.AlertType.ERROR, "Erreur", "Erreur lors de l'application des frais : " + e.getMessage());
         }
-
-        if (client == null || type == null || soldeInitial < 0) {
-            showAlert(Alert.AlertType.ERROR, "Erreur", "Veuillez sélectionner un client, un type de compte et un solde valide.");
-            return;
-        }
-
-        // 🔍 Vérifier si l'ID du client est bien récupéré
-        System.out.println("Client sélectionné : " + client.getNom() + " " + client.getPrenom() + ", ID: " + client.getId());
-
-        if (client.getId() == null) {
-            showAlert(Alert.AlertType.ERROR, "Erreur", "L'ID du client est introuvable !");
-            return;
-        }
-
-        // Création du DTO
-        CompteDTO compteDTO = new CompteDTO(null, LocalDateTime.now(), generateNumeroCompte(), type, soldeInitial, client.getId(), "Actif");
-
-        // 🔍 Vérifier avant d'envoyer au service
-        System.out.println("Compte créé pour ClientID: " + compteDTO.getClientId());
-
-        compteService.createCompte(compteDTO);
-        chargerComptes();
-
-        showAlert(Alert.AlertType.INFORMATION, "Compte créé", "Le compte a été ouvert avec succès.");
-        clearFields();
     }
 
-public void handleAnnulerCompte(){
-        clearFields();
-}
-
-    /**
-     * ✅ Appliquer des frais bancaires sur un compte
-     */
     @FXML
-    public void handleAppliquerFrais() {
-        String compteNumero = choiceCompteFrais.getValue();
-        String typeFrais = choiceTypeFrais.getValue();
-        double montantFrais;
+    private void handleModifierCompte() {
+        if (selectedCompte == null) {
+            showAlert(Alert.AlertType.WARNING, "Sélection", "Veuillez sélectionner un compte");
+            return;
+        }
 
         try {
-            montantFrais = Double.parseDouble(txtMontantFrais.getText());
+            // ✅ CORRECTION : Utiliser updateCompte avec un seul paramètre
+            selectedCompte.setType(choiceTypeCompte.getValue());
+            compteService.updateCompte(selectedCompte);
+
+            showAlert(Alert.AlertType.INFORMATION, "Succès", "Compte modifié avec succès !");
+            loadComptes();
+
+        } catch (Exception e) {
+            showAlert(Alert.AlertType.ERROR, "Erreur", "Erreur lors de la modification : " + e.getMessage());
+        }
+    }
+
+    @FXML
+    private void handleFermerCompte() {
+        if (selectedCompte == null) {
+            showAlert(Alert.AlertType.WARNING, "Sélection", "Veuillez sélectionner un compte");
+            return;
+        }
+
+        Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
+        confirmation.setTitle("Confirmation");
+        confirmation.setContentText("Êtes-vous sûr de vouloir fermer ce compte ?");
+
+        if (confirmation.showAndWait().get() == ButtonType.OK) {
+            try {
+                compteService.fermerCompte(selectedCompte.getId());
+                showAlert(Alert.AlertType.INFORMATION, "Succès", "Compte fermé avec succès");
+                loadComptes();
+            } catch (Exception e) {
+                showAlert(Alert.AlertType.ERROR, "Erreur", "Erreur lors de la fermeture : " + e.getMessage());
+            }
+        }
+    }
+
+    private boolean validateCompteForm() {
+        if (choiceTypeCompte.getValue() == null) {
+            showAlert(Alert.AlertType.WARNING, "Validation", "Veuillez sélectionner un type de compte");
+            return false;
+        }
+
+        if (choiceClient.getValue() == null) {
+            showAlert(Alert.AlertType.WARNING, "Validation", "Veuillez sélectionner un client");
+            return false;
+        }
+
+        if (txtSoldeInitial.getText().trim().isEmpty()) {
+            showAlert(Alert.AlertType.WARNING, "Validation", "Veuillez saisir le solde initial");
+            return false;
+        }
+
+        try {
+            double solde = Double.parseDouble(txtSoldeInitial.getText());
+            if (solde < 0) {
+                showAlert(Alert.AlertType.WARNING, "Validation", "Le solde doit être positif");
+                return false;
+            }
         } catch (NumberFormatException e) {
-            showAlert(Alert.AlertType.ERROR, "Erreur", "Veuillez entrer un montant valide.");
-            return;
+            showAlert(Alert.AlertType.WARNING, "Validation", "Le solde doit être un nombre valide");
+            return false;
         }
 
-        if (compteNumero == null || typeFrais == null || montantFrais <= 0) {
-            showAlert(Alert.AlertType.ERROR, "Erreur", "Veuillez sélectionner un compte, un type de frais et un montant valide.");
-            return;
-        }
-
-        CompteDTO compte = compteService.getCompteByNumero(compteNumero);
-        if (compte == null) {
-            showAlert(Alert.AlertType.ERROR, "Erreur", "Compte non trouvé.");
-            return;
-        }
-
-        compteService.appliquerFrais(compte.getId(), montantFrais);
-        chargerComptes();
-
-        showAlert(Alert.AlertType.INFORMATION, "Frais appliqués", "Les frais ont été appliqués avec succès.");
-        clearFieldsFrais();
+        return true;
     }
 
-    /**
-     * ✅ Fermer un compte bancaire
-     */
-    @FXML
-    public void handleFermerCompte() {
-        CompteDTO selectedCompte = tableComptes.getSelectionModel().getSelectedItem();
-        if (selectedCompte == null) {
-            showAlert(Alert.AlertType.ERROR, "Erreur", "Veuillez sélectionner un compte à fermer.");
-            return;
-        }
-
-        compteService.fermerCompte(selectedCompte.getId());
-        chargerComptes();
-        showAlert(Alert.AlertType.INFORMATION, "Compte fermé", "Le compte a été fermé avec succès.");
+    private void clearForm() {
+        choiceTypeCompte.getSelectionModel().clearSelection();
+        choiceClient.getSelectionModel().clearSelection();
+        choiceCompteFrais.getSelectionModel().clearSelection();
+        choiceTypeFrais.getSelectionModel().clearSelection();
+        txtSoldeInitial.clear();
+        txtMontantFrais.clear();
+        selectedCompte = null;
+        tableComptes.getSelectionModel().clearSelection();
     }
 
-    /**
-     * ✅ Modifier un compte bancaire (Ex: changer le statut)
-     */
-    @FXML
-    public void handleModifierCompte() {
-        CompteDTO selectedCompte = tableComptes.getSelectionModel().getSelectedItem();
-        if (selectedCompte == null) {
-            showAlert(Alert.AlertType.ERROR, "Erreur", "Veuillez sélectionner un compte à modifier.");
-            return;
-        }
-
-        String nouveauStatut = selectedCompte.getStatut().equals("Actif") ? "Suspendu" : "Actif";
-        selectedCompte.setStatut(nouveauStatut);
-        compteService.updateCompte(selectedCompte.getId(), selectedCompte);
-        chargerComptes();
-        showAlert(Alert.AlertType.INFORMATION, "Compte modifié", "Le compte a été mis à jour.");
-    }
-
-    private void loadComptesDansChoiceBox() {
-        List<CompteDTO> comptes = compteService.getAllComptes();
-        for (CompteDTO compte : comptes) {
-            choiceCompteFrais.getItems().add(compte.getNumero()); // Ajoute le numéro du compte
-        }
-        choiceTypeFrais.getItems().addAll("Frais de maintenance", "Frais de virement", "Frais de gestion");
-    }
-
-    /**
-     * ✅ Génère un numéro de compte bancaire unique
-     */
-    private String generateNumeroCompte() {
-        return "CB" + (long) (Math.random() * 1000000000);
-    }
-
-    /**
-     * ✅ Changer de vue en fermant la fenêtre actuelle
-     */
-    private void changerDeVue(ActionEvent event, String fichierFXML) {
+    private void loadData() {
         try {
-            // Fermer la fenêtre actuelle
-            Stage stageActuel = (Stage) ((Button) event.getSource()).getScene().getWindow();
-            stageActuel.close();
+            // Charger les clients
+            List<ClientDTO> clients = clientService.getAllClients();
+            choiceClient.setItems(FXCollections.observableArrayList(clients));
 
-            // Charger la nouvelle vue
-            FXMLLoader loader = new FXMLLoader(getClass().getResource(fichierFXML));
+            loadComptes();
+
+        } catch (Exception e) {
+            showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible de charger les données");
+        }
+    }
+
+    private void loadComptes() {
+        try {
+            List<CompteDTO> comptes = compteService.getAllComptes();
+            ObservableList<CompteDTO> comptesData = FXCollections.observableArrayList(comptes);
+            tableComptes.setItems(comptesData);
+            choiceCompteFrais.setItems(comptesData);
+        } catch (Exception e) {
+            showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible de charger les comptes");
+        }
+    }
+
+    // Navigation methods
+    @FXML private void handleDashboard() { navigateToPage("UI_Dashboard"); }
+    @FXML private void handleGestionClients() { navigateToPage("UI_Gestion_Clients"); }
+    @FXML private void handleGestionTransactions() { navigateToPage("UI_Gestion_Transactions"); }
+    @FXML private void handleGestionCredits() { navigateToPage("UI_Gestion_Credits"); }
+    @FXML private void handleGestionCartes() { navigateToPage("UI_Gestion_Cartes_Bancaires"); }
+
+    @FXML
+    private void handleLogout() {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/groupeisi/minisystemebancaire/UI_Main.fxml"));
             Scene scene = new Scene(loader.load());
-            Stage nouveauStage = new Stage();
-            nouveauStage.setTitle("Mini Système Bancaire");
-            nouveauStage.setScene(scene);
-            nouveauStage.show();
+            Stage stage = (Stage) btnDeconnexion.getScene().getWindow();
+            stage.setScene(scene);
+            stage.centerOnScreen();
         } catch (IOException e) {
-            showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible de charger la vue : " + fichierFXML);
             e.printStackTrace();
         }
     }
 
-    /**
-     * ✅ Efface tous les champs après l'ajout d'un compte.
-     */
-    private void clearFields() {
-        choiceClient.setValue(null);
-        choiceTypeCompte.setValue(null);
-        txtSoldeInitial.clear();
-    }
-    private void clearFieldsFrais() {
-        choiceCompteFrais.setValue(null);
-        choiceTypeFrais.setValue(null);
-        txtMontantFrais.clear();
-    }
-
-
-    /**
-     * ✅ Navigation vers Gestion des Clients
-     */
-    @FXML
-    public void handleGestionClients(ActionEvent event) {
-        changerDeVue(event, "/com/groupeisi/minisystemebancaire/admin/UI_Gestion_Clients.fxml");
+    private void navigateToPage(String pageName) {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/groupeisi/minisystemebancaire/admin/" + pageName + ".fxml"));
+            Scene scene = new Scene(loader.load());
+            Stage stage = (Stage) btnOuvrirCompte.getScene().getWindow();
+            stage.setScene(scene);
+            stage.centerOnScreen();
+        } catch (IOException e) {
+            e.printStackTrace();
+            showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible de charger la page " + pageName);
+        }
     }
 
-    /**
-     * ✅ Navigation vers Gestion des Comptes
-     */
-    @FXML
-    public void handleGestionComptes(ActionEvent event) {
-        changerDeVue(event, "/com/groupeisi/minisystemebancaire/admin/UI_Gestion_Comptes_Bancaires.fxml");
-    }
-
-    /**
-     * ✅ Navigation vers Gestion des Transactions
-     */
-    @FXML
-    public void handleGestionTransactions(ActionEvent event) {
-        changerDeVue(event, "/com/groupeisi/minisystemebancaire/admin/UI_Gestion_Transactions.fxml");
-    }
-
-    /**
-     * ✅ Navigation vers Gestion des Crédits
-     */
-    @FXML
-    public void handleGestionCredits(ActionEvent event) {
-        changerDeVue(event, "/com/groupeisi/minisystemebancaire/admin/UI_Gestion_Credits.fxml");
-    }
-
-    /**
-     * ✅ Navigation vers Gestion des Cartes Bancaires
-     */
-    @FXML
-    public void handleGestionCartes(ActionEvent event) {
-        changerDeVue(event, "/com/groupeisi/minisystemebancaire/admin/UI_Gestion_Cartes_Bancaires.fxml");
-    }
-
-    /**
-     * ✅ Navigation vers Service Client & Rapports
-     */
-    @FXML
-    public void handleGestionSupport(ActionEvent event) {
-        changerDeVue(event, "/com/groupeisi/minisystemebancaire/admin/UI_Service_Client_Rapports.fxml");
-    }
-
-    /**
-     * ✅ Navigation vers le Dashboard
-     */
-    @FXML
-    public void handleDashboard(ActionEvent event) {
-        changerDeVue(event, "/com/groupeisi/minisystemebancaire/admin/UI_Dashboard.fxml");
-    }
-
-    @FXML
-    public void handleDeconnexion(ActionEvent event) {
-        Stage stage = (Stage) btnDeconnexion.getScene().getWindow();
-        stage.close();
-    }
-
-
-    /**
-     * ✅ Affiche une alerte
-     */
     private void showAlert(Alert.AlertType type, String title, String message) {
         Alert alert = new Alert(type);
         alert.setTitle(title);
+        alert.setHeaderText(null);
         alert.setContentText(message);
         alert.showAndWait();
     }

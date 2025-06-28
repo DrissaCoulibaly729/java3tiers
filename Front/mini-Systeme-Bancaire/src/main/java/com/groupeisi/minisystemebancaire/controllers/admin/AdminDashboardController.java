@@ -1,9 +1,6 @@
 package com.groupeisi.minisystemebancaire.controllers.admin;
 
-import com.groupeisi.minisystemebancaire.dto.ClientDTO;
-import com.groupeisi.minisystemebancaire.dto.CompteDTO;
 import com.groupeisi.minisystemebancaire.dto.TransactionDTO;
-import com.groupeisi.minisystemebancaire.dto.CarteBancaireDTO;
 import com.groupeisi.minisystemebancaire.dto.TicketSupportDTO;
 import com.groupeisi.minisystemebancaire.services.ClientService;
 import com.groupeisi.minisystemebancaire.services.CompteService;
@@ -168,7 +165,7 @@ public class AdminDashboardController {
         selectedTicket.setStatut("Résolu");
         ticketSupportService.updateTicket(selectedTicket);
         loadReclamations();
-        showAlert(Alert.AlertType.INFORMATION, "Succès", "La réclamation ID: " + selectedTicket.getId() + " a été résolue.");
+        showAlert(Alert.AlertType.INFORMATION, "Succès", "Réclamation marquée comme résolue !");
     }
 
     @FXML

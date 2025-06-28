@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.*?>
+<?import javafx.scene.text.*?>
+
+<BorderPane xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="com.groupeisi.minisystemebancaire.controllers.client.ClientRegisterController">
+
+    <center>
+        <ScrollPane fitToWidth="true" style="-fx-background-color: linear-gradient(to bottom, #00b894, #00a085);">
+            <VBox alignment="CENTER" spacing="30" style="-fx-padding: 50;">
+
+                <!-- Titre -->
+                <Label text="📝 Inscription Client"
+                       style="-fx-font-size: 28px; -fx-font-weight: bold; -fx-text-fill: white;">
+                    <font>
+                        <Font name="System Bold" size="28.0"/>
+                    </font>
+                </Label>
+
+                <!-- Formulaire d'inscription -->
+                <VBox alignment="CENTER" spacing="20"
+                      style="-fx-background-color: white; -fx-background-radius: 15; -fx-padding: 40;
+                             -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 15, 0, 0, 5);
+                             -fx-min-width: 400;">
+
+                    <GridPane hgap="15" vgap="15" alignment="CENTER">
+                        <columnConstraints>
+                            <ColumnConstraints hgrow="NEVER" minWidth="100"/>
+                            <ColumnConstraints hgrow="ALWAYS" minWidth="250"/>
+                        </columnConstraints>
+
+                        <Label text="Nom :" style="-fx-font-weight: bold;" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+                        <TextField fx:id="txtNom" promptText="Entrez votre nom"
+                                   style="-fx-padding: 10; -fx-background-radius: 5;"
+                                   GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+
+                        <Label text="Prénom :" style="-fx-font-weight: bold;" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+                        <TextField fx:id="txtPrenom" promptText="Entrez votre prénom"
+                                   style="-fx-padding: 10; -fx-background-radius: 5;"
+                                   GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+
+                        <Label text="Email :" style="-fx-font-weight: bold;" GridPane.columnIndex="0" GridPane.rowIndex="2"/>
+                        <TextField fx:id="txtEmail" promptText="votre.email@example.com"
+                                   style="-fx-padding: 10; -fx-background-radius: 5;"
+                                   GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+
+                        <Label text="Téléphone :" style="-fx-font-weight: bold;" GridPane.columnIndex="0" GridPane.rowIndex="3"/>
+                        <TextField fx:id="txtTelephone" promptText="+221 XX XXX XX XX"
+                                   style="-fx-padding: 10; -fx-background-radius: 5;"
+                                   GridPane.columnIndex="1" GridPane.rowIndex="3"/>
+
+                        <Label text="Adresse :" style="-fx-font-weight: bold;" GridPane.columnIndex="0" GridPane.rowIndex="4"/>
+                        <TextArea fx:id="txtAdresse" promptText="Entrez votre adresse complète"
+                                  prefRowCount="3" style="-fx-background-radius: 5;"
+                                  GridPane.columnIndex="1" GridPane.rowIndex="4"/>
+
+                        <Label text="Mot de passe :" style="-fx-font-weight: bold;" GridPane.columnIndex="0" GridPane.rowIndex="5"/>
+                        <PasswordField fx:id="txtPassword" promptText="Minimum 6 caractères"
+                                       style="-fx-padding: 10; -fx-background-radius: 5;"
+                                       GridPane.columnIndex="1" GridPane.rowIndex="5"/>
+
+                        <Label text="Confirmer :" style="-fx-font-weight: bold;" GridPane.columnIndex="0" GridPane.rowIndex="6"/>
+                        <PasswordField fx:id="txtConfirmPassword" promptText="Confirmer le mot de passe"
+                                       style="-fx-padding: 10; -fx-background-radius: 5;"
+                                       GridPane.columnIndex="1" GridPane.rowIndex="6"/>
+                    </GridPane>
+
+                    <Label fx:id="lblMessage" style="-fx-font-size: 12px;"/>
+
+                    <HBox alignment="CENTER" spacing="15">
+                        <Button fx:id="btnRegister" onAction="#handleRegister" text="S'inscrire"
+                                style="-fx-background-color: #00b894; -fx-text-fill: white;
+                                       -fx-font-weight: bold; -fx-padding: 12 25; -fx-background-radius: 8;">
+                            <cursor>
+                                <javafx.scene.Cursor fx:constant="HAND"/>
+                            </cursor>
+                        </Button>
+
+                        <Button fx:id="btnRetour" onAction="#handleRetour" text="Retour"
+                                style="-fx-background-color: #636e72; -fx-text-fill: white;
+                                       -fx-padding: 12 25; -fx-background-radius: 8;">
+                            <cursor>
+                                <javafx.scene.Cursor fx:constant="HAND"/>
+                            </cursor>
+                        </Button>
+                    </HBox>
+
+                </VBox>
+
+            </VBox>
+        </ScrollPane>
+    </center>
+
+</BorderPane>

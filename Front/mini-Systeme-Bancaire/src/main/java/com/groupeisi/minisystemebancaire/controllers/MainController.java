@@ -14,49 +14,45 @@ import java.io.IOException;
 
 public class MainController {
 
-    @FXML
-    private Button btnAdmin;
+    @FXML private Button btnAdmin;
+    @FXML private Button btnClient;
 
     @FXML
-    private Button btnClient;
-
-    @FXML
-    private void hoverEffect(MouseEvent event) {
-        Object source = event.getSource();
-        if (source instanceof Button) {
-            ((Button) source).setOpacity(0.85); // effet au survol
-        }
+    private void initialize() {
+        // Configuration des effets visuels
+        setupButtonEffects();
     }
 
-    @FXML
-    private void resetEffect(MouseEvent event) {
-        Object source = event.getSource();
-        if (source instanceof Button) {
-            ((Button) source).setOpacity(1.0); // remettre à normal
-        }
-    }
+    private void setupButtonEffects() {
+        btnAdmin.setOnMouseEntered(e -> btnAdmin.setOpacity(0.8));
+        btnAdmin.setOnMouseExited(e -> btnAdmin.setOpacity(1.0));
 
+        btnClient.setOnMouseEntered(e -> btnClient.setOpacity(0.8));
+        btnClient.setOnMouseExited(e -> btnClient.setOpacity(1.0));
+    }
 
     @FXML
     private void handleAdminClick(ActionEvent event) {
-        chargerVue("/com/groupeisi/minisystemebancaire/admin/UI_Login.fxml", event);
+        navigateTo("/com/groupeisi/minisystemebancaire/admin/UI_Login.fxml", event);
     }
 
     @FXML
     private void handleClientClick(ActionEvent event) {
-        chargerVue("/com/groupeisi/minisystemebancaire/client/UI_Login.fxml", event);
+        navigateTo("/com/groupeisi/minisystemebancaire/client/UI_Login.fxml", event);
     }
 
-    private void chargerVue(String fichierFXML, ActionEvent event) {
+    private void navigateTo(String fxmlPath, ActionEvent event) {
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource(fichierFXML));
+            FXMLLoader loader = new FXMLLoader(getClass().getResource(fxmlPath));
             Parent root = loader.load();
 
             Stage stage = (Stage) ((Node) event.getSource()).getScene().getWindow();
-            stage.setScene(new Scene(root));
-            stage.show();
+            Scene scene = new Scene(root);
+            stage.setScene(scene);
+            stage.centerOnScreen();
         } catch (IOException e) {
             e.printStackTrace();
+            System.err.println("Erreur lors de la navigation vers: " + fxmlPath);
         }
     }
 }

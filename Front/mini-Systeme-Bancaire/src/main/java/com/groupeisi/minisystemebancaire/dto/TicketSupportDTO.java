@@ -7,88 +7,48 @@ public class TicketSupportDTO {
     private String sujet;
     private String description;
     private LocalDateTime dateOuverture;
-    private String statut; // "Ouvert", "Résolu"
+    private String statut;
     private String reponse;
     private Long clientId;
     private Long adminId;
+    private ClientDTO client;
 
-    // ✅ Constructeurs
+    // Constructeurs
     public TicketSupportDTO() {}
 
-    public TicketSupportDTO(Long id, String sujet, String description, LocalDateTime dateOuverture, String statut, String reponse, Long clientId, Long adminId) {
-        this.id = id;
+    public TicketSupportDTO(String sujet, String description, Long clientId) {
         this.sujet = sujet;
         this.description = description;
-        this.dateOuverture = dateOuverture;
-        this.statut = statut;
-        this.reponse = reponse;
         this.clientId = clientId;
-        this.adminId = adminId;
+        this.statut = "Ouvert";
+        this.dateOuverture = LocalDateTime.now();
     }
 
-    // ✅ Getters & Setters
+    // Getters et Setters
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
 
-    public Long getId() {
-        return id;
-    }
+    public String getSujet() { return sujet; }
+    public void setSujet(String sujet) { this.sujet = sujet; }
 
-    public String getReponse() {
-        return reponse;
-    }
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
 
-    public void setReponse(String reponse) {
-        this.reponse = reponse;
-    }
+    public LocalDateTime getDateOuverture() { return dateOuverture; }
+    public void setDateOuverture(LocalDateTime dateOuverture) { this.dateOuverture = dateOuverture; }
 
-    public void setId(Long id) {
-        this.id = id;
-    }
+    public String getStatut() { return statut; }
+    public void setStatut(String statut) { this.statut = statut; }
 
-    public String getSujet() {
-        return sujet;
-    }
+    public String getReponse() { return reponse; }
+    public void setReponse(String reponse) { this.reponse = reponse; }
 
-    public void setSujet(String sujet) {
-        this.sujet = sujet;
-    }
+    public Long getClientId() { return clientId; }
+    public void setClientId(Long clientId) { this.clientId = clientId; }
 
-    public String getDescription() {
-        return description;
-    }
+    public Long getAdminId() { return adminId; }
+    public void setAdminId(Long adminId) { this.adminId = adminId; }
 
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    public LocalDateTime getDateOuverture() {
-        return dateOuverture;
-    }
-
-    public void setDateOuverture(LocalDateTime dateOuverture) {
-        this.dateOuverture = dateOuverture;
-    }
-
-    public String getStatut() {
-        return statut;
-    }
-
-    public void setStatut(String statut) {
-        this.statut = statut;
-    }
-
-    public Long getClientId() {
-        return clientId;
-    }
-
-    public void setClientId(Long clientId) {
-        this.clientId = clientId;
-    }
-
-    public Long getAdminId() {
-        return adminId;
-    }
-
-    public void setAdminId(Long adminId) {
-        this.adminId = adminId;
-    }
+    public ClientDTO getClient() { return client; }
+    public void setClient(ClientDTO client) { this.client = client; }
 }

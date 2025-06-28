@@ -1,4 +1,4 @@
-package com.groupeisi.minisystemebancaire.util;
+package com.groupeisi.minisystemebancaire.utils;
 
 import com.google.gson.*;
 import java.lang.reflect.Type;

@@ -2,55 +2,52 @@
 namespace App\Http\Controllers\Api;
 
 use App\Models\Compte;
+use App\Models\FraisBancaire;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 
 class CompteController extends Controller
 {
-    // ✅ GET /api/comptes
     public function index()
     {
-        return Compte::with(['client', 'transactionsEnvoyees', 'transactionsRecues', 'cartesBancaires'])->get();
+        return Compte::with('client')->get();
     }
 
-    // ✅ POST /api/comptes (création)
     public function store(Request $request)
     {
         $request->validate([
-            'numero' => 'required|unique:comptes',
-            'type' => 'required|in:courant,épargne,Courant,Épargne',
-            'solde' => 'required|numeric',
-            'date_creation' => 'required|date',
-            'statut' => 'required|in:Actif,Bloqué,Fermé',
+            'type' => 'required|in:Courant,Épargne',
+            'solde' => 'required|numeric|min:0',
             'client_id' => 'required|exists:clients,id',
         ]);
 
-        $compte = Compte::create($request->all());
+        $compte = Compte::create([
+            'numero' => Compte::genererNumeroCompte(),
+            'type' => $request->type,
+            'solde' => $request->solde,
+            'client_id' => $request->client_id,
+            'statut' => 'Actif',
+        ]);
 
-        return response()->json($compte, 201);
+        return response()->json($compte->load('client'), 201);
     }
 
-    // ✅ GET /api/comptes/{id}
     public function show(Compte $compte)
     {
-        return $compte->load(['client', 'transactionsEnvoyees', 'transactionsRecues', 'cartesBancaires']);
+        return $compte->load(['client', 'carteBancaires', 'transactionsSource', 'transactionsDestination']);
     }
 
-    // ✅ PUT /api/comptes/{id}
     public function update(Request $request, Compte $compte)
     {
         $request->validate([
-            'type' => 'required|in:courant,épargne',
-            'solde' => 'required|numeric',
-            'statut' => 'required|in:Actif,Bloqué,Fermé',
+            'type' => 'required|in:Courant,Épargne',
+            'statut' => 'required|in:Actif,Fermé',
         ]);
 
-        $compte->update($request->only(['type', 'solde', 'statut']));
-
+        $compte->update($request->only(['type', 'statut']));
         return response()->json($compte);
     }
 
-    // ✅ DELETE /api/comptes/{id}
     public function destroy(Compte $compte)
     {
         if ($compte->solde > 0) {
@@ -61,53 +58,57 @@ class CompteController extends Controller
         return response()->json(null, 204);
     }
 
-    // ✅ GET /api/clients/{id}/comptes
     public function getByClient($id)
     {
-        return Compte::where('client_id', $id)->get();
+        return Compte::where('client_id', $id)->with('carteBancaires')->get();
     }
 
-    // ✅ GET /api/comptes/numero/{numero}
     public function getByNumero($numero)
     {
-        $compte = Compte::where('numero', $numero)->first();
+        $compte = Compte::where('numero', $numero)->with('client')->first();
+        
         if (!$compte) {
-            return response()->json(['error' => 'Compte introuvable'], 404);
+            return response()->json(['error' => 'Compte non trouvé'], 404);
         }
-        return $compte;
+
+        return response()->json($compte);
     }
 
-    // ✅ PUT /api/comptes/{id}/frais
     public function appliquerFrais(Request $request, $id)
     {
         $request->validate([
+            'type' => 'required|in:Mensuel,Transaction,Maintenance',
             'montant' => 'required|numeric|min:0',
         ]);
 
         $compte = Compte::findOrFail($id);
-
+        
         if ($compte->solde < $request->montant) {
-            return response()->json(['error' => 'Fonds insuffisants pour appliquer les frais'], 403);
+            return response()->json(['error' => 'Solde insuffisant'], 400);
         }
 
-        $compte->solde -= $request->montant;
-        $compte->save();
+        // Débiter le compte
+        $compte->decrement('solde', $request->montant);
 
-        return response()->json(['message' => 'Frais appliqués avec succès', 'nouveau_solde' => $compte->solde]);
+        // Créer l'enregistrement des frais
+        FraisBancaire::create([
+            'compte_id' => $id,
+            'type' => $request->type,
+            'montant' => $request->montant,
+        ]);
+
+        return response()->json(['message' => 'Frais appliqués avec succès']);
     }
 
-    // ✅ PUT /api/comptes/{id}/fermer
     public function fermerCompte($id)
     {
         $compte = Compte::findOrFail($id);
-
+        
         if ($compte->solde > 0) {
-            return response()->json(['error' => 'Impossible de fermer un compte avec un solde positif'], 403);
+            return response()->json(['error' => 'Impossible de fermer un compte avec un solde positif'], 400);
         }
 
-        $compte->statut = 'Fermé';
-        $compte->save();
-
+        $compte->update(['statut' => 'Fermé']);
         return response()->json(['message' => 'Compte fermé avec succès']);
     }
 }

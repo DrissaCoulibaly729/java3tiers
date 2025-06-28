@@ -1,72 +1,81 @@
 package com.groupeisi.minisystemebancaire;
 
-import com.google.gson.Gson;
 import com.groupeisi.minisystemebancaire.dto.AdminDTO;
+import com.groupeisi.minisystemebancaire.services.AdminService;
+import com.groupeisi.minisystemebancaire.utils.SessionManager;
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
+import javafx.scene.control.Alert;
 import javafx.stage.Stage;
 
 import java.io.IOException;
-import java.io.OutputStream;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 
 public class MainApp extends Application {
 
     @Override
     public void start(Stage primaryStage) {
-        // 📌 Ajouter un admin par défaut (appel API Laravel)
-        ajouterAdminParDefaut();
+        // Configuration de l'application
+        Platform.setImplicitExit(true);
+
+        // Initialiser l'admin par défaut en arrière-plan
+        initializeDefaultAdminAsync();
 
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/groupeisi/minisystemebancaire/UI_Main.fxml"));
             Scene scene = new Scene(loader.load());
-            primaryStage.setTitle("Mini Système Bancaire - Connexion");
+
+            // Configuration de la fenêtre principale
+            primaryStage.setTitle("🏦 Mini Système Bancaire");
             primaryStage.setScene(scene);
             primaryStage.setResizable(false);
+            primaryStage.centerOnScreen();
+
+            // Icône de l'application (optionnel)
+            // primaryStage.getIcons().add(new Image("/icons/bank-icon.png"));
+
             primaryStage.show();
+
         } catch (IOException e) {
             e.printStackTrace();
+            showErrorAlert("Erreur de démarrage", "Impossible de charger l'interface principale");
+            Platform.exit();
         }
     }
 
-    private void ajouterAdminParDefaut() {
-        try {
-            AdminDTO admin = new AdminDTO();
-            admin.setUsername("admin");
-            admin.setPassword("admin123");
-            admin.setRole("ADMIN");
-
-            Gson gson = new Gson();
-            String requestBody = gson.toJson(admin);
-
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create("http://localhost:8000/api/admins"))
-                    .header("Accept", "application/json")
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(requestBody))
-                    .build();
-
-            HttpClient client = HttpClient.newHttpClient();
-            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-
-            if (response.statusCode() == 201 || response.statusCode() == 200) {
-                System.out.println("✅ Admin par défaut ajouté ou déjà existant !");
-            } else {
-                System.out.println("❌ Échec de l'ajout de l'admin : " + response.statusCode());
-                System.out.println("Réponse : " + response.body());
+    private void initializeDefaultAdminAsync() {
+        // Exécuter en arrière-plan pour ne pas bloquer le démarrage
+        Thread initThread = new Thread(() -> {
+            try {
+                AdminService adminService = new AdminService();
+                AdminDTO admin = new AdminDTO("admin", "admin123", "ADMIN");
+                adminService.createAdmin(admin);
+                System.out.println("✅ Admin par défaut créé/vérifié avec succès");
+            } catch (Exception e) {
+                System.out.println("ℹ️ Admin par défaut probablement déjà existant ou erreur de connexion API");
             }
-
-        } catch (Exception e) {
-            System.out.println("❌ Erreur lors de l'ajout de l'admin par défaut");
-            e.printStackTrace();
-        }
+        });
+        initThread.setDaemon(true); // Thread daemon pour qu'il se ferme avec l'application
+        initThread.start();
     }
 
-    public static void main(String[] args) {
-        launch(args);
+    @Override
+    public void stop() {
+        // Nettoyer la session au fermeture
+        SessionManager.clearSession();
+        System.out.println("Application fermée proprement");
     }
+
+    private void showErrorAlert(String title, String message) {
+        Platform.runLater(() -> {
+            Alert alert = new Alert(Alert.AlertType.ERROR);
+            alert.setTitle(title);
+            alert.setHeaderText(null);
+            alert.setContentText(message);
+            alert.showAndWait();
+        });
+    }
+
+
 }

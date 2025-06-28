@@ -1,9 +1,11 @@
 package com.groupeisi.minisystemebancaire.controllers.admin;
 
 import com.groupeisi.minisystemebancaire.dto.CarteBancaireDTO;
-import com.groupeisi.minisystemebancaire.dto.ClientDTO;
+import com.groupeisi.minisystemebancaire.dto.CompteDTO;
 import com.groupeisi.minisystemebancaire.services.CarteBancaireService;
-import com.groupeisi.minisystemebancaire.services.ClientService;
+import com.groupeisi.minisystemebancaire.services.CompteService;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -11,289 +13,283 @@ import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.stage.Stage;
-import javafx.util.StringConverter;
 
 import java.io.IOException;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 public class AdminCartesController {
-    private final CarteBancaireService carteService = new CarteBancaireService();
-    private final ClientService clientService = new ClientService();
+
+    @FXML private ChoiceBox<CompteDTO> choiceCompte;
+    @FXML private TextField txtSoldeInitial;
+    @FXML private TextField txtNumero;
+    @FXML private TextField txtCVV;
+    @FXML private DatePicker txtDateExpiration;
+    @FXML private TextField txtCodePin;
+    @FXML private TextField txtRechercheCartes;
+
+    @FXML private TableView<CarteBancaireDTO> tableCartes;
+    @FXML private TableColumn<CarteBancaireDTO, String> colNumero;
+    @FXML private TableColumn<CarteBancaireDTO, String> colCVV;
+    @FXML private TableColumn<CarteBancaireDTO, LocalDate> colDateExpiration;
+    @FXML private TableColumn<CarteBancaireDTO, Double> colSolde;
+    @FXML private TableColumn<CarteBancaireDTO, String> colStatut;
+    @FXML private TableColumn<CarteBancaireDTO, String> colCompte;
+
+    @FXML private Button btnCreerCarte;
+    @FXML private Button btnBloquerCarte;
+    @FXML private Button btnDebloquerCarte;
+    @FXML private Button btnSupprimerCarte;
+    @FXML private Button btnDeconnexion;
+
+    private final CarteBancaireService carteBancaireService = new CarteBancaireService();
+    private final CompteService compteService = new CompteService();
 
     @FXML
-    private TextField txtRechercheCarte, txtSoldeCarte;
-
-    @FXML
-    private ChoiceBox<String> choiceTypeCarte;
-
-    @FXML
-    private ChoiceBox<ClientDTO> choiceClientCarte;
-
-    @FXML
-    private TableView<CarteBancaireDTO> tableCartes;
-
-    @FXML
-    private TableColumn<CarteBancaireDTO, String> colNumeroCarte, colTypeCarte, colCVV, colExpiration, colStatutCarte;
-
-    @FXML
-    private Button btnDemanderCarte, btnAnnulerCarte, btnBloquerCarte, btnDebloquerCarte, btnRechercherCarte,btnDeconnexion;
-
-    /**
-     * ✅ Initialise la table et charge les types de carte et clients
-     */
-    @FXML
-    public void initialize() {
-        // Ajout des types de carte disponibles
-        choiceTypeCarte.getItems().addAll("Visa", "MasterCard", "American Express");
-
-        // Chargement des clients
-        chargerClients();
-
-        // Initialisation des colonnes de la table
-        colNumeroCarte.setCellValueFactory(new PropertyValueFactory<>("numero"));
-        colTypeCarte.setCellValueFactory(new PropertyValueFactory<>("type"));
-        colCVV.setCellValueFactory(new PropertyValueFactory<>("cvv"));
-        colExpiration.setCellValueFactory(new PropertyValueFactory<>("dateExpiration"));
-        colStatutCarte.setCellValueFactory(new PropertyValueFactory<>("statut"));
-
-        // Chargement initial des cartes bancaires
-        afficherCartes();
+    private void initialize() {
+        setupTableColumns();
+        loadData();
     }
 
-    /**
-     * ✅ Charge la liste des clients pour l'affichage dans ChoiceBox
-     */
-    private void chargerClients() {
-        List<ClientDTO> clients = clientService.getAllClients();
+    private void setupTableColumns() {
+        colNumero.setCellValueFactory(new PropertyValueFactory<>("numero"));
+        colCVV.setCellValueFactory(new PropertyValueFactory<>("cvv"));
+        colDateExpiration.setCellValueFactory(new PropertyValueFactory<>("dateExpiration"));
+        colSolde.setCellValueFactory(new PropertyValueFactory<>("solde"));
+        colStatut.setCellValueFactory(new PropertyValueFactory<>("statut"));
 
-        // 🔍 Debug : Vérifier si les clients ont un ID
-        for (ClientDTO client : clients) {
-            System.out.println("Client trouvé : " + client.getNom() + " " + client.getPrenom() + ", ID: " + client.getId());
-        }
-
-        choiceClientCarte.getItems().setAll(clients);
-
-        choiceClientCarte.setConverter(new StringConverter<ClientDTO>() {
-            @Override
-            public String toString(ClientDTO client) {
-                return (client != null) ? client.getNom() + " " + client.getPrenom() : "";
+        // Affichage du compte associé
+        colCompte.setCellValueFactory(cellData -> {
+            CarteBancaireDTO carte = cellData.getValue();
+            if (carte.getCompte() != null) {
+                return new javafx.beans.property.SimpleStringProperty(carte.getCompte().getNumero());
             }
-
-            @Override
-            public ClientDTO fromString(String string) {
-                return null;
-            }
+            return new javafx.beans.property.SimpleStringProperty("N/A");
         });
     }
 
-    /**
-     * ✅ Affiche la liste des cartes bancaires
-     */
-    private void afficherCartes() {
-        List<CarteBancaireDTO> cartes = carteService.getAllCartes();
-        tableCartes.getItems().setAll(cartes);
+    private void loadData() {
+        try {
+            // Charger les comptes pour la ChoiceBox
+            List<CompteDTO> comptes = compteService.getAllComptes();
+            choiceCompte.setItems(FXCollections.observableArrayList(comptes));
+
+            // Charger toutes les cartes
+            refreshCartes();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible de charger les données");
+        }
     }
 
-    /**
-     * ✅ Recherche une carte par son numéro
-     */
     @FXML
-    public void handleRechercherCarte() {
-        String numeroCarte = txtRechercheCarte.getText();
-        if (numeroCarte.isEmpty()) {
-            showAlert(Alert.AlertType.ERROR, "Erreur", "Veuillez entrer un numéro de carte.");
+    private void handleCreerCarte() {
+        if (!validateCarteForm()) {
             return;
         }
-
-        CarteBancaireDTO carte = carteService.getCarteByNumero(numeroCarte);
-        if (carte == null) {
-            showAlert(Alert.AlertType.ERROR, "Erreur", "Carte non trouvée.");
-        } else {
-            tableCartes.getItems().setAll(carte);
-        }
-    }
-
-    /**
-     * ✅ Gère la demande d'une carte bancaire pour un client
-     */
-    @FXML
-    public void handleDemanderCarte() {
-        ClientDTO client = choiceClientCarte.getValue();
-        String type = choiceTypeCarte.getValue();
-        double solde;
 
         try {
-            solde = Double.parseDouble(txtSoldeCarte.getText());
-        } catch (NumberFormatException e) {
-            showAlert(Alert.AlertType.ERROR, "Erreur", "Veuillez entrer un montant valide.");
-            return;
-        }
+            // ✅ CORRECTION : Utiliser le constructeur approprié ou setters
+            CarteBancaireDTO carte = new CarteBancaireDTO();
 
-        if (client == null || type == null || solde <= 0) {
-            showAlert(Alert.AlertType.ERROR, "Erreur", "Veuillez choisir un client, un type de carte et entrer un montant valide.");
-            return;
-        }
+            // Option 1 : Utiliser les setters (RECOMMANDÉ)
+            carte.setNumero(txtNumero.getText().trim());
+            carte.setCvv(txtCVV.getText().trim());
+            carte.setDateExpiration(txtDateExpiration.getValue());
+            carte.setSolde(Double.parseDouble(txtSoldeInitial.getText()));
+            carte.setStatut("Active");
+            carte.setCompteId(choiceCompte.getValue().getId());
+            carte.setCodePin(txtCodePin.getText().trim());
 
-        CarteBancaireDTO carte = new CarteBancaireDTO(
-                null,
-                generateNumeroCarte(),
-                type,
-                generateCVV(),
-                "12/2026",
-                solde,
+            // Option 2 : Utiliser le constructeur complet (alternative)
+            /*
+            CarteBancaireDTO carte = new CarteBancaireDTO(
+                txtNumero.getText().trim(),
+                txtCVV.getText().trim(),
+                txtDateExpiration.getValue(),
+                Double.parseDouble(txtSoldeInitial.getText()),
                 "Active",
-                client.getId(),
-                generateCodePin()
-        );
+                choiceCompte.getValue().getId(),
+                txtCodePin.getText().trim()
+            );
+            */
 
-        carteService.demanderCarte(carte);
-        afficherCartes(); // Rafraîchir la liste après la demande
-        showAlert(Alert.AlertType.INFORMATION, "Carte créée", "La carte a été attribuée au client.");
+            carteBancaireService.createCarte(carte);
+
+            showAlert(Alert.AlertType.INFORMATION, "Succès", "Carte bancaire créée avec succès !");
+            clearForm();
+            refreshCartes();
+
+        } catch (Exception e) {
+            showAlert(Alert.AlertType.ERROR, "Erreur", "Erreur lors de la création : " + e.getMessage());
+        }
     }
 
-    /**
-     * ✅ Gère le blocage d'une carte bancaire
-     */
-    @FXML
-    public void handleBloquerCarte() {
-        CarteBancaireDTO selectedCarte = tableCartes.getSelectionModel().getSelectedItem();
-        if (selectedCarte == null) {
-            showAlert(Alert.AlertType.ERROR, "Erreur", "Veuillez sélectionner une carte à bloquer.");
-            return;
+    private boolean validateCarteForm() {
+        if (choiceCompte.getValue() == null) {
+            showAlert(Alert.AlertType.WARNING, "Validation", "Veuillez sélectionner un compte");
+            return false;
         }
 
-        carteService.updateCarteStatut(selectedCarte.getId(), "Bloquée");
-        afficherCartes();
-        showAlert(Alert.AlertType.INFORMATION, "Carte bloquée", "La carte " + selectedCarte.getNumero() + " a été bloquée.");
-    }
-
-    /**
-     * ✅ Gère le déblocage d'une carte bancaire
-     */
-    @FXML
-    public void handleDebloquerCarte() {
-        CarteBancaireDTO selectedCarte = tableCartes.getSelectionModel().getSelectedItem();
-        if (selectedCarte == null) {
-            showAlert(Alert.AlertType.ERROR, "Erreur", "Veuillez sélectionner une carte à débloquer.");
-            return;
+        if (txtSoldeInitial.getText().trim().isEmpty()) {
+            showAlert(Alert.AlertType.WARNING, "Validation", "Veuillez saisir le solde initial");
+            return false;
         }
 
-        carteService.updateCarteStatut(selectedCarte.getId(), "Active");
-        afficherCartes();
-        showAlert(Alert.AlertType.INFORMATION, "Carte débloquée", "La carte " + selectedCarte.getNumero() + " a été débloquée.");
-    }
-
-    /**
-     * ✅ Génère un numéro de carte aléatoire (16 chiffres)
-     */
-    private String generateNumeroCarte() {
-        return "4000" + (long) (Math.random() * 1000000000000L);
-    }
-
-    /**
-     * ✅ Génère un CVV aléatoire (3 chiffres)
-     */
-    private String generateCVV() {
-        return String.valueOf((int) (Math.random() * 900) + 100);
-    }
-
-    /**
-     * ✅ Génère un code PIN aléatoire (4 chiffres)
-     */
-    private String generateCodePin() {
-        return String.valueOf((int) (Math.random() * 9000) + 1000);
-    }
-
-    /**
-     * ✅ Changer de vue en fermant la fenêtre actuelle
-     */
-    private void changerDeVue(ActionEvent event, String fichierFXML) {
         try {
-            // Fermer la fenêtre actuelle
-            Stage stageActuel = (Stage) ((Button) event.getSource()).getScene().getWindow();
-            stageActuel.close();
+            double solde = Double.parseDouble(txtSoldeInitial.getText());
+            if (solde < 0) {
+                showAlert(Alert.AlertType.WARNING, "Validation", "Le solde doit être positif");
+                return false;
+            }
+        } catch (NumberFormatException e) {
+            showAlert(Alert.AlertType.WARNING, "Validation", "Le solde doit être un nombre valide");
+            return false;
+        }
 
-            // Charger la nouvelle vue
-            FXMLLoader loader = new FXMLLoader(getClass().getResource(fichierFXML));
+        // Validation du numéro de carte (16 chiffres)
+        if (txtNumero.getText().trim().length() != 16 || !txtNumero.getText().matches("\\d{16}")) {
+            showAlert(Alert.AlertType.WARNING, "Validation", "Le numéro de carte doit contenir 16 chiffres");
+            return false;
+        }
+
+        // Validation du CVV (3 chiffres)
+        if (txtCVV.getText().trim().length() != 3 || !txtCVV.getText().matches("\\d{3}")) {
+            showAlert(Alert.AlertType.WARNING, "Validation", "Le CVV doit contenir 3 chiffres");
+            return false;
+        }
+
+        // Validation de la date d'expiration
+        if (txtDateExpiration.getValue() == null || txtDateExpiration.getValue().isBefore(LocalDate.now())) {
+            showAlert(Alert.AlertType.WARNING, "Validation", "La date d'expiration doit être dans le futur");
+            return false;
+        }
+
+        // Validation du code PIN (4 chiffres)
+        if (txtCodePin.getText().trim().length() != 4 || !txtCodePin.getText().matches("\\d{4}")) {
+            showAlert(Alert.AlertType.WARNING, "Validation", "Le code PIN doit contenir 4 chiffres");
+            return false;
+        }
+
+        return true;
+    }
+
+    @FXML
+    private void handleBloquerCarte() {
+        CarteBancaireDTO selectedCarte = tableCartes.getSelectionModel().getSelectedItem();
+        if (selectedCarte == null) {
+            showAlert(Alert.AlertType.WARNING, "Sélection", "Veuillez sélectionner une carte");
+            return;
+        }
+
+        try {
+            carteBancaireService.bloquerCarte(selectedCarte.getId());
+            showAlert(Alert.AlertType.INFORMATION, "Succès", "Carte bloquée avec succès");
+            refreshCartes();
+        } catch (Exception e) {
+            showAlert(Alert.AlertType.ERROR, "Erreur", "Erreur lors du blocage : " + e.getMessage());
+        }
+    }
+
+    @FXML
+    private void handleDebloquerCarte() {
+        CarteBancaireDTO selectedCarte = tableCartes.getSelectionModel().getSelectedItem();
+        if (selectedCarte == null) {
+            showAlert(Alert.AlertType.WARNING, "Sélection", "Veuillez sélectionner une carte");
+            return;
+        }
+
+        try {
+            carteBancaireService.debloquerCarte(selectedCarte.getId());
+            showAlert(Alert.AlertType.INFORMATION, "Succès", "Carte débloquée avec succès");
+            refreshCartes();
+        } catch (Exception e) {
+            showAlert(Alert.AlertType.ERROR, "Erreur", "Erreur lors du déblocage : " + e.getMessage());
+        }
+    }
+
+    @FXML
+    private void handleSupprimerCarte() {
+        CarteBancaireDTO selectedCarte = tableCartes.getSelectionModel().getSelectedItem();
+        if (selectedCarte == null) {
+            showAlert(Alert.AlertType.WARNING, "Sélection", "Veuillez sélectionner une carte");
+            return;
+        }
+
+        Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
+        confirmation.setTitle("Confirmation");
+        confirmation.setContentText("Êtes-vous sûr de vouloir supprimer cette carte ?");
+
+        if (confirmation.showAndWait().get() == ButtonType.OK) {
+            try {
+                carteBancaireService.deleteCarte(selectedCarte.getId());
+                showAlert(Alert.AlertType.INFORMATION, "Succès", "Carte supprimée avec succès");
+                refreshCartes();
+            } catch (Exception e) {
+                showAlert(Alert.AlertType.ERROR, "Erreur", "Erreur lors de la suppression : " + e.getMessage());
+            }
+        }
+    }
+
+    private void clearForm() {
+        choiceCompte.getSelectionModel().clearSelection();
+        txtSoldeInitial.clear();
+        txtNumero.clear();
+        txtCVV.clear();
+        txtDateExpiration.setValue(null);
+        txtCodePin.clear();
+    }
+
+    private void refreshCartes() {
+        try {
+            List<CarteBancaireDTO> cartes = carteBancaireService.getAllCartes();
+            ObservableList<CarteBancaireDTO> cartesData = FXCollections.observableArrayList(cartes);
+            tableCartes.setItems(cartesData);
+        } catch (Exception e) {
+            e.printStackTrace();
+            showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible de rafraîchir les cartes");
+        }
+    }
+
+    // Navigation methods
+    @FXML private void handleDashboard() { navigateToPage("UI_Dashboard"); }
+    @FXML private void handleGestionClients() { navigateToPage("UI_Gestion_Clients"); }
+    @FXML private void handleGestionComptes() { navigateToPage("UI_Gestion_Comptes"); }
+    @FXML private void handleGestionTransactions() { navigateToPage("UI_Gestion_Transactions"); }
+    @FXML private void handleGestionCredits() { navigateToPage("UI_Gestion_Credits"); }
+
+    @FXML
+    private void handleLogout() {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/groupeisi/minisystemebancaire/UI_Main.fxml"));
             Scene scene = new Scene(loader.load());
-            Stage nouveauStage = new Stage();
-            nouveauStage.setTitle("Mini Système Bancaire");
-            nouveauStage.setScene(scene);
-            nouveauStage.show();
+            Stage stage = (Stage) btnDeconnexion.getScene().getWindow();
+            stage.setScene(scene);
+            stage.centerOnScreen();
         } catch (IOException e) {
-            showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible de charger la vue : " + fichierFXML);
             e.printStackTrace();
         }
     }
 
-
-    /**
-     * ✅ Navigation vers Gestion des Clients
-     */
-    @FXML
-    public void handleGestionClients(ActionEvent event) {
-        changerDeVue(event, "/com/groupeisi/minisystemebancaire/admin/UI_Gestion_Clients.fxml");
+    private void navigateToPage(String pageName) {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/groupeisi/minisystemebancaire/admin/" + pageName + ".fxml"));
+            Scene scene = new Scene(loader.load());
+            Stage stage = (Stage) btnCreerCarte.getScene().getWindow();
+            stage.setScene(scene);
+            stage.centerOnScreen();
+        } catch (IOException e) {
+            e.printStackTrace();
+            showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible de charger la page " + pageName);
+        }
     }
 
-    /**
-     * ✅ Navigation vers Gestion des Comptes
-     */
-    @FXML
-    public void handleGestionComptes(ActionEvent event) {
-        changerDeVue(event, "/com/groupeisi/minisystemebancaire/admin/UI_Gestion_Comptes_Bancaires.fxml");
-    }
-
-    /**
-     * ✅ Navigation vers Gestion des Transactions
-     */
-    @FXML
-    public void handleGestionTransactions(ActionEvent event) {
-        changerDeVue(event, "/com/groupeisi/minisystemebancaire/admin/UI_Gestion_Transactions.fxml");
-    }
-
-    /**
-     * ✅ Navigation vers Gestion des Crédits
-     */
-    @FXML
-    public void handleGestionCredits(ActionEvent event) {
-        changerDeVue(event, "/com/groupeisi/minisystemebancaire/admin/UI_Gestion_Credits.fxml");
-    }
-
-    /**
-     * ✅ Navigation vers Gestion des Cartes Bancaires
-     */
-    @FXML
-    public void handleGestionCartes(ActionEvent event) {
-        changerDeVue(event, "/com/groupeisi/minisystemebancaire/admin/UI_Gestion_Cartes_Bancaires.fxml");
-    }
-
-    /**
-     * ✅ Navigation vers Service Client & Rapports
-     */
-    @FXML
-    public void handleGestionSupport(ActionEvent event) {
-        changerDeVue(event, "/com/groupeisi/minisystemebancaire/admin/UI_Service_Client_Rapports.fxml");
-    }
-
-    /**
-     * ✅ Navigation vers le Dashboard
-     */
-    @FXML
-    public void handleDashboard(ActionEvent event) {
-        changerDeVue(event, "/com/groupeisi/minisystemebancaire/admin/UI_Dashboard.fxml");
-    }
-    @FXML
-    public void handleDeconnexion(ActionEvent event) {
-        Stage stage = (Stage) btnDeconnexion.getScene().getWindow();
-        stage.close();
-    }
-
-    /**
-     * ✅ Affiche une alerte
-     */
     private void showAlert(Alert.AlertType type, String title, String message) {
         Alert alert = new Alert(type);
         alert.setTitle(title);
+        alert.setHeaderText(null);
         alert.setContentText(message);
         alert.showAndWait();
     }

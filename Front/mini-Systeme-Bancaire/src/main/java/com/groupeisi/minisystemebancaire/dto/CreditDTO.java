@@ -4,91 +4,66 @@ import java.time.LocalDateTime;
 
 public class CreditDTO {
     private Long id;
-    private double montant;
-    private double tauxInteret;
-    private int dureeMois;
-    private double mensualite;
+    private Double montant;
+    private Double tauxInteret;
+    private Integer dureeMois;
+    private Double mensualite;
     private LocalDateTime dateDemande;
-    private String statut; // "En attente", "Approuvé", "Refusé"
+    private String statut;
     private Long clientId;
+    private ClientDTO client;
 
-    // ✅ Constructeurs
+    // Constructeurs
     public CreditDTO() {}
 
-    public CreditDTO(Long id, double montant, double tauxInteret, int dureeMois, double mensualite, LocalDateTime dateDemande, String statut, Long clientId) {
-        this.id = id;
+    public CreditDTO(Double montant, Double tauxInteret, Integer dureeMois, Long clientId) {
         this.montant = montant;
         this.tauxInteret = tauxInteret;
         this.dureeMois = dureeMois;
-        this.mensualite = mensualite;
-        this.dateDemande = dateDemande;
-        this.statut = statut;
         this.clientId = clientId;
+        this.statut = "En attente";
+        this.dateDemande = LocalDateTime.now();
+        this.mensualite = calculerMensualite();
     }
 
-    // ✅ Getters & Setters
+    // Méthode pour calculer la mensualité
+    private Double calculerMensualite() {
+        if (tauxInteret == null || montant == null || dureeMois == null) return 0.0;
 
-    public Long getId() {
-        return id;
+        double tauxMensuel = tauxInteret / 100 / 12;
+        if (tauxMensuel == 0) {
+            return montant / dureeMois;
+        }
+
+        return montant * (tauxMensuel * Math.pow(1 + tauxMensuel, dureeMois)) /
+                (Math.pow(1 + tauxMensuel, dureeMois) - 1);
     }
 
-    public void setId(Long id) {
-        this.id = id;
-    }
+    // Getters et Setters
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
 
-    public double getMontant() {
-        return montant;
-    }
+    public Double getMontant() { return montant; }
+    public void setMontant(Double montant) { this.montant = montant; }
 
-    public void setMontant(double montant) {
-        this.montant = montant;
-    }
+    public Double getTauxInteret() { return tauxInteret; }
+    public void setTauxInteret(Double tauxInteret) { this.tauxInteret = tauxInteret; }
 
-    public double getTauxInteret() {
-        return tauxInteret;
-    }
+    public Integer getDureeMois() { return dureeMois; }
+    public void setDureeMois(Integer dureeMois) { this.dureeMois = dureeMois; }
 
-    public void setTauxInteret(double tauxInteret) {
-        this.tauxInteret = tauxInteret;
-    }
+    public Double getMensualite() { return mensualite; }
+    public void setMensualite(Double mensualite) { this.mensualite = mensualite; }
 
-    public int getDureeMois() {
-        return dureeMois;
-    }
+    public LocalDateTime getDateDemande() { return dateDemande; }
+    public void setDateDemande(LocalDateTime dateDemande) { this.dateDemande = dateDemande; }
 
-    public void setDureeMois(int dureeMois) {
-        this.dureeMois = dureeMois;
-    }
+    public String getStatut() { return statut; }
+    public void setStatut(String statut) { this.statut = statut; }
 
-    public double getMensualite() {
-        return mensualite;
-    }
+    public Long getClientId() { return clientId; }
+    public void setClientId(Long clientId) { this.clientId = clientId; }
 
-    public void setMensualite(double mensualite) {
-        this.mensualite = mensualite;
-    }
-
-    public LocalDateTime getDateDemande() {
-        return dateDemande;
-    }
-
-    public void setDateDemande(LocalDateTime dateDemande) {
-        this.dateDemande = dateDemande;
-    }
-
-    public String getStatut() {
-        return statut;
-    }
-
-    public void setStatut(String statut) {
-        this.statut = statut;
-    }
-
-    public Long getClientId() {
-        return clientId;
-    }
-
-    public void setClientId(Long clientId) {
-        this.clientId = clientId;
-    }
+    public ClientDTO getClient() { return client; }
+    public void setClient(ClientDTO client) { this.client = client; }
 }

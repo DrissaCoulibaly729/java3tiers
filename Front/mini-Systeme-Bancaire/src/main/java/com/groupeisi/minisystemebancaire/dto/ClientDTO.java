@@ -1,5 +1,7 @@
 package com.groupeisi.minisystemebancaire.dto;
 
+import java.time.LocalDateTime;
+
 public class ClientDTO {
     private Long id;
     private String nom;
@@ -7,92 +9,54 @@ public class ClientDTO {
     private String email;
     private String telephone;
     private String adresse;
-    private String statut; // "Actif" ou "Suspendu"
-    private String password; // ⚠ Stocker sous forme hashée !
+    private LocalDateTime dateInscription;
+    private String statut;
+    private String password;
 
-    // ✅ Constructeurs
+    // Constructeurs
     public ClientDTO() {}
 
-    public ClientDTO(Long id, String nom, String prenom, String email, String telephone, String adresse, String statut, String password) {
-        this.id = id;
+    public ClientDTO(String nom, String prenom, String email, String telephone, String adresse, String password) {
         this.nom = nom;
         this.prenom = prenom;
         this.email = email;
         this.telephone = telephone;
         this.adresse = adresse;
-        this.statut = statut;
         this.password = password;
+        this.statut = "Actif";
+        this.dateInscription = LocalDateTime.now();
     }
 
-    // ✅ Getters & Setters
+    // Getters et Setters
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
 
-    public Long getId() {
-        return id;
-    }
+    public String getNom() { return nom; }
+    public void setNom(String nom) { this.nom = nom; }
 
-    public void setId(Long id) {
-        this.id = id;
-    }
+    public String getPrenom() { return prenom; }
+    public void setPrenom(String prenom) { this.prenom = prenom; }
 
-    public String getNom() {
-        return nom;
-    }
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
 
-    public void setNom(String nom) {
-        this.nom = nom;
-    }
+    public String getTelephone() { return telephone; }
+    public void setTelephone(String telephone) { this.telephone = telephone; }
 
-    public String getPrenom() {
-        return prenom;
-    }
+    public String getAdresse() { return adresse; }
+    public void setAdresse(String adresse) { this.adresse = adresse; }
 
-    public void setPrenom(String prenom) {
-        this.prenom = prenom;
-    }
+    public LocalDateTime getDateInscription() { return dateInscription; }
+    public void setDateInscription(LocalDateTime dateInscription) { this.dateInscription = dateInscription; }
 
-    public String getEmail() {
-        return email;
-    }
+    public String getStatut() { return statut; }
+    public void setStatut(String statut) { this.statut = statut; }
 
-    public void setEmail(String email) {
-        this.email = email;
-    }
+    public String getPassword() { return password; }
+    public void setPassword(String password) { this.password = password; }
 
-    public String getTelephone() {
-        return telephone;
-    }
-
-    public void setTelephone(String telephone) {
-        this.telephone = telephone;
-    }
-
-    public String getAdresse() {
-        return adresse;
-    }
-
-    public void setAdresse(String adresse) {
-        this.adresse = adresse;
-    }
-
-    public String getStatut() {
-        return statut;
-    }
-
-    public void setStatut(String statut) {
-        this.statut = statut;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
-    }
     @Override
     public String toString() {
-        return "ClientDTO{id=" + id + ", nom='" + nom + "', prenom='" + prenom + "', statut='" + statut + "'}";
+        return nom + " " + prenom + " (" + email + ")";
     }
-
-
 }

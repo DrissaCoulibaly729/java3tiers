@@ -8,21 +8,28 @@ use Illuminate\Database\Eloquent\Model;
 
 class Client extends Model
 {
-    use HasFactory;
-
     protected $fillable = [
-        'nom', 'prenom', 'email', 'telephone', 'adresse', 'statut', 'password'
+        'nom', 'prenom', 'email', 'telephone', 'adresse', 
+        'date_inscription', 'statut', 'password'
     ];
 
-    public function comptes() {
+    protected $casts = [
+        'date_inscription' => 'datetime',
+        'password' => 'hashed',
+    ];
+
+    public function comptes(): HasMany
+    {
         return $this->hasMany(Compte::class);
     }
 
-    public function credits() {
+    public function credits(): HasMany
+    {
         return $this->hasMany(Credit::class);
     }
 
-    public function tickets() {
+    public function ticketSupports(): HasMany
+    {
         return $this->hasMany(TicketSupport::class);
     }
 }

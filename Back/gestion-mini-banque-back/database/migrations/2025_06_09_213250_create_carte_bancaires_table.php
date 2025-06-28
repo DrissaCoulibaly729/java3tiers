@@ -4,32 +4,25 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
+class CreateCarteBancairesTable extends Migration
 {
-    /**
-     * Run the migrations.
-     */
-    public function up(): void
+    public function up()
     {
         Schema::create('carte_bancaires', function (Blueprint $table) {
             $table->id();
-            $table->string('numero');
-            $table->string('type');
+            $table->string('numero')->unique();
             $table->string('cvv');
-            $table->string('date_expiration');
-            $table->double('solde');
-            $table->string('statut');
-            $table->string('code_pin');
+            $table->date('date_expiration');
+            $table->decimal('solde', 15, 2)->default(0);
+            $table->enum('statut', ['Active', 'Bloquée'])->default('Active');
             $table->foreignId('compte_id')->constrained()->onDelete('cascade');
+            $table->string('code_pin');
             $table->timestamps();
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
-    public function down(): void
+    public function down()
     {
         Schema::dropIfExists('carte_bancaires');
     }
-};
+}

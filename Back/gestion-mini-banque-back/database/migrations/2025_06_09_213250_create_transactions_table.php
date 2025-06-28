@@ -4,30 +4,25 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
+class CreateTransactionsTable extends Migration
 {
-    /**
-     * Run the migrations.
-     */
-    public function up(): void
+    public function up()
     {
-       Schema::create('transactions', function (Blueprint $table) {
+        Schema::create('transactions', function (Blueprint $table) {
             $table->id();
-            $table->string('type');
-            $table->double('montant');
-            $table->dateTime('date');
-            $table->string('statut');
-            $table->foreignId('compte_source_id')->nullable()->constrained('comptes')->onDelete('set null');
-            $table->foreignId('compte_dest_id')->nullable()->constrained('comptes')->onDelete('set null');
+            $table->enum('type', ['Dépôt', 'Retrait', 'Virement']);
+            $table->decimal('montant', 15, 2);
+            $table->timestamp('date')->default(now());
+            $table->foreignId('compte_source_id')->nullable()->constrained('comptes');
+            $table->foreignId('compte_dest_id')->nullable()->constrained('comptes');
+            $table->enum('statut', ['Validé', 'Rejeté', 'En attente'])->default('Validé');
+            $table->text('description')->nullable();
             $table->timestamps();
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
-    public function down(): void
+    public function down()
     {
         Schema::dropIfExists('transactions');
     }
-};
+}
