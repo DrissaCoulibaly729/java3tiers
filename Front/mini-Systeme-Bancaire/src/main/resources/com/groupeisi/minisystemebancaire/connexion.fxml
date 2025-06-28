@@ -18,7 +18,8 @@
                   <Font name="JetBrains Mono Regular" size="30.0" />
                </font>
             </Text>
-            <TextField fx:id="usernameField" layoutX="95.0" layoutY="82.0" prefHeight="40.0" prefWidth="348.0" promptText="Adresse electronique" styleClass="jfx-text-field">
+            <!-- Correction: usernameField -> emailField -->
+            <TextField fx:id="emailField" layoutX="95.0" layoutY="82.0" prefHeight="40.0" prefWidth="348.0" promptText="Adresse electronique" styleClass="jfx-text-field">
                <font>
                   <Font name="JetBrains Mono Regular" size="13.0" />
                </font>
@@ -28,12 +29,14 @@
                   <Font name="JetBrains Mono Regular" size="13.0" />
                </font>
             </PasswordField>
-            <Hyperlink layoutX="278.0" layoutY="199.0" onAction="#handleForgotPassword" text="mot de passe oublie?">
+            <!-- Correction: handleForgotPassword -> ouvrirMotDePasseOublie -->
+            <Hyperlink layoutX="278.0" layoutY="199.0" onAction="#ouvrirMotDePasseOublie" text="mot de passe oublie?">
                <font>
                   <Font name="JetBrains Mono Regular" size="13.0" />
                </font>
             </Hyperlink>
-            <Button layoutX="194.0" layoutY="236.0" mnemonicParsing="false" onAction="#handleLogin" prefHeight="32.0" prefWidth="149.0" styleClass="button-primary" text="Se Connecter">
+            <!-- Correction: handleLogin -> seConnecter -->
+            <Button fx:id="connexionButton" layoutX="194.0" layoutY="236.0" mnemonicParsing="false" onAction="#seConnecter" prefHeight="32.0" prefWidth="149.0" styleClass="button-primary" text="Se Connecter">
                <font>
                   <Font name="JetBrains Mono Regular" size="15.0" />
                </font>
