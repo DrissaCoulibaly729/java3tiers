@@ -1,15 +1,21 @@
 package com.groupeisi.minisystemebancaire.controllers.admin;
 
+import com.groupeisi.minisystemebancaire.dto.AdminDTO;
+import com.groupeisi.minisystemebancaire.dto.ClientDTO;
+import com.groupeisi.minisystemebancaire.dto.CompteDTO;
 import com.groupeisi.minisystemebancaire.dto.TransactionDTO;
-import com.groupeisi.minisystemebancaire.dto.TicketSupportDTO;
 import com.groupeisi.minisystemebancaire.services.ClientService;
 import com.groupeisi.minisystemebancaire.services.CompteService;
 import com.groupeisi.minisystemebancaire.services.TransactionService;
-import com.groupeisi.minisystemebancaire.services.CarteBancaireService;
-import com.groupeisi.minisystemebancaire.services.TicketSupportService;
+import com.groupeisi.minisystemebancaire.utils.SessionManager;
+import javafx.application.Platform;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
+import javafx.scene.Node;
+import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
@@ -20,165 +26,261 @@ import java.util.List;
 
 public class AdminDashboardController {
 
+    @FXML private Label lblBienvenue;
+    @FXML private Label lblNombreClients;
+    @FXML private Label lblNombreComptes;
+    @FXML private Label lblNombreTransactions;
+    @FXML private Label lblTransactionsSuspectes;
+    @FXML private TableView<TransactionDTO> tableTransactionsRecentes;
+    @FXML private TableColumn<TransactionDTO, String> colType;
+    @FXML private TableColumn<TransactionDTO, Double> colMontant;
+    @FXML private TableColumn<TransactionDTO, String> colDate;
+    @FXML private TableColumn<TransactionDTO, String> colStatut;
+    @FXML private TableView<TransactionDTO> tableTransactionsSuspectes;
+    @FXML private TableColumn<TransactionDTO, String> colTypeSuspecte;
+    @FXML private TableColumn<TransactionDTO, Double> colMontantSuspecte;
+    @FXML private TableColumn<TransactionDTO, String> colDateSuspecte;
+    @FXML private TableColumn<TransactionDTO, String> colMotifSuspecte;
+    @FXML private Button btnGestionClients;
+    @FXML private Button btnGestionComptes;
+    @FXML private Button btnGestionTransactions;
+    @FXML private Button btnGestionCredits;
+    @FXML private Button btnServiceClient;
+    @FXML private Button btnDeconnexion;
+
     private final ClientService clientService = new ClientService();
     private final CompteService compteService = new CompteService();
     private final TransactionService transactionService = new TransactionService();
-    private final CarteBancaireService carteBancaireService = new CarteBancaireService();
-    private final TicketSupportService ticketSupportService = new TicketSupportService();
+    private AdminDTO currentAdmin;
 
-    @FXML private Label lblNbClients, lblNbComptes, lblNbTransactions, lblNbCartes;
-    @FXML private TableView<TransactionDTO> tableOperationsSuspectes;
-    @FXML private TableColumn<TransactionDTO, Long> colIdOpSuspecte;
-    @FXML private TableColumn<TransactionDTO, Double> colMontantOpSuspecte;
-    @FXML private TableColumn<TransactionDTO, String> colTypeOpSuspecte, colCompteSourceOp, colDateOpSuspecte;
-    @FXML private TableView<TicketSupportDTO> tableReclamations;
-    @FXML private TableColumn<TicketSupportDTO, Long> colIdReclamation;
-    @FXML private TableColumn<TicketSupportDTO, String> colClientReclamation, colSujetReclamation, colStatutReclamation;
-    @FXML private Button btnRepondreReclamation, btnResoudreReclamation, btnRafraichirDashboard, btnDeconnexion;
-
-    /**
-     * ✅ Initialisation du tableau et chargement des statistiques
-     */
     @FXML
     public void initialize() {
-        colIdOpSuspecte.setCellValueFactory(new PropertyValueFactory<>("id"));
-        colMontantOpSuspecte.setCellValueFactory(new PropertyValueFactory<>("montant"));
-        colTypeOpSuspecte.setCellValueFactory(new PropertyValueFactory<>("type"));
-        colCompteSourceOp.setCellValueFactory(new PropertyValueFactory<>("compteSourceId"));
-        colDateOpSuspecte.setCellValueFactory(new PropertyValueFactory<>("date"));
+        currentAdmin = SessionManager.getCurrentAdmin();
 
-        colIdReclamation.setCellValueFactory(new PropertyValueFactory<>("id"));
-        colClientReclamation.setCellValueFactory(new PropertyValueFactory<>("clientId"));
-        colSujetReclamation.setCellValueFactory(new PropertyValueFactory<>("sujet"));
-        colStatutReclamation.setCellValueFactory(new PropertyValueFactory<>("statut"));
-
-        loadStatistics();
-        loadOperationsSuspectes();
-        loadReclamations();
-    }
-
-    private void loadStatistics() {
-        lblNbClients.setText(String.valueOf(clientService.getAllClients().size()));
-        lblNbComptes.setText(String.valueOf(compteService.getAllComptes().size()));
-        lblNbTransactions.setText(String.valueOf(transactionService.getAllTransactions().size()));
-        lblNbCartes.setText(String.valueOf(carteBancaireService.getAllCartes().size()));
-    }
-
-    private void loadOperationsSuspectes() {
-        List<TransactionDTO> operationsSuspectes = transactionService.getTransactionsSuspectes();
-        tableOperationsSuspectes.getItems().setAll(operationsSuspectes);
-    }
-
-    private void loadReclamations() {
-        List<TicketSupportDTO> reclamations = ticketSupportService.getAllTickets();
-        tableReclamations.getItems().setAll(reclamations);
-    }
-
-    private void changerDeVue(ActionEvent event, String fichierFXML) {
-        try {
-            Stage stageActuel = (Stage) ((Button) event.getSource()).getScene().getWindow();
-            stageActuel.close();
-
-            FXMLLoader loader = new FXMLLoader(getClass().getResource(fichierFXML));
-            Scene scene = new Scene(loader.load());
-            Stage nouveauStage = new Stage();
-            nouveauStage.setTitle("Mini Système Bancaire");
-            nouveauStage.setScene(scene);
-            nouveauStage.show();
-        } catch (IOException e) {
-            showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible de charger la vue : " + fichierFXML);
-            e.printStackTrace();
-        }
-    }
-
-    @FXML
-    public void handleGestionClients(ActionEvent event) {
-        changerDeVue(event, "/com/groupeisi/minisystemebancaire/admin/UI_Gestion_Clients.fxml");
-    }
-
-    @FXML
-    public void handleGestionComptes(ActionEvent event) {
-        changerDeVue(event, "/com/groupeisi/minisystemebancaire/admin/UI_Gestion_Comptes_Bancaires.fxml");
-    }
-
-    @FXML
-    public void handleGestionTransactions(ActionEvent event) {
-        changerDeVue(event, "/com/groupeisi/minisystemebancaire/admin/UI_Gestion_Transactions.fxml");
-    }
-
-    @FXML
-    public void handleGestionCredits(ActionEvent event) {
-        changerDeVue(event, "/com/groupeisi/minisystemebancaire/admin/UI_Gestion_Credits.fxml");
-    }
-
-    @FXML
-    public void handleGestionCartes(ActionEvent event) {
-        changerDeVue(event, "/com/groupeisi/minisystemebancaire/admin/UI_Gestion_Cartes_Bancaires.fxml");
-    }
-
-    @FXML
-    public void handleGestionSupport(ActionEvent event) {
-        changerDeVue(event, "/com/groupeisi/minisystemebancaire/admin/UI_Service_Client_Rapports.fxml");
-    }
-
-    @FXML
-    public void handleDashboard(ActionEvent event) {
-        changerDeVue(event, "/com/groupeisi/minisystemebancaire/admin/UI_Dashboard.fxml");
-    }
-
-    @FXML
-    public void handleDeconnexion(ActionEvent event) {
-        Stage stage = (Stage) btnDeconnexion.getScene().getWindow();
-        stage.close();
-    }
-
-    @FXML
-    public void handleRepondreReclamation() {
-        TicketSupportDTO selectedTicket = tableReclamations.getSelectionModel().getSelectedItem();
-        if (selectedTicket == null) {
-            showAlert(Alert.AlertType.ERROR, "Erreur", "Veuillez sélectionner une réclamation.");
+        if (currentAdmin == null) {
+            showAlert(Alert.AlertType.ERROR, "Erreur", "Session expirée");
+            redirectToLogin();
             return;
         }
 
-        TextInputDialog dialog = new TextInputDialog();
-        dialog.setTitle("Répondre à une réclamation");
-        dialog.setHeaderText("Répondre à la réclamation ID: " + selectedTicket.getId());
-        dialog.setContentText("Votre réponse:");
+        setupUI();
+        setupTableColumns();
+        loadDashboardData();
+    }
 
-        dialog.showAndWait().ifPresent(response -> {
-            selectedTicket.setReponse(response);
-            selectedTicket.setStatut("Répondu");
-            ticketSupportService.updateTicket(selectedTicket);
-            loadReclamations();
-            showAlert(Alert.AlertType.INFORMATION, "Succès", "Réponse envoyée avec succès !");
+    private void setupUI() {
+        lblBienvenue.setText("Bienvenue, " + currentAdmin.getUsername() + " !");
+
+        // Configuration des boutons
+        btnGestionClients.setOnAction(this::handleGestionClients);
+        btnGestionComptes.setOnAction(this::handleGestionComptes);
+        btnGestionTransactions.setOnAction(this::handleGestionTransactions);
+        btnGestionCredits.setOnAction(this::handleGestionCredits);
+        btnServiceClient.setOnAction(this::handleServiceClient);
+        btnDeconnexion.setOnAction(this::handleDeconnexion);
+    }
+
+    private void setupTableColumns() {
+        // Table des transactions récentes
+        colType.setCellValueFactory(new PropertyValueFactory<>("type"));
+        colMontant.setCellValueFactory(new PropertyValueFactory<>("montant"));
+        colDate.setCellValueFactory(new PropertyValueFactory<>("date"));
+        colStatut.setCellValueFactory(new PropertyValueFactory<>("statut"));
+
+        // Table des transactions suspectes
+        colTypeSuspecte.setCellValueFactory(new PropertyValueFactory<>("type"));
+        colMontantSuspecte.setCellValueFactory(new PropertyValueFactory<>("montant"));
+        colDateSuspecte.setCellValueFactory(new PropertyValueFactory<>("date"));
+        colMotifSuspecte.setCellValueFactory(new PropertyValueFactory<>("description"));
+
+        // Formatage des montants
+        setupMontantColumn(colMontant);
+        setupMontantColumn(colMontantSuspecte);
+
+        // Formatage des statuts
+        setupStatutColumn(colStatut);
+    }
+
+    private void setupMontantColumn(TableColumn<TransactionDTO, Double> column) {
+        column.setCellFactory(col -> new TableCell<TransactionDTO, Double>() {
+            @Override
+            protected void updateItem(Double item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(String.format("%.2f FCFA", item));
+                }
+            }
+        });
+    }
+
+    private void setupStatutColumn(TableColumn<TransactionDTO, String> column) {
+        column.setCellFactory(col -> new TableCell<TransactionDTO, String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setStyle("");
+                } else {
+                    setText(item);
+                    switch (item) {
+                        case "Validé":
+                            setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
+                            break;
+                        case "Rejeté":
+                            setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
+                            break;
+                        case "En attente":
+                            setStyle("-fx-text-fill: #f39c12; -fx-font-weight: bold;");
+                            break;
+                        default:
+                            setStyle("");
+                    }
+                }
+            }
+        });
+    }
+
+    private void loadDashboardData() {
+        Thread loadThread = new Thread(() -> {
+            try {
+                // Charger les statistiques
+                List<ClientDTO> clients = clientService.getAllClients();
+                List<CompteDTO> comptes = compteService.getAllComptes();
+                List<TransactionDTO> transactions = transactionService.getAllTransactions();
+                List<TransactionDTO> transactionsSuspectes = transactionService.getTransactionsSuspectes();
+                List<TransactionDTO> transactionsRecentes = transactionService.getTransactionsRecentes(10);
+
+                Platform.runLater(() -> {
+                    // Mise à jour des statistiques
+                    lblNombreClients.setText(String.valueOf(clients.size()));
+                    lblNombreComptes.setText(String.valueOf(comptes.size()));
+                    lblNombreTransactions.setText(String.valueOf(transactions.size()));
+                    lblTransactionsSuspectes.setText(String.valueOf(transactionsSuspectes.size()));
+
+                    // Mise à jour des tableaux
+                    ObservableList<TransactionDTO> recentesData = FXCollections.observableArrayList(transactionsRecentes);
+                    tableTransactionsRecentes.setItems(recentesData);
+
+                    ObservableList<TransactionDTO> suspectesData = FXCollections.observableArrayList(transactionsSuspectes);
+                    tableTransactionsSuspectes.setItems(suspectesData);
+                });
+
+            } catch (Exception e) {
+                Platform.runLater(() -> {
+                    System.err.println("❌ Erreur lors du chargement des données: " + e.getMessage());
+                    showAlert(Alert.AlertType.WARNING, "Avertissement",
+                            "Certaines données n'ont pas pu être chargées");
+                });
+            }
+        });
+
+        loadThread.setDaemon(true);
+        loadThread.start();
+    }
+
+    @FXML
+    private void handleGestionClients(ActionEvent event) {
+        navigateTo("/com/groupeisi/minisystemebancaire/admin/UI_Gestion_Clients.fxml", event);
+    }
+
+    @FXML
+    private void handleGestionComptes(ActionEvent event) {
+        navigateTo("/com/groupeisi/minisystemebancaire/admin/UI_Gestion_Comptes.fxml", event);
+    }
+
+    @FXML
+    private void handleGestionTransactions(ActionEvent event) {
+        navigateTo("/com/groupeisi/minisystemebancaire/admin/UI_Gestion_Transactions.fxml", event);
+    }
+
+    @FXML
+    private void handleGestionCredits(ActionEvent event) {
+        navigateTo("/com/groupeisi/minisystemebancaire/admin/UI_Gestion_Credits.fxml", event);
+    }
+
+    @FXML
+    private void handleServiceClient(ActionEvent event) {
+        navigateTo("/com/groupeisi/minisystemebancaire/admin/UI_Service_Client_Rapports.fxml", event);
+    }
+
+    @FXML
+    private void handleDeconnexion(ActionEvent event) {
+        Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
+        confirmation.setTitle("Déconnexion");
+        confirmation.setHeaderText("Confirmer la déconnexion");
+        confirmation.setContentText("Êtes-vous sûr de vouloir vous déconnecter ?");
+
+        confirmation.showAndWait().ifPresent(response -> {
+            if (response == ButtonType.OK) {
+                SessionManager.logout();
+                redirectToLogin();
+            }
         });
     }
 
     @FXML
-    public void handleResoudreReclamation() {
-        TicketSupportDTO selectedTicket = tableReclamations.getSelectionModel().getSelectedItem();
-        if (selectedTicket == null) {
-            showAlert(Alert.AlertType.ERROR, "Erreur", "Veuillez sélectionner une réclamation.");
-            return;
-        }
-
-        selectedTicket.setStatut("Résolu");
-        ticketSupportService.updateTicket(selectedTicket);
-        loadReclamations();
-        showAlert(Alert.AlertType.INFORMATION, "Succès", "Réclamation marquée comme résolue !");
+    private void handleRafraichir() {
+        loadDashboardData();
     }
 
     @FXML
-    public void handleRafraichirDashboard() {
-        loadStatistics();
-        loadOperationsSuspectes();
-        loadReclamations();
-        showAlert(Alert.AlertType.INFORMATION, "Actualisation", "Le tableau de bord a été mis à jour.");
+    private void handleVoirToutesTransactions() {
+        handleGestionTransactions(null);
+    }
+
+    @FXML
+    private void handleGererTransactionsSuspectes() {
+        // Ouvrir une fenêtre de gestion spécialisée pour les transactions suspectes
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/groupeisi/minisystemebancaire/admin/UI_Transactions_Suspectes.fxml"));
+            Parent root = loader.load();
+
+            Stage stage = new Stage();
+            stage.setTitle("Gestion des Transactions Suspectes");
+            stage.setScene(new Scene(root));
+            stage.show();
+        } catch (IOException e) {
+            e.printStackTrace();
+            showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible d'ouvrir la fenêtre de gestion");
+        }
+    }
+
+    private void redirectToLogin() {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/groupeisi/minisystemebancaire/UI_Main.fxml"));
+            Parent root = loader.load();
+
+            Stage stage = (Stage) lblBienvenue.getScene().getWindow();
+            Scene scene = new Scene(root);
+            stage.setScene(scene);
+            stage.centerOnScreen();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void navigateTo(String fxmlPath, ActionEvent event) {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource(fxmlPath));
+            Parent root = loader.load();
+
+            Stage stage = (Stage) ((Node) event.getSource()).getScene().getWindow();
+            Scene scene = new Scene(root);
+            stage.setScene(scene);
+            stage.centerOnScreen();
+        } catch (IOException e) {
+            e.printStackTrace();
+            showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible de naviguer vers " + fxmlPath);
+        }
     }
 
     private void showAlert(Alert.AlertType type, String title, String message) {
         Alert alert = new Alert(type);
         alert.setTitle(title);
+        alert.setHeaderText(null);
         alert.setContentText(message);
         alert.showAndWait();
     }

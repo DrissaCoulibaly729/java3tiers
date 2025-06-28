@@ -173,6 +173,53 @@ public class TransactionService extends ApiService {
         }
     }
 
+    public void annulerTransaction(Long id) {
+        try {
+            HttpRequest request = createRequest("/transactions/" + id + "/annuler")
+                    .PUT(HttpRequest.BodyPublishers.noBody())
+                    .build();
+            sendRequestForString(request);
+            System.out.println("✅ Transaction annulée avec succès");
+        } catch (Exception e) {
+            System.err.println("❌ Erreur lors de l'annulation de la transaction: " + e.getMessage());
+            throw new RuntimeException("Impossible d'annuler la transaction: " + e.getMessage());
+        }
+    }
+
+    public List<TransactionDTO> getTransactionsSuspectes() {
+        try {
+            HttpRequest request = createRequest("/transactions/suspectes").GET().build();
+            String response = sendRequestForString(request);
+            return gson.fromJson(response, new TypeToken<List<TransactionDTO>>(){}.getType());
+        } catch (Exception e) {
+            System.err.println("❌ Erreur lors de la récupération des transactions suspectes: " + e.getMessage());
+            throw new RuntimeException("Impossible de récupérer les transactions suspectes: " + e.getMessage());
+        }
+    }
+
+    public List<TransactionDTO> getTransactionsRecentes(int limit) {
+        try {
+            HttpRequest request = createRequest("/transactions/recentes?limit=" + limit).GET().build();
+            String response = sendRequestForString(request);
+            return gson.fromJson(response, new TypeToken<List<TransactionDTO>>(){}.getType());
+        } catch (Exception e) {
+            System.err.println("❌ Erreur lors de la récupération des transactions récentes: " + e.getMessage());
+            throw new RuntimeException("Impossible de récupérer les transactions récentes: " + e.getMessage());
+        }
+    }
+
+    public List<TransactionDTO> getTransactionsByDateRange(String dateDebut, String dateFin) {
+        try {
+            HttpRequest request = createRequest("/transactions/periode?debut=" + dateDebut + "&fin=" + dateFin)
+                    .GET().build();
+            String response = sendRequestForString(request);
+            return gson.fromJson(response, new TypeToken<List<TransactionDTO>>(){}.getType());
+        } catch (Exception e) {
+            System.err.println("❌ Erreur lors de la récupération des transactions par période: " + e.getMessage());
+            throw new RuntimeException("Impossible de récupérer les transactions: " + e.getMessage());
+        }
+    }
+
     // Classes internes pour les requêtes spécifiques
     public static class MotifRejet {
         private final String motif;
