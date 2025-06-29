@@ -1,12 +1,13 @@
 package com.groupeisi.minisystemebancaire.controllers.admin;
 
 import com.groupeisi.minisystemebancaire.dto.CarteBancaireDTO;
+import com.groupeisi.minisystemebancaire.dto.ClientDTO;
 import com.groupeisi.minisystemebancaire.dto.CompteDTO;
 import com.groupeisi.minisystemebancaire.services.CarteBancaireService;
+import com.groupeisi.minisystemebancaire.services.ClientService;
 import com.groupeisi.minisystemebancaire.services.CompteService;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
@@ -16,195 +17,151 @@ import javafx.stage.Stage;
 
 import java.io.IOException;
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Optional;
 
 public class AdminCartesController {
 
-    @FXML private ChoiceBox<CompteDTO> choiceCompte;
-    @FXML private TextField txtSoldeInitial;
-    @FXML private TextField txtNumero;
-    @FXML private TextField txtCVV;
-    @FXML private DatePicker txtDateExpiration;
-    @FXML private TextField txtCodePin;
-    @FXML private TextField txtRechercheCartes;
-
+    // ✅ DÉCLARATION DES COMPOSANTS FXML
     @FXML private TableView<CarteBancaireDTO> tableCartes;
-    @FXML private TableColumn<CarteBancaireDTO, String> colNumero;
-    @FXML private TableColumn<CarteBancaireDTO, String> colCVV;
-    @FXML private TableColumn<CarteBancaireDTO, LocalDate> colDateExpiration;
+    @FXML private TableColumn<CarteBancaireDTO, String> colNumero, colStatut, colClient;
+    @FXML private TableColumn<CarteBancaireDTO, LocalDate> colExpiration;
     @FXML private TableColumn<CarteBancaireDTO, Double> colSolde;
-    @FXML private TableColumn<CarteBancaireDTO, String> colStatut;
-    @FXML private TableColumn<CarteBancaireDTO, String> colCompte;
 
-    @FXML private Button btnCreerCarte;
-    @FXML private Button btnBloquerCarte;
-    @FXML private Button btnDebloquerCarte;
-    @FXML private Button btnSupprimerCarte;
-    @FXML private Button btnDeconnexion;
+    @FXML private ComboBox<CompteDTO> cmbCompte;
+    @FXML private ComboBox<String> cmbTypeCarte;
+    @FXML private TextField txtCodePin;
+    @FXML private DatePicker dateExpiration;
 
-    private final CarteBancaireService carteBancaireService = new CarteBancaireService();
+    @FXML private Button btnCreerCarte, btnBloquerCarte, btnDebloquerCarte, btnSupprimerCarte;
+    @FXML private Button btnDashboard, btnClients, btnComptes, btnTransactions, btnCredits, btnSupport, btnDeconnexion;
+    @FXML private Label lblMessage;
+
+    // SERVICES
+    private final CarteBancaireService carteService = new CarteBancaireService();
     private final CompteService compteService = new CompteService();
+    private final ClientService clientService = new ClientService();
+    private CarteBancaireDTO selectedCarte;
 
     @FXML
-    private void initialize() {
+    public void initialize() {
+        System.out.println("🚀 Initialisation AdminCartesController");
         setupTableColumns();
+        setupComboBoxes();
         loadData();
+        setupTableSelection();
     }
 
     private void setupTableColumns() {
         colNumero.setCellValueFactory(new PropertyValueFactory<>("numero"));
-        colCVV.setCellValueFactory(new PropertyValueFactory<>("cvv"));
-        colDateExpiration.setCellValueFactory(new PropertyValueFactory<>("dateExpiration"));
-        colSolde.setCellValueFactory(new PropertyValueFactory<>("solde"));
         colStatut.setCellValueFactory(new PropertyValueFactory<>("statut"));
+        colExpiration.setCellValueFactory(new PropertyValueFactory<>("dateExpiration"));
+        colSolde.setCellValueFactory(new PropertyValueFactory<>("solde"));
+    }
 
-        // Affichage du compte associé
-        colCompte.setCellValueFactory(cellData -> {
-            CarteBancaireDTO carte = cellData.getValue();
-            if (carte.getCompte() != null) {
-                return new javafx.beans.property.SimpleStringProperty(carte.getCompte().getNumero());
-            }
-            return new javafx.beans.property.SimpleStringProperty("N/A");
+    private void setupComboBoxes() {
+        cmbTypeCarte.setItems(FXCollections.observableArrayList("Débit", "Crédit"));
+        cmbTypeCarte.setValue("Débit");
+    }
+
+    private void setupTableSelection() {
+        tableCartes.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
+            selectedCarte = newSelection;
+            updateButtonStates();
         });
+    }
+
+    private void updateButtonStates() {
+        boolean hasSelection = selectedCarte != null;
+        btnBloquerCarte.setDisable(!hasSelection);
+        btnDebloquerCarte.setDisable(!hasSelection);
+        btnSupprimerCarte.setDisable(!hasSelection);
     }
 
     private void loadData() {
         try {
-            // Charger les comptes pour la ChoiceBox
+            // Charger les comptes pour le ComboBox
             List<CompteDTO> comptes = compteService.getAllComptes();
-            choiceCompte.setItems(FXCollections.observableArrayList(comptes));
+            cmbCompte.setItems(FXCollections.observableArrayList(comptes));
 
-            // Charger toutes les cartes
-            refreshCartes();
-
+            // Charger les cartes
+            loadCartes();
         } catch (Exception e) {
-            e.printStackTrace();
             showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible de charger les données");
         }
     }
 
+    private void loadCartes() {
+        try {
+            List<CarteBancaireDTO> cartes = carteService.getAllCartes();
+            tableCartes.setItems(FXCollections.observableArrayList(cartes));
+            System.out.println("✅ " + cartes.size() + " cartes chargées");
+        } catch (Exception e) {
+            System.err.println("❌ Erreur chargement cartes: " + e.getMessage());
+            showMessage("Erreur lors du chargement des cartes: " + e.getMessage(), "error");
+        }
+    }
+
+    // ✅ MÉTHODES PRINCIPALES
+
     @FXML
     private void handleCreerCarte() {
-        if (!validateCarteForm()) {
-            return;
-        }
+        System.out.println("💳 Création d'une nouvelle carte");
+        if (!validateForm()) return;
 
         try {
-            // ✅ CORRECTION : Utiliser le constructeur approprié ou setters
             CarteBancaireDTO carte = new CarteBancaireDTO();
-
-            // Option 1 : Utiliser les setters (RECOMMANDÉ)
-            carte.setNumero(txtNumero.getText().trim());
-            carte.setCvv(txtCVV.getText().trim());
-            carte.setDateExpiration(txtDateExpiration.getValue());
-            carte.setSolde(Double.parseDouble(txtSoldeInitial.getText()));
-            carte.setStatut("Active");
-            carte.setCompteId(choiceCompte.getValue().getId());
+            carte.setCompteId(cmbCompte.getValue().getId());
             carte.setCodePin(txtCodePin.getText().trim());
+            carte.setDateExpiration(dateExpiration.getValue());
+            carte.setStatut("Active");
+            carte.setSolde(0.0);
 
-            // Option 2 : Utiliser le constructeur complet (alternative)
-            /*
-            CarteBancaireDTO carte = new CarteBancaireDTO(
-                txtNumero.getText().trim(),
-                txtCVV.getText().trim(),
-                txtDateExpiration.getValue(),
-                Double.parseDouble(txtSoldeInitial.getText()),
-                "Active",
-                choiceCompte.getValue().getId(),
-                txtCodePin.getText().trim()
-            );
-            */
-
-            carteBancaireService.createCarte(carte);
-
-            showAlert(Alert.AlertType.INFORMATION, "Succès", "Carte bancaire créée avec succès !");
+            carteService.createCarte(carte);
+            showAlert(Alert.AlertType.INFORMATION, "Succès", "Carte créée avec succès !");
             clearForm();
-            refreshCartes();
-
+            loadCartes();
         } catch (Exception e) {
+            System.err.println("❌ Erreur création carte: " + e.getMessage());
             showAlert(Alert.AlertType.ERROR, "Erreur", "Erreur lors de la création : " + e.getMessage());
         }
     }
 
-    private boolean validateCarteForm() {
-        if (choiceCompte.getValue() == null) {
-            showAlert(Alert.AlertType.WARNING, "Validation", "Veuillez sélectionner un compte");
-            return false;
-        }
-
-        if (txtSoldeInitial.getText().trim().isEmpty()) {
-            showAlert(Alert.AlertType.WARNING, "Validation", "Veuillez saisir le solde initial");
-            return false;
-        }
-
-        try {
-            double solde = Double.parseDouble(txtSoldeInitial.getText());
-            if (solde < 0) {
-                showAlert(Alert.AlertType.WARNING, "Validation", "Le solde doit être positif");
-                return false;
-            }
-        } catch (NumberFormatException e) {
-            showAlert(Alert.AlertType.WARNING, "Validation", "Le solde doit être un nombre valide");
-            return false;
-        }
-
-        // Validation du numéro de carte (16 chiffres)
-        if (txtNumero.getText().trim().length() != 16 || !txtNumero.getText().matches("\\d{16}")) {
-            showAlert(Alert.AlertType.WARNING, "Validation", "Le numéro de carte doit contenir 16 chiffres");
-            return false;
-        }
-
-        // Validation du CVV (3 chiffres)
-        if (txtCVV.getText().trim().length() != 3 || !txtCVV.getText().matches("\\d{3}")) {
-            showAlert(Alert.AlertType.WARNING, "Validation", "Le CVV doit contenir 3 chiffres");
-            return false;
-        }
-
-        // Validation de la date d'expiration
-        if (txtDateExpiration.getValue() == null || txtDateExpiration.getValue().isBefore(LocalDate.now())) {
-            showAlert(Alert.AlertType.WARNING, "Validation", "La date d'expiration doit être dans le futur");
-            return false;
-        }
-
-        // Validation du code PIN (4 chiffres)
-        if (txtCodePin.getText().trim().length() != 4 || !txtCodePin.getText().matches("\\d{4}")) {
-            showAlert(Alert.AlertType.WARNING, "Validation", "Le code PIN doit contenir 4 chiffres");
-            return false;
-        }
-
-        return true;
-    }
-
     @FXML
     private void handleBloquerCarte() {
-        CarteBancaireDTO selectedCarte = tableCartes.getSelectionModel().getSelectedItem();
         if (selectedCarte == null) {
-            showAlert(Alert.AlertType.WARNING, "Sélection", "Veuillez sélectionner une carte");
+            showAlert(Alert.AlertType.WARNING, "Sélection", "Veuillez sélectionner une carte à bloquer");
             return;
         }
 
-        try {
-            carteBancaireService.bloquerCarte(selectedCarte.getId());
-            showAlert(Alert.AlertType.INFORMATION, "Succès", "Carte bloquée avec succès");
-            refreshCartes();
-        } catch (Exception e) {
-            showAlert(Alert.AlertType.ERROR, "Erreur", "Erreur lors du blocage : " + e.getMessage());
+        Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
+        confirmation.setTitle("Confirmation");
+        confirmation.setHeaderText("Bloquer la carte");
+        confirmation.setContentText("Êtes-vous sûr de vouloir bloquer cette carte ?");
+
+        Optional<ButtonType> result = confirmation.showAndWait();
+        if (result.isPresent() && result.get() == ButtonType.OK) {
+            try {
+                carteService.bloquerCarte(selectedCarte.getId());
+                showAlert(Alert.AlertType.INFORMATION, "Succès", "Carte bloquée avec succès");
+                loadCartes();
+            } catch (Exception e) {
+                showAlert(Alert.AlertType.ERROR, "Erreur", "Erreur lors du blocage : " + e.getMessage());
+            }
         }
     }
 
     @FXML
     private void handleDebloquerCarte() {
-        CarteBancaireDTO selectedCarte = tableCartes.getSelectionModel().getSelectedItem();
         if (selectedCarte == null) {
-            showAlert(Alert.AlertType.WARNING, "Sélection", "Veuillez sélectionner une carte");
+            showAlert(Alert.AlertType.WARNING, "Sélection", "Veuillez sélectionner une carte à débloquer");
             return;
         }
 
         try {
-            carteBancaireService.debloquerCarte(selectedCarte.getId());
+            carteService.debloquerCarte(selectedCarte.getId());
             showAlert(Alert.AlertType.INFORMATION, "Succès", "Carte débloquée avec succès");
-            refreshCartes();
+            loadCartes();
         } catch (Exception e) {
             showAlert(Alert.AlertType.ERROR, "Erreur", "Erreur lors du déblocage : " + e.getMessage());
         }
@@ -212,56 +169,62 @@ public class AdminCartesController {
 
     @FXML
     private void handleSupprimerCarte() {
-        CarteBancaireDTO selectedCarte = tableCartes.getSelectionModel().getSelectedItem();
         if (selectedCarte == null) {
-            showAlert(Alert.AlertType.WARNING, "Sélection", "Veuillez sélectionner une carte");
+            showAlert(Alert.AlertType.WARNING, "Sélection", "Veuillez sélectionner une carte à supprimer");
             return;
         }
 
         Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
         confirmation.setTitle("Confirmation");
+        confirmation.setHeaderText("Supprimer la carte");
         confirmation.setContentText("Êtes-vous sûr de vouloir supprimer cette carte ?");
 
-        if (confirmation.showAndWait().get() == ButtonType.OK) {
+        Optional<ButtonType> result = confirmation.showAndWait();
+        if (result.isPresent() && result.get() == ButtonType.OK) {
             try {
-                carteBancaireService.deleteCarte(selectedCarte.getId());
+                carteService.deleteCarte(selectedCarte.getId());
                 showAlert(Alert.AlertType.INFORMATION, "Succès", "Carte supprimée avec succès");
-                refreshCartes();
+                loadCartes();
             } catch (Exception e) {
                 showAlert(Alert.AlertType.ERROR, "Erreur", "Erreur lors de la suppression : " + e.getMessage());
             }
         }
     }
 
-    private void clearForm() {
-        choiceCompte.getSelectionModel().clearSelection();
-        txtSoldeInitial.clear();
-        txtNumero.clear();
-        txtCVV.clear();
-        txtDateExpiration.setValue(null);
-        txtCodePin.clear();
-    }
-
-    private void refreshCartes() {
-        try {
-            List<CarteBancaireDTO> cartes = carteBancaireService.getAllCartes();
-            ObservableList<CarteBancaireDTO> cartesData = FXCollections.observableArrayList(cartes);
-            tableCartes.setItems(cartesData);
-        } catch (Exception e) {
-            e.printStackTrace();
-            showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible de rafraîchir les cartes");
-        }
-    }
-
-    // Navigation methods
-    @FXML private void handleDashboard() { navigateToPage("UI_Dashboard"); }
-    @FXML private void handleGestionClients() { navigateToPage("UI_Gestion_Clients"); }
-    @FXML private void handleGestionComptes() { navigateToPage("UI_Gestion_Comptes"); }
-    @FXML private void handleGestionTransactions() { navigateToPage("UI_Gestion_Transactions"); }
-    @FXML private void handleGestionCredits() { navigateToPage("UI_Gestion_Credits"); }
+    // ✅ MÉTHODES DE NAVIGATION
 
     @FXML
-    private void handleLogout() {
+    private void handleDashboard() {
+        navigateToPage("UI_Dashboard");
+    }
+
+    @FXML
+    private void handleGestionClients() {
+        navigateToPage("UI_Gestion_Clients");
+    }
+
+    @FXML
+    private void handleGestionComptes() {
+        navigateToPage("UI_Gestion_Comptes");
+    }
+
+    @FXML
+    private void handleGestionTransactions() {
+        navigateToPage("UI_Gestion_Transactions");
+    }
+
+    @FXML
+    private void handleGestionCredits() {
+        navigateToPage("UI_Gestion_Credits");
+    }
+
+    @FXML
+    private void handleGestionSupport() {
+        navigateToPage("UI_Service_Client_Rapports");
+    }
+
+    @FXML
+    private void handleDeconnexion() {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/groupeisi/minisystemebancaire/UI_Main.fxml"));
             Scene scene = new Scene(loader.load());
@@ -270,7 +233,36 @@ public class AdminCartesController {
             stage.centerOnScreen();
         } catch (IOException e) {
             e.printStackTrace();
+            showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible de se déconnecter");
         }
+    }
+
+    // ✅ MÉTHODES UTILITAIRES
+
+    private boolean validateForm() {
+        if (cmbCompte.getValue() == null) {
+            showAlert(Alert.AlertType.WARNING, "Validation", "Veuillez sélectionner un compte");
+            return false;
+        }
+
+        if (txtCodePin.getText().trim().length() != 4) {
+            showAlert(Alert.AlertType.WARNING, "Validation", "Le code PIN doit contenir 4 chiffres");
+            return false;
+        }
+
+        if (dateExpiration.getValue() == null || dateExpiration.getValue().isBefore(LocalDate.now())) {
+            showAlert(Alert.AlertType.WARNING, "Validation", "Veuillez sélectionner une date d'expiration valide");
+            return false;
+        }
+
+        return true;
+    }
+
+    private void clearForm() {
+        cmbCompte.setValue(null);
+        cmbTypeCarte.setValue("Débit");
+        txtCodePin.clear();
+        dateExpiration.setValue(LocalDate.now().plusYears(3));
     }
 
     private void navigateToPage(String pageName) {
@@ -280,6 +272,7 @@ public class AdminCartesController {
             Stage stage = (Stage) btnCreerCarte.getScene().getWindow();
             stage.setScene(scene);
             stage.centerOnScreen();
+            System.out.println("🚀 Navigation vers: " + pageName);
         } catch (IOException e) {
             e.printStackTrace();
             showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible de charger la page " + pageName);
@@ -292,5 +285,18 @@ public class AdminCartesController {
         alert.setHeaderText(null);
         alert.setContentText(message);
         alert.showAndWait();
+    }
+
+    private void showMessage(String message, String type) {
+        if (lblMessage != null) {
+            lblMessage.setText(message);
+            String style = switch (type) {
+                case "error" -> "-fx-text-fill: #e74c3c; -fx-font-weight: bold;";
+                case "success" -> "-fx-text-fill: #27ae60; -fx-font-weight: bold;";
+                case "warning" -> "-fx-text-fill: #f39c12; -fx-font-weight: bold;";
+                default -> "";
+            };
+            lblMessage.setStyle(style);
+        }
     }
 }

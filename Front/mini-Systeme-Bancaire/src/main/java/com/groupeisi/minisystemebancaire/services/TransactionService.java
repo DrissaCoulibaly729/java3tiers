@@ -2,9 +2,10 @@ package com.groupeisi.minisystemebancaire.services;
 
 import com.google.gson.reflect.TypeToken;
 import com.groupeisi.minisystemebancaire.dto.TransactionDTO;
-
 import java.net.http.HttpRequest;
 import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
 public class TransactionService extends ApiService {
 
@@ -62,6 +63,74 @@ public class TransactionService extends ApiService {
         }
     }
 
+    // ✅ AJOUT: Méthodes pour effectuer les transactions
+    public TransactionDTO effectuerDepot(Long compteId, double montant, String description) {
+        try {
+            Map<String, Object> data = new HashMap<>();
+            data.put("type", "Dépôt");
+            data.put("montant", montant);
+            data.put("compte_dest_id", compteId);
+            data.put("description", description != null ? description : "Dépôt en espèces");
+            data.put("statut", "Validé");
+
+            String json = gson.toJson(data);
+            System.out.println("📤 Création dépôt avec données: " + json);
+
+            HttpRequest request = createRequest("/transactions")
+                    .POST(HttpRequest.BodyPublishers.ofString(json))
+                    .build();
+            return sendRequest(request, TransactionDTO.class);
+        } catch (Exception e) {
+            System.err.println("❌ Erreur lors du dépôt: " + e.getMessage());
+            throw new RuntimeException("Impossible d'effectuer le dépôt: " + e.getMessage());
+        }
+    }
+
+    public TransactionDTO effectuerRetrait(Long compteId, double montant, String description) {
+        try {
+            Map<String, Object> data = new HashMap<>();
+            data.put("type", "Retrait");
+            data.put("montant", montant);
+            data.put("compte_source_id", compteId);
+            data.put("description", description != null ? description : "Retrait en espèces");
+            data.put("statut", "Validé");
+
+            String json = gson.toJson(data);
+            System.out.println("📤 Création retrait avec données: " + json);
+
+            HttpRequest request = createRequest("/transactions")
+                    .POST(HttpRequest.BodyPublishers.ofString(json))
+                    .build();
+            return sendRequest(request, TransactionDTO.class);
+        } catch (Exception e) {
+            System.err.println("❌ Erreur lors du retrait: " + e.getMessage());
+            throw new RuntimeException("Impossible d'effectuer le retrait: " + e.getMessage());
+        }
+    }
+
+    public TransactionDTO effectuerVirement(Long compteSourceId, Long compteDestId, double montant, String description) {
+        try {
+            Map<String, Object> data = new HashMap<>();
+            data.put("type", "Virement");
+            data.put("montant", montant);
+            data.put("compte_source_id", compteSourceId);
+            data.put("compte_dest_id", compteDestId);
+            data.put("description", description != null ? description : "Virement bancaire");
+            data.put("statut", "Validé");
+
+            String json = gson.toJson(data);
+            System.out.println("📤 Création virement avec données: " + json);
+
+            HttpRequest request = createRequest("/transactions")
+                    .POST(HttpRequest.BodyPublishers.ofString(json))
+                    .build();
+            return sendRequest(request, TransactionDTO.class);
+        } catch (Exception e) {
+            System.err.println("❌ Erreur lors du virement: " + e.getMessage());
+            throw new RuntimeException("Impossible d'effectuer le virement: " + e.getMessage());
+        }
+    }
+
     public TransactionDTO createTransaction(TransactionDTO transaction) {
         try {
             String json = gson.toJson(transaction);
@@ -102,8 +171,12 @@ public class TransactionService extends ApiService {
 
     public void validerTransaction(Long id) {
         try {
-            HttpRequest request = createRequest("/transactions/" + id + "/valider")
-                    .PUT(HttpRequest.BodyPublishers.noBody())
+            Map<String, String> data = new HashMap<>();
+            data.put("statut", "Validé");
+            String json = gson.toJson(data);
+
+            HttpRequest request = createRequest("/transactions/" + id)
+                    .PUT(HttpRequest.BodyPublishers.ofString(json))
                     .build();
             sendRequestForString(request);
             System.out.println("✅ Transaction validée avec succès");
@@ -115,8 +188,12 @@ public class TransactionService extends ApiService {
 
     public void rejeterTransaction(Long id, String motif) {
         try {
-            String json = gson.toJson(new MotifRejet(motif));
-            HttpRequest request = createRequest("/transactions/" + id + "/rejeter")
+            Map<String, String> data = new HashMap<>();
+            data.put("statut", "Rejeté");
+            data.put("description", motif);
+            String json = gson.toJson(data);
+
+            HttpRequest request = createRequest("/transactions/" + id)
                     .PUT(HttpRequest.BodyPublishers.ofString(json))
                     .build();
             sendRequestForString(request);
@@ -127,65 +204,7 @@ public class TransactionService extends ApiService {
         }
     }
 
-    public TransactionDTO effectuerDepot(Long compteId, double montant, String description) {
-        try {
-            DepotRequest request = new DepotRequest(compteId, montant, description);
-            String json = gson.toJson(request);
-
-            HttpRequest httpRequest = createRequest("/transactions/depot")
-                    .POST(HttpRequest.BodyPublishers.ofString(json))
-                    .build();
-            return sendRequest(httpRequest, TransactionDTO.class);
-        } catch (Exception e) {
-            System.err.println("❌ Erreur lors du dépôt: " + e.getMessage());
-            throw new RuntimeException("Impossible d'effectuer le dépôt: " + e.getMessage());
-        }
-    }
-
-    public TransactionDTO effectuerRetrait(Long compteId, double montant, String description) {
-        try {
-            RetraitRequest request = new RetraitRequest(compteId, montant, description);
-            String json = gson.toJson(request);
-
-            HttpRequest httpRequest = createRequest("/transactions/retrait")
-                    .POST(HttpRequest.BodyPublishers.ofString(json))
-                    .build();
-            return sendRequest(httpRequest, TransactionDTO.class);
-        } catch (Exception e) {
-            System.err.println("❌ Erreur lors du retrait: " + e.getMessage());
-            throw new RuntimeException("Impossible d'effectuer le retrait: " + e.getMessage());
-        }
-    }
-
-    public TransactionDTO effectuerVirement(Long compteSourceId, Long compteDestId,
-                                            double montant, String description) {
-        try {
-            VirementRequest request = new VirementRequest(compteSourceId, compteDestId, montant, description);
-            String json = gson.toJson(request);
-
-            HttpRequest httpRequest = createRequest("/transactions/virement")
-                    .POST(HttpRequest.BodyPublishers.ofString(json))
-                    .build();
-            return sendRequest(httpRequest, TransactionDTO.class);
-        } catch (Exception e) {
-            System.err.println("❌ Erreur lors du virement: " + e.getMessage());
-            throw new RuntimeException("Impossible d'effectuer le virement: " + e.getMessage());
-        }
-    }
-
-    public void annulerTransaction(Long id) {
-        try {
-            HttpRequest request = createRequest("/transactions/" + id + "/annuler")
-                    .PUT(HttpRequest.BodyPublishers.noBody())
-                    .build();
-            sendRequestForString(request);
-            System.out.println("✅ Transaction annulée avec succès");
-        } catch (Exception e) {
-            System.err.println("❌ Erreur lors de l'annulation de la transaction: " + e.getMessage());
-            throw new RuntimeException("Impossible d'annuler la transaction: " + e.getMessage());
-        }
-    }
-
+    // ✅ AJOUT: Méthodes utilitaires manquantes
     public List<TransactionDTO> getTransactionsSuspectes() {
         try {
             HttpRequest request = createRequest("/transactions/suspectes").GET().build();
@@ -197,30 +216,43 @@ public class TransactionService extends ApiService {
         }
     }
 
+    // ✅ AJOUT: Méthodes manquantes utilisées dans votre code
+
+    /**
+     * Méthode getTransactionsRecentes() utilisée dans AdminDashboardController
+     */
     public List<TransactionDTO> getTransactionsRecentes(int limit) {
         try {
-            HttpRequest request = createRequest("/transactions/recentes?limit=" + limit).GET().build();
+            HttpRequest request = createRequest("/transactions?limit=" + limit).GET().build();
             String response = sendRequestForString(request);
-            return gson.fromJson(response, new TypeToken<List<TransactionDTO>>(){}.getType());
+            List<TransactionDTO> allTransactions = gson.fromJson(response, new TypeToken<List<TransactionDTO>>(){}.getType());
+
+            // Retourner seulement les 'limit' premières transactions
+            return allTransactions.stream()
+                    .limit(limit)
+                    .collect(java.util.stream.Collectors.toList());
         } catch (Exception e) {
             System.err.println("❌ Erreur lors de la récupération des transactions récentes: " + e.getMessage());
             throw new RuntimeException("Impossible de récupérer les transactions récentes: " + e.getMessage());
         }
     }
 
-    public List<TransactionDTO> getTransactionsByDateRange(String dateDebut, String dateFin) {
+    /**
+     * Méthode annulerTransaction() utilisée dans AdminTransactionsController
+     */
+    public TransactionDTO annulerTransaction(Long id) {
         try {
-            HttpRequest request = createRequest("/transactions/periode?debut=" + dateDebut + "&fin=" + dateFin)
-                    .GET().build();
-            String response = sendRequestForString(request);
-            return gson.fromJson(response, new TypeToken<List<TransactionDTO>>(){}.getType());
+            HttpRequest request = createRequest("/transactions/" + id + "/annuler")
+                    .POST(HttpRequest.BodyPublishers.ofString("{}"))
+                    .build();
+            return sendRequest(request, TransactionDTO.class);
         } catch (Exception e) {
-            System.err.println("❌ Erreur lors de la récupération des transactions par période: " + e.getMessage());
-            throw new RuntimeException("Impossible de récupérer les transactions: " + e.getMessage());
+            System.err.println("❌ Erreur lors de l'annulation de la transaction: " + e.getMessage());
+            throw new RuntimeException("Impossible d'annuler la transaction: " + e.getMessage());
         }
     }
 
-    // Classes internes pour les requêtes spécifiques
+    // Classes internes pour les requêtes spécifiques (gardez les existantes)
     public static class MotifRejet {
         private final String motif;
 

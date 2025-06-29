@@ -1,7 +1,9 @@
 package com.groupeisi.minisystemebancaire.controllers.admin;
 
 import com.groupeisi.minisystemebancaire.dto.TransactionDTO;
+import com.groupeisi.minisystemebancaire.dto.CompteDTO;
 import com.groupeisi.minisystemebancaire.services.TransactionService;
+import com.groupeisi.minisystemebancaire.services.CompteService;
 import com.groupeisi.minisystemebancaire.utils.SessionManager;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
@@ -17,36 +19,54 @@ import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.stage.Stage;
 
 import java.io.IOException;
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 public class AdminTransactionsController {
 
+    // === ÉLÉMENTS FXML ===
+    @FXML private TextField txtRechercheTransaction;
+    @FXML private TextField txtMontantTransaction;
+    @FXML private ChoiceBox<String> choiceTypeTransaction;
+    @FXML private ChoiceBox<CompteDTO> choiceCompteSource;
+    @FXML private ChoiceBox<CompteDTO> choiceCompteDest;
+
     @FXML private TableView<TransactionDTO> tableTransactions;
+    @FXML private TableColumn<TransactionDTO, Integer> colIdTransaction;
     @FXML private TableColumn<TransactionDTO, String> colType;
     @FXML private TableColumn<TransactionDTO, Double> colMontant;
-    @FXML private TableColumn<TransactionDTO, String> colDate;
-    @FXML private TableColumn<TransactionDTO, String> colStatut;
     @FXML private TableColumn<TransactionDTO, String> colCompteSource;
-    @FXML private TableColumn<TransactionDTO, String> colCompteDestination;
-    @FXML private ComboBox<String> cmbStatutFiltre;
-    @FXML private ComboBox<String> cmbTypeFiltre;
-    @FXML private DatePicker dateDebut;
-    @FXML private DatePicker dateFin;
-    @FXML private TextField txtMontantMin;
-    @FXML private TextField txtMontantMax;
-    @FXML private Button btnFiltrer;
-    @FXML private Button btnReinitialiser;
-    @FXML private Button btnValider;
-    @FXML private Button btnRejeter;
-    @FXML private Button btnAnnuler;
-    @FXML private Button btnExporter;
-    @FXML private Label lblMessage;
-    @FXML private Label lblNombreTransactions;
+    @FXML private TableColumn<TransactionDTO, String> colCompteDest;
+    @FXML private TableColumn<TransactionDTO, String> colStatut;
+    @FXML private TableColumn<TransactionDTO, String> colDate;
 
+    @FXML private Button btnValiderTransaction;
+    @FXML private Button btnAnnulerTransaction;
+    @FXML private Button btnRechercherTransaction;
+    @FXML private Button btnBloquerTransaction;
+    @FXML private Button btnDebloquerTransaction;
+
+    // Navigation buttons
+    @FXML private Button btnDashboard;
+    @FXML private Button btnClients;
+    @FXML private Button btnComptes;
+    @FXML private Button btnCredits;
+    @FXML private Button btnCartes;
+    @FXML private Button btnSupport;
+    @FXML private Button btnDeconnexion;
+
+    // Variables pour afficher les messages (créé dynamiquement)
+    private String currentMessage = "";
+    private String currentMessageStyle = "";
+
+    // Services
     private final TransactionService transactionService = new TransactionService();
-    private TransactionDTO selectedTransaction;
+    private final CompteService compteService = new CompteService();
+
+    // Variables
     private List<TransactionDTO> allTransactions;
+    private List<CompteDTO> allComptes;
+    private TransactionDTO selectedTransaction;
 
     @FXML
     public void initialize() {
@@ -57,132 +77,253 @@ public class AdminTransactionsController {
 
         setupUI();
         setupTableColumns();
-        loadTransactions();
+        loadData();
     }
 
     private void setupUI() {
-        // Configuration des filtres
-        cmbStatutFiltre.setItems(FXCollections.observableArrayList(
-                "Tous", "Validé", "Rejeté", "En attente"
-        ));
-        cmbStatutFiltre.setValue("Tous");
+        // Types de transaction avec logique bancaire
+        if (choiceTypeTransaction != null) {
+            choiceTypeTransaction.setItems(FXCollections.observableArrayList(
+                    "DEPOT", "RETRAIT", "VIREMENT"
+            ));
+            choiceTypeTransaction.setValue("DEPOT");
 
-        cmbTypeFiltre.setItems(FXCollections.observableArrayList(
-                "Tous", "Dépôt", "Retrait", "Virement"
-        ));
-        cmbTypeFiltre.setValue("Tous");
+            // Gestion dynamique du compte destination
+            choiceTypeTransaction.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
+                if (choiceCompteDest != null) {
+                    boolean needDestination = "VIREMENT".equals(newVal);
+                    choiceCompteDest.setVisible(needDestination);
+                    choiceCompteDest.setDisable(!needDestination);
 
-        // Configuration des boutons
-        btnFiltrer.setOnAction(this::handleFiltrer);
-        btnReinitialiser.setOnAction(this::handleReinitialiser);
-        btnValider.setOnAction(this::handleValider);
-        btnRejeter.setOnAction(this::handleRejeter);
-        btnAnnuler.setOnAction(this::handleAnnuler);
-        btnExporter.setOnAction(this::handleExporter);
+                    // Message d'aide dans la console ou titre de fenêtre
+                    if ("DEPOT".equals(newVal)) {
+                        currentMessage = "💰 Dépôt : Ajouter de l'argent sur le compte";
+                        System.out.println(currentMessage);
+                    } else if ("RETRAIT".equals(newVal)) {
+                        currentMessage = "💸 Retrait : Retirer de l'argent du compte";
+                        System.out.println(currentMessage);
+                    } else if ("VIREMENT".equals(newVal)) {
+                        currentMessage = "🔄 Virement : Transférer entre deux comptes";
+                        System.out.println(currentMessage);
+                    }
+                }
+            });
+        }
 
-        // Sélection de transaction
-        tableTransactions.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
-            selectedTransaction = newSelection;
-            updateButtonStates();
-        });
+        // Sélection dans la table
+        if (tableTransactions != null) {
+            tableTransactions.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
+                selectedTransaction = newSelection;
+                updateButtonStates();
+                displayTransactionDetails(newSelection);
+            });
+        }
 
-        // Dates par défaut (dernier mois)
-        dateFin.setValue(LocalDate.now());
-        dateDebut.setValue(LocalDate.now().minusMonths(1));
-
-        lblMessage.setText("");
         updateButtonStates();
     }
 
-    @FXML
-    private void handleGestionCartes() {
-        navigateToPage("UI_Gestion_Cartes");
-    }
-
-    @FXML
-    private void handleGestionSupport() {
-        navigateToPage("UI_Service_Client_Rapports");
-    }
-
     private void setupTableColumns() {
-        colType.setCellValueFactory(new PropertyValueFactory<>("type"));
-        colMontant.setCellValueFactory(new PropertyValueFactory<>("montant"));
-        colDate.setCellValueFactory(new PropertyValueFactory<>("date"));
-        colStatut.setCellValueFactory(new PropertyValueFactory<>("statut"));
-
-        // Colonnes des comptes
-        colCompteSource.setCellValueFactory(cellData -> {
-            TransactionDTO transaction = cellData.getValue();
-            if (transaction.getCompteSource() != null) {
-                return new javafx.beans.property.SimpleStringProperty(transaction.getCompteSource().getNumero());
-            } else {
-                return new javafx.beans.property.SimpleStringProperty("Compte ID: " + transaction.getCompteSourceId());
-            }
-        });
-
-        colCompteDestination.setCellValueFactory(cellData -> {
-            TransactionDTO transaction = cellData.getValue();
-            if (transaction.getCompteDestination() != null) {
-                return new javafx.beans.property.SimpleStringProperty(transaction.getCompteDestination().getNumero());
-            } else if (transaction.getCompteDestId() != null) {
-                return new javafx.beans.property.SimpleStringProperty("Compte ID: " + transaction.getCompteDestId());
-            } else {
-                return new javafx.beans.property.SimpleStringProperty("-");
-            }
-        });
-
-        // Formatage du montant
-        colMontant.setCellFactory(column -> new TableCell<TransactionDTO, Double>() {
-            @Override
-            protected void updateItem(Double item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty || item == null) {
-                    setText(null);
-                } else {
-                    setText(String.format("%.2f FCFA", item));
-                }
-            }
-        });
-
-        // Formatage du statut
-        colStatut.setCellFactory(column -> new TableCell<TransactionDTO, String>() {
-            @Override
-            protected void updateItem(String item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty || item == null) {
-                    setText(null);
-                    setStyle("");
-                } else {
-                    setText(item);
-                    if ("Validé".equals(item)) {
-                        setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
-                    } else if ("Rejeté".equals(item)) {
-                        setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
-                    } else if ("En attente".equals(item)) {
-                        setStyle("-fx-text-fill: #f39c12; -fx-font-weight: bold;");
+        if (colIdTransaction != null) {
+            colIdTransaction.setCellValueFactory(new PropertyValueFactory<>("id"));
+        }
+        if (colType != null) {
+            colType.setCellValueFactory(new PropertyValueFactory<>("type"));
+            // Formatage avec icônes
+            colType.setCellFactory(column -> new TableCell<TransactionDTO, String>() {
+                @Override
+                protected void updateItem(String item, boolean empty) {
+                    super.updateItem(item, empty);
+                    if (empty || item == null) {
+                        setText(null);
                     } else {
-                        setStyle("");
+                        String icon = switch (item) {
+                            case "DEPOT" -> "💰 Dépôt";
+                            case "RETRAIT" -> "💸 Retrait";
+                            case "VIREMENT" -> "🔄 Virement";
+                            default -> item;
+                        };
+                        setText(icon);
                     }
                 }
-            }
-        });
+            });
+        }
+
+        if (colMontant != null) {
+            colMontant.setCellValueFactory(new PropertyValueFactory<>("montant"));
+            colMontant.setCellFactory(column -> new TableCell<TransactionDTO, Double>() {
+                @Override
+                protected void updateItem(Double item, boolean empty) {
+                    super.updateItem(item, empty);
+                    if (empty || item == null) {
+                        setText(null);
+                    } else {
+                        setText(String.format("%.2f FCFA", item));
+                        // Couleur selon le type
+                        TransactionDTO transaction = getTableRow().getItem();
+                        if (transaction != null) {
+                            switch (transaction.getType()) {
+                                case "DEPOT":
+                                    setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
+                                    break;
+                                case "RETRAIT":
+                                    setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
+                                    break;
+                                case "VIREMENT":
+                                    setStyle("-fx-text-fill: #3498db; -fx-font-weight: bold;");
+                                    break;
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        if (colStatut != null) {
+            colStatut.setCellValueFactory(new PropertyValueFactory<>("statut"));
+            colStatut.setCellFactory(column -> new TableCell<TransactionDTO, String>() {
+                @Override
+                protected void updateItem(String item, boolean empty) {
+                    super.updateItem(item, empty);
+                    if (empty || item == null) {
+                        setText(null);
+                        setStyle("");
+                    } else {
+                        switch (item.toLowerCase()) {
+                            case "validé":
+                            case "completee":
+                                setText("✅ Validé");
+                                setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
+                                break;
+                            case "en attente":
+                                setText("⏳ En attente");
+                                setStyle("-fx-text-fill: #f39c12; -fx-font-weight: bold;");
+                                break;
+                            case "rejeté":
+                            case "echouee":
+                                setText("❌ Rejeté");
+                                setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
+                                break;
+                            case "bloqué":
+                                setText("🚫 Bloqué");
+                                setStyle("-fx-text-fill: #8B0000; -fx-font-weight: bold;");
+                                break;
+                            default:
+                                setText(item);
+                                setStyle("");
+                        }
+                    }
+                }
+            });
+        }
+
+        if (colDate != null) {
+            colDate.setCellValueFactory(new PropertyValueFactory<>("date"));
+        }
+
+        // Colonnes de compte
+        if (colCompteSource != null) {
+            colCompteSource.setCellValueFactory(cellData -> {
+                try {
+                    TransactionDTO transaction = cellData.getValue();
+                    if (transaction.getCompteSource() != null) {
+                        return new javafx.beans.property.SimpleStringProperty(
+                                "💳 " + transaction.getCompteSource().getNumero()
+                        );
+                    }
+                    return new javafx.beans.property.SimpleStringProperty("N/A");
+                } catch (Exception e) {
+                    return new javafx.beans.property.SimpleStringProperty("Erreur");
+                }
+            });
+        }
+
+        if (colCompteDest != null) {
+            colCompteDest.setCellValueFactory(cellData -> {
+                try {
+                    TransactionDTO transaction = cellData.getValue();
+                    if ("VIREMENT".equals(transaction.getType()) && transaction.getCompteDestination() != null) {
+                        return new javafx.beans.property.SimpleStringProperty(
+                                "💳 " + transaction.getCompteDestination().getNumero()
+                        );
+                    } else if (!"VIREMENT".equals(transaction.getType())) {
+                        return new javafx.beans.property.SimpleStringProperty("-");
+                    }
+                    return new javafx.beans.property.SimpleStringProperty("N/A");
+                } catch (Exception e) {
+                    return new javafx.beans.property.SimpleStringProperty("Erreur");
+                }
+            });
+        }
     }
 
-    private void loadTransactions() {
+    private void loadData() {
         Thread loadThread = new Thread(() -> {
             try {
+                // Chargement des transactions
                 allTransactions = transactionService.getAllTransactions();
 
+                // Chargement des comptes avec gestion d'erreur
+                try {
+                    allComptes = compteService.getAllComptes();
+                    System.out.println("✅ Comptes chargés: " + allComptes.size());
+                } catch (Exception e) {
+                    System.err.println("❌ Erreur chargement comptes: " + e.getMessage());
+                    allComptes = List.of(); // Liste vide en cas d'erreur
+                }
+
                 Platform.runLater(() -> {
-                    ObservableList<TransactionDTO> transactionsData = FXCollections.observableArrayList(allTransactions);
-                    tableTransactions.setItems(transactionsData);
-                    updateTransactionCount(allTransactions.size());
+                    // Mise à jour de la table des transactions
+                    if (tableTransactions != null && allTransactions != null) {
+                        ObservableList<TransactionDTO> transactionsData = FXCollections.observableArrayList(allTransactions);
+                        tableTransactions.setItems(transactionsData);
+                        System.out.println("✅ Transactions affichées: " + allTransactions.size());
+                    }
+
+                    // CONFIGURATION SIMPLE DES CHOICEBOX SANS CONVERTER
+                    if (choiceCompteSource != null && allComptes != null && !allComptes.isEmpty()) {
+                        // Filtrer seulement les comptes actifs
+                        List<CompteDTO> comptesActifs = allComptes.stream()
+                                .filter(c -> c != null && "Actif".equals(c.getStatut()))
+                                .toList();
+
+                        if (!comptesActifs.isEmpty()) {
+                            ObservableList<CompteDTO> comptesData = FXCollections.observableArrayList(comptesActifs);
+                            choiceCompteSource.setItems(comptesData);
+
+                            // AFFICHAGE SIMPLE - override toString dans CompteDTO ou utilisation simple
+                            System.out.println("✅ Comptes source chargés: " + comptesActifs.size());
+                        } else {
+                            System.out.println("⚠️ Aucun compte actif trouvé");
+                        }
+                    }
+
+                    if (choiceCompteDest != null && allComptes != null && !allComptes.isEmpty()) {
+                        List<CompteDTO> comptesActifs = allComptes.stream()
+                                .filter(c -> c != null && "Actif".equals(c.getStatut()))
+                                .toList();
+
+                        if (!comptesActifs.isEmpty()) {
+                            ObservableList<CompteDTO> comptesData = FXCollections.observableArrayList(comptesActifs);
+                            choiceCompteDest.setItems(comptesData);
+                            System.out.println("✅ Comptes destination chargés: " + comptesActifs.size());
+                        }
+                    }
+
+                    System.out.println("📊 Total: " + (allTransactions != null ? allTransactions.size() : 0) + " transaction(s) chargées");
                 });
 
             } catch (Exception e) {
+                System.err.println("❌ Erreur générale lors du chargement: " + e.getMessage());
+                e.printStackTrace();
+
                 Platform.runLater(() -> {
                     showAlert(Alert.AlertType.ERROR, "Erreur",
-                            "Impossible de charger les transactions: " + e.getMessage());
+                            "Impossible de charger les données.\n\n" +
+                                    "Vérifiez que :\n" +
+                                    "• Le serveur Laravel est démarré\n" +
+                                    "• La base de données est accessible\n" +
+                                    "• Les services fonctionnent\n\n" +
+                                    "Erreur: " + e.getMessage());
                 });
             }
         });
@@ -191,296 +332,425 @@ public class AdminTransactionsController {
         loadThread.start();
     }
 
+    // === LOGIQUE BANCAIRE RÉELLE ===
+
     @FXML
-    private void handleFiltrer(ActionEvent event) {
-        if (allTransactions == null) {
+    private void handleValiderTransaction(ActionEvent event) {
+        if (!validateTransactionForm()) {
             return;
         }
-
-        String statutFiltre = cmbStatutFiltre.getValue();
-        String typeFiltre = cmbTypeFiltre.getValue();
-        LocalDate debut = dateDebut.getValue();
-        LocalDate fin = dateFin.getValue();
-
-        double montantMin = 0;
-        double montantMax = Double.MAX_VALUE;
 
         try {
-            if (!txtMontantMin.getText().trim().isEmpty()) {
-                montantMin = Double.parseDouble(txtMontantMin.getText());
+            String type = choiceTypeTransaction.getValue();
+            double montant = Double.parseDouble(txtMontantTransaction.getText().trim());
+            CompteDTO compteSource = choiceCompteSource.getValue();
+            CompteDTO compteDest = null;
+
+            if ("VIREMENT".equals(type)) {
+                compteDest = choiceCompteDest.getValue();
+                if (compteDest == null) {
+                    showAlert(Alert.AlertType.WARNING, "Validation", "Compte destination requis pour un virement");
+                    return;
+                }
+                if (compteSource.getId().equals(compteDest.getId())) {
+                    showAlert(Alert.AlertType.WARNING, "Validation", "Les comptes source et destination doivent être différents");
+                    return;
+                }
             }
-            if (!txtMontantMax.getText().trim().isEmpty()) {
-                montantMax = Double.parseDouble(txtMontantMax.getText());
+
+            // VÉRIFICATIONS BANCAIRES RÉELLES
+            if (!performBankingValidation(type, montant, compteSource, compteDest)) {
+                return;
+            }
+
+            // Confirmation de l'utilisateur
+            String confirmationMessage = buildConfirmationMessage(type, montant, compteSource, compteDest);
+            Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
+            confirmation.setTitle("Confirmation de transaction");
+            confirmation.setHeaderText("Confirmer la transaction");
+            confirmation.setContentText(confirmationMessage);
+
+            if (confirmation.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK) {
+                executeTransaction(type, montant, compteSource, compteDest);
+            }
+
+        } catch (NumberFormatException e) {
+            showAlert(Alert.AlertType.ERROR, "Erreur", "Montant invalide");
+        } catch (Exception e) {
+            showAlert(Alert.AlertType.ERROR, "Erreur", "Erreur: " + e.getMessage());
+        }
+    }
+
+    private boolean validateTransactionForm() {
+        if (choiceTypeTransaction == null || txtMontantTransaction == null || choiceCompteSource == null) {
+            showAlert(Alert.AlertType.WARNING, "Interface", "Éléments de formulaire manquants");
+            return false;
+        }
+
+        String type = choiceTypeTransaction.getValue();
+        String montantText = txtMontantTransaction.getText().trim();
+        CompteDTO compteSource = choiceCompteSource.getValue();
+
+        // VALIDATION DÉTAILLÉE
+        if (type == null || type.isEmpty()) {
+            showAlert(Alert.AlertType.WARNING, "Validation", "❌ Veuillez sélectionner un type de transaction");
+            return false;
+        }
+
+        if (montantText.isEmpty()) {
+            showAlert(Alert.AlertType.WARNING, "Validation", "❌ Veuillez saisir un montant");
+            return false;
+        }
+
+        if (compteSource == null) {
+            showAlert(Alert.AlertType.WARNING, "Validation", "❌ Veuillez sélectionner un compte source");
+            return false;
+        }
+
+        // Validation du montant
+        try {
+            double montant = Double.parseDouble(montantText);
+            if (montant <= 0) {
+                showAlert(Alert.AlertType.WARNING, "Validation", "❌ Le montant doit être positif");
+                return false;
+            }
+            if (montant > 10000000) { // 10 millions max
+                showAlert(Alert.AlertType.WARNING, "Validation", "❌ Montant trop élevé (max: 10,000,000 FCFA)");
+                return false;
             }
         } catch (NumberFormatException e) {
-            showMessage("Montants de filtrage invalides", "error");
-            return;
+            showAlert(Alert.AlertType.WARNING, "Validation", "❌ Montant invalide - Utilisez seulement des chiffres");
+            return false;
         }
 
-        final double finalMontantMin = montantMin;
-        final double finalMontantMax = montantMax;
+        // Validation spéciale pour les virements
+        if ("VIREMENT".equals(type)) {
+            CompteDTO compteDest = choiceCompteDest != null ? choiceCompteDest.getValue() : null;
+            if (compteDest == null) {
+                showAlert(Alert.AlertType.WARNING, "Validation", "❌ Veuillez sélectionner un compte destination pour le virement");
+                return false;
+            }
+        }
 
-        List<TransactionDTO> filteredTransactions = allTransactions.stream()
-                .filter(t -> "Tous".equals(statutFiltre) || statutFiltre.equals(t.getStatut()))
-                .filter(t -> "Tous".equals(typeFiltre) || typeFiltre.equals(t.getType()))
-                .filter(t -> debut == null || t.getDate().toLocalDate().isAfter(debut.minusDays(1)))
-                .filter(t -> fin == null || t.getDate().toLocalDate().isBefore(fin.plusDays(1)))
-                .filter(t -> t.getMontant() >= finalMontantMin && t.getMontant() <= finalMontantMax)
-                .toList();
-
-        ObservableList<TransactionDTO> filteredData = FXCollections.observableArrayList(filteredTransactions);
-        tableTransactions.setItems(filteredData);
-        updateTransactionCount(filteredTransactions.size());
-
-        showMessage(filteredTransactions.size() + " transaction(s) trouvée(s)", "success");
+        return true;
     }
 
-    @FXML
-    private void handleReinitialiser(ActionEvent event) {
-        cmbStatutFiltre.setValue("Tous");
-        cmbTypeFiltre.setValue("Tous");
-        dateDebut.setValue(LocalDate.now().minusMonths(1));
-        dateFin.setValue(LocalDate.now());
-        txtMontantMin.clear();
-        txtMontantMax.clear();
-
-        if (allTransactions != null) {
-            ObservableList<TransactionDTO> allData = FXCollections.observableArrayList(allTransactions);
-            tableTransactions.setItems(allData);
-            updateTransactionCount(allTransactions.size());
+    private boolean performBankingValidation(String type, double montant, CompteDTO compteSource, CompteDTO compteDest) {
+        // Vérification du compte source
+        if (!"Actif".equals(compteSource.getStatut())) {
+            showAlert(Alert.AlertType.ERROR, "Compte bloqué", "Le compte source est inactif");
+            return false;
         }
 
-        showMessage("Filtres réinitialisés", "success");
-    }
+        // Vérifications spécifiques par type
+        switch (type) {
+            case "RETRAIT":
+                if (compteSource.getSolde() < montant) {
+                    showAlert(Alert.AlertType.ERROR, "Solde insuffisant",
+                            String.format("Solde actuel: %.2f FCFA\nMontant demandé: %.2f FCFA",
+                                    compteSource.getSolde(), montant));
+                    return false;
+                }
+                if (montant > 500000) { // Limite retrait 500k
+                    showAlert(Alert.AlertType.WARNING, "Limite dépassée", "Montant maximum pour un retrait: 500,000 FCFA");
+                    return false;
+                }
+                break;
 
-    @FXML
-    private void handleValider(ActionEvent event) {
-        if (selectedTransaction == null) {
-            showMessage("Veuillez sélectionner une transaction", "error");
-            return;
-        }
-
-        if (!"En attente".equals(selectedTransaction.getStatut())) {
-            showMessage("Seules les transactions en attente peuvent être validées", "error");
-            return;
-        }
-
-        Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
-        confirmation.setTitle("Validation de transaction");
-        confirmation.setHeaderText("Valider la transaction");
-        confirmation.setContentText("Êtes-vous sûr de vouloir valider cette transaction ?");
-
-        confirmation.showAndWait().ifPresent(response -> {
-            if (response == ButtonType.OK) {
-                Thread validationThread = new Thread(() -> {
-                    try {
-                        transactionService.validerTransaction(selectedTransaction.getId());
-
-                        Platform.runLater(() -> {
-                            showMessage("Transaction validée avec succès !", "success");
-                            loadTransactions();
-                        });
-
-                    } catch (Exception e) {
-                        Platform.runLater(() -> {
-                            showMessage("Erreur: " + e.getMessage(), "error");
-                        });
+            case "DEPOT":
+                if (montant > 1000000) { // Limite dépôt 1M
+                    Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+                    alert.setTitle("Dépôt important");
+                    alert.setHeaderText("Montant élevé détecté");
+                    alert.setContentText("Dépôt supérieur à 1,000,000 FCFA. Continuer?");
+                    if (alert.showAndWait().orElse(ButtonType.CANCEL) != ButtonType.OK) {
+                        return false;
                     }
-                });
+                }
+                break;
 
-                validationThread.setDaemon(true);
-                validationThread.start();
+            case "VIREMENT":
+                if (compteDest == null) {
+                    showAlert(Alert.AlertType.ERROR, "Erreur", "Compte destination requis");
+                    return false;
+                }
+                if (!"Actif".equals(compteDest.getStatut())) {
+                    showAlert(Alert.AlertType.ERROR, "Compte bloqué", "Le compte destination est inactif");
+                    return false;
+                }
+                if (compteSource.getSolde() < montant) {
+                    showAlert(Alert.AlertType.ERROR, "Solde insuffisant",
+                            String.format("Solde actuel: %.2f FCFA\nMontant demandé: %.2f FCFA",
+                                    compteSource.getSolde(), montant));
+                    return false;
+                }
+                break;
+        }
+
+        return true;
+    }
+
+    private String buildConfirmationMessage(String type, double montant, CompteDTO compteSource, CompteDTO compteDest) {
+        StringBuilder message = new StringBuilder();
+
+        switch (type) {
+            case "DEPOT":
+                message.append("💰 DÉPÔT\n\n");
+                message.append(String.format("Montant: %.2f FCFA\n", montant));
+                message.append(String.format("Sur le compte: %s\n", compteSource.getNumero()));
+                message.append(String.format("Nouveau solde: %.2f FCFA", compteSource.getSolde() + montant));
+                break;
+
+            case "RETRAIT":
+                message.append("💸 RETRAIT\n\n");
+                message.append(String.format("Montant: %.2f FCFA\n", montant));
+                message.append(String.format("Du compte: %s\n", compteSource.getNumero()));
+                message.append(String.format("Nouveau solde: %.2f FCFA", compteSource.getSolde() - montant));
+                break;
+
+            case "VIREMENT":
+                message.append("🔄 VIREMENT\n\n");
+                message.append(String.format("Montant: %.2f FCFA\n", montant));
+                message.append(String.format("De: %s (%.2f FCFA)\n", compteSource.getNumero(), compteSource.getSolde()));
+                message.append(String.format("Vers: %s (%.2f FCFA)\n\n", compteDest.getNumero(), compteDest.getSolde()));
+                message.append("Nouveaux soldes:\n");
+                message.append(String.format("Source: %.2f FCFA\n", compteSource.getSolde() - montant));
+                message.append(String.format("Destination: %.2f FCFA", compteDest.getSolde() + montant));
+                break;
+        }
+
+        return message.toString();
+    }
+
+    private void executeTransaction(String type, double montant, CompteDTO compteSource, CompteDTO compteDest) {
+        try {
+            // Créer la transaction
+            TransactionDTO transaction = new TransactionDTO();
+            transaction.setType(type);
+            transaction.setMontant(montant);
+            transaction.setCompteSourceId(compteSource.getId());
+            transaction.setDate(LocalDateTime.now());
+            transaction.setStatut("Validé"); // Exécution immédiate pour l'admin
+
+            if (compteDest != null) {
+                transaction.setCompteDestId(compteDest.getId());
             }
-        });
+
+            // MISE À JOUR DES SOLDES (logique bancaire réelle)
+            switch (type) {
+                case "DEPOT":
+                    compteSource.setSolde(compteSource.getSolde() + montant);
+                    compteService.updateCompte(compteSource);
+                    break;
+
+                case "RETRAIT":
+                    compteSource.setSolde(compteSource.getSolde() - montant);
+                    compteService.updateCompte(compteSource);
+                    break;
+
+                case "VIREMENT":
+                    compteSource.setSolde(compteSource.getSolde() - montant);
+                    compteDest.setSolde(compteDest.getSolde() + montant);
+                    compteService.updateCompte(compteSource);
+                    compteService.updateCompte(compteDest);
+                    break;
+            }
+
+            // Sauvegarder la transaction
+            transactionService.createTransaction(transaction);
+
+            // Message de succès avec détails
+            String successMessage = String.format("✅ Transaction %s réussie!\n\nMontant: %.2f FCFA\nNouveau solde: %.2f FCFA",
+                    type.toLowerCase(), montant, compteSource.getSolde());
+
+            showAlert(Alert.AlertType.INFORMATION, "Succès", successMessage);
+
+            clearForm();
+            loadData(); // Recharger pour voir les nouveaux soldes
+
+        } catch (Exception e) {
+            showAlert(Alert.AlertType.ERROR, "Erreur", "Échec de la transaction: " + e.getMessage());
+        }
+    }
+
+    private void displayTransactionDetails(TransactionDTO transaction) {
+        if (transaction != null) {
+            String details = String.format("Transaction sélectionnée: %s - %.2f FCFA - %s",
+                    transaction.getType(), transaction.getMontant(), transaction.getStatut());
+            System.out.println("📋 " + details);
+            currentMessage = details;
+        }
+    }
+
+    // === AUTRES HANDLERS ===
+
+    @FXML
+    private void handleAnnulerTransaction(ActionEvent event) {
+        clearForm();
+        System.out.println("✅ Formulaire réinitialisé");
+        currentMessage = "Formulaire réinitialisé";
     }
 
     @FXML
-    private void handleRejeter(ActionEvent event) {
+    private void handleRechercherTransaction(ActionEvent event) {
+        if (txtRechercheTransaction == null || allTransactions == null) {
+            return;
+        }
+
+        String recherche = txtRechercheTransaction.getText().trim();
+        if (recherche.isEmpty()) {
+            loadData();
+            return;
+        }
+
+        try {
+            List<TransactionDTO> resultats = allTransactions.stream()
+                    .filter(t -> t.getId().toString().contains(recherche) ||
+                            t.getType().toLowerCase().contains(recherche.toLowerCase()) ||
+                            t.getMontant().toString().contains(recherche) ||
+                            t.getStatut().toLowerCase().contains(recherche.toLowerCase()))
+                    .toList();
+
+            if (tableTransactions != null) {
+                ObservableList<TransactionDTO> resultatsData = FXCollections.observableArrayList(resultats);
+                tableTransactions.setItems(resultatsData);
+            }
+
+            String message = resultats.size() + " transaction(s) trouvée(s)";
+            System.out.println("🔍 " + message);
+            currentMessage = message;
+
+        } catch (Exception e) {
+            showAlert(Alert.AlertType.ERROR, "Erreur", "Erreur lors de la recherche");
+        }
+    }
+
+    @FXML
+    private void handleBloquerTransaction(ActionEvent event) {
         if (selectedTransaction == null) {
-            showMessage("Veuillez sélectionner une transaction", "error");
+            showAlert(Alert.AlertType.WARNING, "Sélection", "Veuillez sélectionner une transaction");
             return;
         }
 
-        if (!"En attente".equals(selectedTransaction.getStatut())) {
-            showMessage("Seules les transactions en attente peuvent être rejetées", "error");
+        if ("Validé".equals(selectedTransaction.getStatut())) {
+            showAlert(Alert.AlertType.WARNING, "Transaction validée", "Impossible de bloquer une transaction déjà validée");
             return;
         }
 
-        // Dialog pour saisir le motif de rejet
-        TextInputDialog dialog = new TextInputDialog();
-        dialog.setTitle("Rejet de transaction");
-        dialog.setHeaderText("Rejeter la transaction");
-        dialog.setContentText("Motif du rejet:");
-
-        dialog.showAndWait().ifPresent(motif -> {
-            if (!motif.trim().isEmpty()) {
-                Thread rejetThread = new Thread(() -> {
-                    try {
-                        transactionService.rejeterTransaction(selectedTransaction.getId(), motif);
-
-                        Platform.runLater(() -> {
-                            showMessage("Transaction rejetée avec succès !", "success");
-                            loadTransactions();
-                        });
-
-                    } catch (Exception e) {
-                        Platform.runLater(() -> {
-                            showMessage("Erreur: " + e.getMessage(), "error");
-                        });
-                    }
-                });
-
-                rejetThread.setDaemon(true);
-                rejetThread.start();
-            }
-        });
+        try {
+            selectedTransaction.setStatut("Bloqué");
+            transactionService.updateTransaction(selectedTransaction);
+            showAlert(Alert.AlertType.INFORMATION, "Succès", "Transaction bloquée");
+            loadData();
+        } catch (Exception e) {
+            showAlert(Alert.AlertType.ERROR, "Erreur", "Erreur lors du blocage");
+        }
     }
 
     @FXML
-    private void handleAnnuler(ActionEvent event) {
+    private void handleDebloquerTransaction(ActionEvent event) {
         if (selectedTransaction == null) {
-            showMessage("Veuillez sélectionner une transaction", "error");
+            showAlert(Alert.AlertType.WARNING, "Sélection", "Veuillez sélectionner une transaction");
             return;
         }
 
-        if ("Rejeté".equals(selectedTransaction.getStatut())) {
-            showMessage("Une transaction déjà rejetée ne peut pas être annulée", "error");
+        if (!"Bloqué".equals(selectedTransaction.getStatut())) {
+            showAlert(Alert.AlertType.WARNING, "Transaction non bloquée", "Cette transaction n'est pas bloquée");
             return;
         }
 
-        Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
-        confirmation.setTitle("Annulation de transaction");
-        confirmation.setHeaderText("Annuler la transaction");
-        confirmation.setContentText("Êtes-vous sûr de vouloir annuler cette transaction ? Cette action est irréversible.");
+        try {
+            selectedTransaction.setStatut("En attente");
+            transactionService.updateTransaction(selectedTransaction);
+            showAlert(Alert.AlertType.INFORMATION, "Succès", "Transaction débloquée");
+            loadData();
+        } catch (Exception e) {
+            showAlert(Alert.AlertType.ERROR, "Erreur", "Erreur lors du déblocage");
+        }
+    }
 
-        confirmation.showAndWait().ifPresent(response -> {
-            if (response == ButtonType.OK) {
-                Thread annulationThread = new Thread(() -> {
-                    try {
-                        transactionService.annulerTransaction(selectedTransaction.getId());
+    // === NAVIGATION ===
 
-                        Platform.runLater(() -> {
-                            showMessage("Transaction annulée avec succès !", "success");
-                            loadTransactions();
-                        });
-
-                    } catch (Exception e) {
-                        Platform.runLater(() -> {
-                            showMessage("Erreur: " + e.getMessage(), "error");
-                        });
-                    }
-                });
-
-                annulationThread.setDaemon(true);
-                annulationThread.start();
-            }
-        });
+    @FXML
+    private void handleDashboard(ActionEvent event) {
+        navigateTo("/com/groupeisi/minisystemebancaire/admin/UI_Dashboard.fxml", event);
     }
 
     @FXML
-    private void handleExporter(ActionEvent event) {
-        showMessage("Fonctionnalité d'export en cours de développement", "info");
-        // TODO: Implémenter l'export vers Excel/PDF
+    private void handleGestionClients(ActionEvent event) {
+        navigateTo("/com/groupeisi/minisystemebancaire/admin/UI_Gestion_Clients.fxml", event);
     }
 
     @FXML
-    private void handleVoirTransactionsSuspectes(ActionEvent event) {
-        Thread suspectesThread = new Thread(() -> {
-            try {
-                List<TransactionDTO> transactionsSuspectes = transactionService.getTransactionsSuspectes();
+    private void handleGestionComptes(ActionEvent event) {
+        navigateTo("/com/groupeisi/minisystemebancaire/admin/UI_Gestion_Comptes.fxml", event);
+    }
 
-                Platform.runLater(() -> {
-                    ObservableList<TransactionDTO> suspectesData = FXCollections.observableArrayList(transactionsSuspectes);
-                    tableTransactions.setItems(suspectesData);
-                    updateTransactionCount(transactionsSuspectes.size());
-                    showMessage(transactionsSuspectes.size() + " transaction(s) suspecte(s) trouvée(s)", "warning");
-                });
+    @FXML
+    private void handleGestionCredits(ActionEvent event) {
+        navigateTo("/com/groupeisi/minisystemebancaire/admin/UI_Gestion_Credits.fxml", event);
+    }
 
-            } catch (Exception e) {
-                Platform.runLater(() -> {
-                    showMessage("Erreur lors du chargement des transactions suspectes: " + e.getMessage(), "error");
-                });
-            }
-        });
+    @FXML
+    private void handleGestionCartes(ActionEvent event) {
+        navigateTo("/com/groupeisi/minisystemebancaire/admin/UI_Gestion_Cartes_Bancaires.fxml", event);
+    }
 
-        suspectesThread.setDaemon(true);
-        suspectesThread.start();
+    @FXML
+    private void handleGestionSupport(ActionEvent event) {
+        navigateTo("/com/groupeisi/minisystemebancaire/admin/UI_Service_Client_Rapports.fxml", event);
+    }
+
+    @FXML
+    private void handleDeconnexion(ActionEvent event) {
+        SessionManager.logout();
+        navigateTo("/com/groupeisi/minisystemebancaire/UI_Main.fxml", event);
+    }
+
+    // === UTILITAIRES ===
+
+    private void clearForm() {
+        if (choiceTypeTransaction != null) choiceTypeTransaction.setValue("DEPOT");
+        if (choiceCompteSource != null) choiceCompteSource.setValue(null);
+        if (choiceCompteDest != null) choiceCompteDest.setValue(null);
+        if (txtMontantTransaction != null) txtMontantTransaction.clear();
+        if (txtRechercheTransaction != null) txtRechercheTransaction.clear();
     }
 
     private void updateButtonStates() {
         boolean hasSelection = selectedTransaction != null;
-        boolean canValidate = hasSelection && "En attente".equals(selectedTransaction.getStatut());
-        boolean canReject = hasSelection && "En attente".equals(selectedTransaction.getStatut());
-        boolean canCancel = hasSelection && !"Rejeté".equals(selectedTransaction.getStatut());
 
-        btnValider.setDisable(!canValidate);
-        btnRejeter.setDisable(!canReject);
-        btnAnnuler.setDisable(!canCancel);
+        if (btnBloquerTransaction != null) {
+            boolean canBlock = hasSelection && !"Validé".equals(selectedTransaction.getStatut()) && !"Bloqué".equals(selectedTransaction.getStatut());
+            btnBloquerTransaction.setDisable(!canBlock);
+        }
+        if (btnDebloquerTransaction != null) {
+            boolean canUnblock = hasSelection && "Bloqué".equals(selectedTransaction.getStatut());
+            btnDebloquerTransaction.setDisable(!canUnblock);
+        }
     }
 
-    private void updateTransactionCount(int count) {
-        lblNombreTransactions.setText("Total: " + count + " transaction(s)");
-    }
-
-    // Navigation methods
-    @FXML private void handleDashboard() { navigateToPage("UI_Dashboard"); }
-    @FXML private void handleGestionClients() { navigateToPage("UI_Gestion_Clients"); }
-    @FXML private void handleGestionComptes() { navigateToPage("UI_Gestion_Comptes"); }
-    @FXML private void handleGestionCredits() { navigateToPage("UI_Gestion_Credits"); }
-    @FXML private void handleServiceClient() { navigateToPage("UI_Service_Client_Rapports"); }
-    @FXML private void handleDeconnexion() {
-        SessionManager.logout();
-        navigateToPage("../UI_Main");
-    }
-
-    private void navigateToPage(String page) {
+    private void navigateTo(String fxmlPath, ActionEvent event) {
         try {
-            String path = "/com/groupeisi/minisystemebancaire/admin/" + page + ".fxml";
-            if (page.startsWith("../")) {
-                path = "/com/groupeisi/minisystemebancaire/" + page.substring(3) + ".fxml";
-            }
-
-            FXMLLoader loader = new FXMLLoader(getClass().getResource(path));
+            FXMLLoader loader = new FXMLLoader(getClass().getResource(fxmlPath));
             Parent root = loader.load();
 
-            Stage stage = (Stage) lblMessage.getScene().getWindow();
+            Stage stage = (Stage) ((Node) event.getSource()).getScene().getWindow();
             Scene scene = new Scene(root);
             stage.setScene(scene);
-            stage.centerOnScreen();
+            stage.show();
         } catch (IOException e) {
-            e.printStackTrace();
-            showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible de naviguer vers " + page);
+            showAlert(Alert.AlertType.ERROR, "Erreur", "Navigation impossible");
         }
     }
 
     private void showAlert(Alert.AlertType type, String title, String message) {
-        Alert alert = new Alert(type);
-        alert.setTitle(title);
-        alert.setHeaderText(null);
-        alert.setContentText(message);
-        alert.showAndWait();
-    }
-
-    private void showMessage(String message, String type) {
-        lblMessage.setText(message);
-        String style;
-        switch (type) {
-            case "error":
-                style = "-fx-text-fill: #e74c3c; -fx-font-weight: bold;";
-                break;
-            case "success":
-                style = "-fx-text-fill: #27ae60; -fx-font-weight: bold;";
-                break;
-            case "warning":
-                style = "-fx-text-fill: #f39c12; -fx-font-weight: bold;";
-                break;
-            case "info":
-                style = "-fx-text-fill: #3498db; -fx-font-weight: bold;";
-                break;
-            default:
-                style = "";
-                break;
-        }
-        lblMessage.setStyle(style);
+        Platform.runLater(() -> {
+            Alert alert = new Alert(type);
+            alert.setTitle(title);
+            alert.setHeaderText(null);
+            alert.setContentText(message);
+            alert.showAndWait();
+        });
     }
 }

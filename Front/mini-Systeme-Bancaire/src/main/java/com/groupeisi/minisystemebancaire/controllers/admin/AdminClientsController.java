@@ -2,11 +2,15 @@ package com.groupeisi.minisystemebancaire.controllers.admin;
 
 import com.groupeisi.minisystemebancaire.dto.ClientDTO;
 import com.groupeisi.minisystemebancaire.services.ClientService;
+import com.groupeisi.minisystemebancaire.utils.SessionManager;
+import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
+import javafx.scene.Node;
+import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
@@ -17,288 +21,555 @@ import java.util.List;
 
 public class AdminClientsController {
 
-    @FXML private TextField txtNom, txtPrenom, txtEmail, txtTelephone, txtAdresse, txtPassword, txtRechercheClient;
+    // === ÉLÉMENTS FXML POTENTIELS - avec vérification null partout ===
+    @FXML private TextField txtNom;
+    @FXML private TextField txtPrenom;
+    @FXML private TextField txtEmail;
+    @FXML private TextField txtTelephone;
+    @FXML private TextField txtAdresse;
+    @FXML private PasswordField txtPassword;
+    @FXML private TextField txtRechercheClient;
+
     @FXML private TableView<ClientDTO> tableClients;
-    @FXML private TableColumn<ClientDTO, String> colNom, colPrenom, colEmail, colTelephone, colStatut;
-    @FXML private Button btnAjouterClient, btnModifierClient, btnSupprimerClient, btnSuspendre, btnActiver, btnDeconnexion;
+    @FXML private TableColumn<ClientDTO, Long> colId;
+    @FXML private TableColumn<ClientDTO, String> colNom;
+    @FXML private TableColumn<ClientDTO, String> colPrenom;
+    @FXML private TableColumn<ClientDTO, String> colEmail;
+    @FXML private TableColumn<ClientDTO, String> colTelephone;
+    @FXML private TableColumn<ClientDTO, String> colStatut;
 
+    // Boutons - PEUVENT NE PAS EXISTER
+    @FXML private Button btnAjouterClient;
+    @FXML private Button btnModifierClient;
+    @FXML private Button btnSupprimerClient;
+    @FXML private Button btnAnnulerClient;
+    @FXML private Button btnRechercherClient;
+    @FXML private Button btnVoirComptes;
+    @FXML private Button btnReinitialiserClient;
+    @FXML private Button btnValiderClient;
+    @FXML private Button btnSuspendreClient;
+    @FXML private Button btnReactiverClient;
+    @FXML private Button btnBloquerClient;
+    @FXML private Button btnExporterClients;
+    @FXML private Button btnImporterClients;
 
+    // Navigation
+    @FXML private Button btnDashboard;
+    @FXML private Button btnComptes;
+    @FXML private Button btnTransactions;
+    @FXML private Button btnCredits;
+    @FXML private Button btnCartes;
+    @FXML private Button btnSupport;
+    @FXML private Button btnDeconnexion;
+
+    // Services et variables
     private final ClientService clientService = new ClientService();
+    private List<ClientDTO> allClients;
     private ClientDTO selectedClient;
 
     @FXML
-    private void initialize() {
-        setupTableColumns();
-        loadClients();
-        setupTableSelection();
-    }
-
-    private void setupTableColumns() {
-        colNom.setCellValueFactory(new PropertyValueFactory<>("nom"));
-        colPrenom.setCellValueFactory(new PropertyValueFactory<>("prenom"));
-        colEmail.setCellValueFactory(new PropertyValueFactory<>("email"));
-        colTelephone.setCellValueFactory(new PropertyValueFactory<>("telephone"));
-        colStatut.setCellValueFactory(new PropertyValueFactory<>("statut"));
-    }
-
-    private void setupTableSelection() {
-        tableClients.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
-            if (newSelection != null) {
-                selectedClient = newSelection;
-                populateFields(newSelection);
-            }
-        });
-    }
-
-    private void populateFields(ClientDTO client) {
-        txtNom.setText(client.getNom());
-        txtPrenom.setText(client.getPrenom());
-        txtEmail.setText(client.getEmail());
-        txtTelephone.setText(client.getTelephone());
-        txtAdresse.setText(client.getAdresse());
-        txtPassword.clear(); // Ne pas afficher le mot de passe
-    }
-
-    @FXML
-    private void handleAjouterClient() {
-        if (!validateForm()) return;
-
-        try {
-            // ✅ CORRECTION : Utiliser setters au lieu de constructeur problématique
-            ClientDTO client = new ClientDTO();
-            client.setNom(txtNom.getText().trim());
-            client.setPrenom(txtPrenom.getText().trim());
-            client.setEmail(txtEmail.getText().trim());
-            client.setTelephone(txtTelephone.getText().trim());
-            client.setAdresse(txtAdresse.getText().trim());
-            client.setPassword(txtPassword.getText());
-            client.setStatut("Actif");
-
-            // ✅ CORRECTION : Utiliser createClient au lieu de registerClient
-            clientService.createClient(client);
-
-            showAlert(Alert.AlertType.INFORMATION, "Succès", "Client ajouté avec succès !");
-            clearForm();
-            loadClients();
-
-        } catch (Exception e) {
-            showAlert(Alert.AlertType.ERROR, "Erreur", "Erreur lors de l'ajout : " + e.getMessage());
-        }
-    }
-
-    @FXML
-    private void handleModifierClient() {
-        if (selectedClient == null) {
-            showAlert(Alert.AlertType.WARNING, "Sélection", "Veuillez sélectionner un client");
+    public void initialize() {
+        if (!SessionManager.isAdminLoggedIn()) {
+            showAlert(Alert.AlertType.ERROR, "Erreur", "Accès non autorisé");
             return;
         }
 
-        if (!validateForm()) return;
+        setupTableColumns();
+        setupUI();
+        loadClients();
+    }
+
+    private void setupTableColumns() {
+        // Configuration SEULEMENT si les colonnes existent
+        if (colId != null) colId.setCellValueFactory(new PropertyValueFactory<>("id"));
+        if (colNom != null) colNom.setCellValueFactory(new PropertyValueFactory<>("nom"));
+        if (colPrenom != null) colPrenom.setCellValueFactory(new PropertyValueFactory<>("prenom"));
+        if (colEmail != null) colEmail.setCellValueFactory(new PropertyValueFactory<>("email"));
+        if (colTelephone != null) colTelephone.setCellValueFactory(new PropertyValueFactory<>("telephone"));
+        if (colStatut != null) {
+            colStatut.setCellValueFactory(new PropertyValueFactory<>("statut"));
+            colStatut.setCellFactory(column -> new TableCell<ClientDTO, String>() {
+                @Override
+                protected void updateItem(String item, boolean empty) {
+                    super.updateItem(item, empty);
+                    if (empty || item == null) {
+                        setText(null);
+                        setStyle("");
+                    } else {
+                        setText(item);
+                        switch (item.toLowerCase()) {
+                            case "actif":
+                                setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
+                                break;
+                            case "suspendu":
+                                setStyle("-fx-text-fill: #f39c12; -fx-font-weight: bold;");
+                                break;
+                            case "fermé":
+                                setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
+                                break;
+                            default:
+                                setStyle("");
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+    private void setupUI() {
+        // Sélection dans la table SEULEMENT si elle existe
+        if (tableClients != null) {
+            tableClients.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
+                selectedClient = newSelection;
+                updateButtonStates();
+                if (newSelection != null) {
+                    fillForm(newSelection);
+                }
+            });
+        }
+
+        updateButtonStates();
+    }
+
+    private void loadClients() {
+        Thread loadThread = new Thread(() -> {
+            try {
+                allClients = clientService.getAllClients();
+
+                Platform.runLater(() -> {
+                    if (tableClients != null && allClients != null) {
+                        ObservableList<ClientDTO> clientsData = FXCollections.observableArrayList(allClients);
+                        tableClients.setItems(clientsData);
+                    }
+                    System.out.println("✅ Clients chargés: " + (allClients != null ? allClients.size() : 0));
+                });
+
+            } catch (Exception e) {
+                System.err.println("❌ Erreur chargement clients: " + e.getMessage());
+                Platform.runLater(() -> {
+                    showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible de charger les clients: " + e.getMessage());
+                });
+            }
+        });
+
+        loadThread.setDaemon(true);
+        loadThread.start();
+    }
+
+    // === HANDLERS - TOUS DÉFINIS POUR ÉVITER LES ERREURS FXML ===
+
+    @FXML
+    private void handleAjouterClient(ActionEvent event) {
+        if (!validateForm()) {
+            return;
+        }
 
         try {
-            // ✅ CORRECTION : Mettre à jour l'objet selectedClient
-            selectedClient.setNom(txtNom.getText().trim());
-            selectedClient.setPrenom(txtPrenom.getText().trim());
-            selectedClient.setEmail(txtEmail.getText().trim());
-            selectedClient.setTelephone(txtTelephone.getText().trim());
-            selectedClient.setAdresse(txtAdresse.getText().trim());
+            // Confirmation
+            Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
+            confirmation.setTitle("Confirmer la création");
+            confirmation.setHeaderText("Créer un nouveau client");
+            confirmation.setContentText(
+                    "Client: " + (txtNom != null ? txtNom.getText() : "") + " " +
+                            (txtPrenom != null ? txtPrenom.getText() : "") + "\n\n" +
+                            "🏦 Un compte courant sera automatiquement créé\n" +
+                            "avec un solde initial de 0 FCFA.\n\n" +
+                            "Confirmer la création ?"
+            );
 
-            if (!txtPassword.getText().trim().isEmpty()) {
-                selectedClient.setPassword(txtPassword.getText());
+            if (confirmation.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK) {
+                ClientDTO client = new ClientDTO();
+                if (txtNom != null) client.setNom(txtNom.getText().trim());
+                if (txtPrenom != null) client.setPrenom(txtPrenom.getText().trim());
+                if (txtEmail != null) client.setEmail(txtEmail.getText().trim());
+                if (txtTelephone != null) client.setTelephone(txtTelephone.getText().trim());
+                if (txtAdresse != null) client.setAdresse(txtAdresse.getText().trim());
+                if (txtPassword != null) client.setPassword(txtPassword.getText());
+
+                Thread createThread = new Thread(() -> {
+                    try {
+                        ClientDTO savedClient = clientService.createClient(client);
+
+                        Platform.runLater(() -> {
+                            if (savedClient != null) {
+                                showAlert(Alert.AlertType.INFORMATION, "Succès",
+                                        "✅ Client et compte créés avec succès !\n" +
+                                                "🏦 Compte courant prêt pour les transactions.");
+                                clearForm();
+                                loadClients();
+                            } else {
+                                showAlert(Alert.AlertType.ERROR, "Erreur", "Échec de la création du client");
+                            }
+                        });
+
+                    } catch (Exception e) {
+                        Platform.runLater(() -> {
+                            showAlert(Alert.AlertType.ERROR, "Erreur", "Erreur: " + e.getMessage());
+                        });
+                    }
+                });
+
+                createThread.setDaemon(true);
+                createThread.start();
             }
 
-            // ✅ CORRECTION : Utiliser updateClient avec un seul paramètre
-            clientService.updateClient(selectedClient);
-
-            showAlert(Alert.AlertType.INFORMATION, "Succès", "Client modifié avec succès !");
-            clearForm();
-            loadClients();
-
         } catch (Exception e) {
-            showAlert(Alert.AlertType.ERROR, "Erreur", "Erreur lors de la modification : " + e.getMessage());
+            showAlert(Alert.AlertType.ERROR, "Erreur", "Erreur: " + e.getMessage());
         }
     }
 
     @FXML
-    private void handleSupprimerClient() {
+    private void handleModifierClient(ActionEvent event) {
         if (selectedClient == null) {
-            showAlert(Alert.AlertType.WARNING, "Sélection", "Veuillez sélectionner un client");
+            showAlert(Alert.AlertType.WARNING, "Sélection", "Veuillez sélectionner un client à modifier");
+            return;
+        }
+
+        if (!validateForm()) {
+            return;
+        }
+
+        try {
+            if (txtNom != null) selectedClient.setNom(txtNom.getText().trim());
+            if (txtPrenom != null) selectedClient.setPrenom(txtPrenom.getText().trim());
+            if (txtEmail != null) selectedClient.setEmail(txtEmail.getText().trim());
+            if (txtTelephone != null) selectedClient.setTelephone(txtTelephone.getText().trim());
+            if (txtAdresse != null) selectedClient.setAdresse(txtAdresse.getText().trim());
+
+            ClientDTO updatedClient = clientService.updateClient(selectedClient);
+
+            if (updatedClient != null) {
+                showAlert(Alert.AlertType.INFORMATION, "Succès", "Client modifié avec succès");
+                clearForm();
+                loadClients();
+            } else {
+                showAlert(Alert.AlertType.ERROR, "Erreur", "Échec de la modification");
+            }
+
+        } catch (Exception e) {
+            showAlert(Alert.AlertType.ERROR, "Erreur", "Erreur: " + e.getMessage());
+        }
+    }
+
+    @FXML
+    private void handleSupprimerClient(ActionEvent event) {
+        if (selectedClient == null) {
+            showAlert(Alert.AlertType.WARNING, "Sélection", "Veuillez sélectionner un client à supprimer");
             return;
         }
 
         Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
-        confirmation.setTitle("Confirmation");
-        confirmation.setContentText("Êtes-vous sûr de vouloir supprimer ce client ?");
+        confirmation.setTitle("Confirmer la suppression");
+        confirmation.setHeaderText("Supprimer le client");
+        confirmation.setContentText(
+                "Client: " + selectedClient.getNomComplet() + "\n\n" +
+                        "⚠️ ATTENTION: Cette action supprimera également\n" +
+                        "tous les comptes associés à ce client.\n\n" +
+                        "Cette action est irréversible. Continuer ?"
+        );
 
-        if (confirmation.showAndWait().get() == ButtonType.OK) {
+        if (confirmation.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK) {
             try {
                 clientService.deleteClient(selectedClient.getId());
-                showAlert(Alert.AlertType.INFORMATION, "Succès", "Client supprimé avec succès");
+                showAlert(Alert.AlertType.INFORMATION, "Succès", "Client et comptes supprimés avec succès");
                 clearForm();
                 loadClients();
             } catch (Exception e) {
-                showAlert(Alert.AlertType.ERROR, "Erreur", "Erreur lors de la suppression : " + e.getMessage());
+                showAlert(Alert.AlertType.ERROR, "Erreur", "Erreur lors de la suppression: " + e.getMessage());
+            }
+        }
+    }
+
+    // ✅ HANDLER MANQUANT QUI CAUSAIT L'ERREUR
+    @FXML
+    private void handleAnnulerClient(ActionEvent event) {
+        clearForm();
+        System.out.println("✅ Formulaire client réinitialisé");
+    }
+
+    // Autres handlers possibles pour éviter les erreurs FXML
+    @FXML
+    private void handleValiderClient(ActionEvent event) {
+        handleAjouterClient(event);
+    }
+
+    @FXML
+    private void handleReinitialiserClient(ActionEvent event) {
+        clearForm();
+    }
+
+    @FXML
+    private void handleVoirComptes(ActionEvent event) {
+        if (selectedClient == null) {
+            showAlert(Alert.AlertType.WARNING, "Sélection", "Veuillez sélectionner un client");
+            return;
+        }
+
+        showAlert(Alert.AlertType.INFORMATION, "Comptes du client",
+                "Client: " + selectedClient.getNomComplet() + "\n\n" +
+                        "Pour voir les détails des comptes, allez dans\n" +
+                        "la section 'Gestion des Comptes'.");
+    }
+
+    @FXML
+    private void handleRechercherClient(ActionEvent event) {
+        if (txtRechercheClient == null || allClients == null) {
+            return;
+        }
+
+        String recherche = txtRechercheClient.getText().trim();
+        if (recherche.isEmpty()) {
+            loadClients();
+            return;
+        }
+
+        try {
+            List<ClientDTO> resultats = allClients.stream()
+                    .filter(c -> c.getNom().toLowerCase().contains(recherche.toLowerCase()) ||
+                            c.getPrenom().toLowerCase().contains(recherche.toLowerCase()) ||
+                            c.getEmail().toLowerCase().contains(recherche.toLowerCase()) ||
+                            c.getTelephone().contains(recherche))
+                    .toList();
+
+            if (tableClients != null) {
+                ObservableList<ClientDTO> resultatsData = FXCollections.observableArrayList(resultats);
+                tableClients.setItems(resultatsData);
+            }
+
+            System.out.println("🔍 " + resultats.size() + " client(s) trouvé(s)");
+
+        } catch (Exception e) {
+            showAlert(Alert.AlertType.ERROR, "Erreur", "Erreur lors de la recherche");
+        }
+    }
+
+    // ✅ HANDLERS MANQUANTS POUR ÉVITER LES ERREURS FXML
+    @FXML
+    private void handleSuspendreClient(ActionEvent event) {
+        if (selectedClient == null) {
+            showAlert(Alert.AlertType.WARNING, "Sélection", "Veuillez sélectionner un client à suspendre");
+            return;
+        }
+
+        Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
+        confirmation.setTitle("Suspendre le client");
+        confirmation.setHeaderText("Confirmer la suspension");
+        confirmation.setContentText("Voulez-vous suspendre le client " + selectedClient.getNomComplet() + " ?");
+
+        if (confirmation.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK) {
+            try {
+                selectedClient.setStatut("Suspendu");
+                ClientDTO updatedClient = clientService.updateClient(selectedClient);
+
+                if (updatedClient != null) {
+                    showAlert(Alert.AlertType.INFORMATION, "Succès", "Client suspendu avec succès");
+                    loadClients();
+                } else {
+                    showAlert(Alert.AlertType.ERROR, "Erreur", "Échec de la suspension");
+                }
+            } catch (Exception e) {
+                showAlert(Alert.AlertType.ERROR, "Erreur", "Erreur: " + e.getMessage());
             }
         }
     }
 
     @FXML
-    private void handleSuspendre() {
+    private void handleReactiverClient(ActionEvent event) {
         if (selectedClient == null) {
-            showAlert(Alert.AlertType.WARNING, "Sélection", "Veuillez sélectionner un client");
+            showAlert(Alert.AlertType.WARNING, "Sélection", "Veuillez sélectionner un client à réactiver");
             return;
         }
 
-        try {
-            clientService.suspendClient(selectedClient.getId());
-            showAlert(Alert.AlertType.INFORMATION, "Succès", "Client suspendu avec succès");
-            loadClients();
-        } catch (Exception e) {
-            showAlert(Alert.AlertType.ERROR, "Erreur", "Erreur lors de la suspension : " + e.getMessage());
+        Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
+        confirmation.setTitle("Réactiver le client");
+        confirmation.setHeaderText("Confirmer la réactivation");
+        confirmation.setContentText("Voulez-vous réactiver le client " + selectedClient.getNomComplet() + " ?");
+
+        if (confirmation.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK) {
+            try {
+                selectedClient.setStatut("Actif");
+                ClientDTO updatedClient = clientService.updateClient(selectedClient);
+
+                if (updatedClient != null) {
+                    showAlert(Alert.AlertType.INFORMATION, "Succès", "Client réactivé avec succès");
+                    loadClients();
+                } else {
+                    showAlert(Alert.AlertType.ERROR, "Erreur", "Échec de la réactivation");
+                }
+            } catch (Exception e) {
+                showAlert(Alert.AlertType.ERROR, "Erreur", "Erreur: " + e.getMessage());
+            }
         }
     }
 
     @FXML
-    private void handleActiver() {
+    private void handleBloquerClient(ActionEvent event) {
         if (selectedClient == null) {
-            showAlert(Alert.AlertType.WARNING, "Sélection", "Veuillez sélectionner un client");
+            showAlert(Alert.AlertType.WARNING, "Sélection", "Veuillez sélectionner un client à bloquer");
             return;
         }
 
         try {
-            clientService.reactivateClient(selectedClient.getId());
-            showAlert(Alert.AlertType.INFORMATION, "Succès", "Client activé avec succès");
-            loadClients();
+            selectedClient.setStatut("Fermé");
+            ClientDTO updatedClient = clientService.updateClient(selectedClient);
+
+            if (updatedClient != null) {
+                showAlert(Alert.AlertType.INFORMATION, "Succès", "Client bloqué avec succès");
+                loadClients();
+            } else {
+                showAlert(Alert.AlertType.ERROR, "Erreur", "Échec du blocage");
+            }
         } catch (Exception e) {
-            showAlert(Alert.AlertType.ERROR, "Erreur", "Erreur lors de l'activation : " + e.getMessage());
+            showAlert(Alert.AlertType.ERROR, "Erreur", "Erreur: " + e.getMessage());
         }
     }
 
+    @FXML
+    private void handleExporterClients(ActionEvent event) {
+        showAlert(Alert.AlertType.INFORMATION, "Export", "Fonctionnalité d'export en cours de développement");
+    }
+
+    @FXML
+    private void handleImporterClients(ActionEvent event) {
+        showAlert(Alert.AlertType.INFORMATION, "Import", "Fonctionnalité d'import en cours de développement");
+    }
+
+    // === VALIDATION ET UTILITAIRES ===
+
     private boolean validateForm() {
-        if (txtNom.getText().trim().isEmpty() || txtPrenom.getText().trim().isEmpty() ||
-                txtEmail.getText().trim().isEmpty() || txtTelephone.getText().trim().isEmpty() ||
-                txtAdresse.getText().trim().isEmpty()) {
-            showAlert(Alert.AlertType.WARNING, "Validation", "Tous les champs sont obligatoires");
+        // Validation basique - seulement si les champs existent
+        if (txtNom != null && txtNom.getText().trim().isEmpty()) {
+            showAlert(Alert.AlertType.WARNING, "Validation", "Le nom est obligatoire");
             return false;
         }
-
-        if (selectedClient == null && txtPassword.getText().trim().isEmpty()) {
-            showAlert(Alert.AlertType.WARNING, "Validation", "Le mot de passe est obligatoire pour un nouveau client");
+        if (txtPrenom != null && txtPrenom.getText().trim().isEmpty()) {
+            showAlert(Alert.AlertType.WARNING, "Validation", "Le prénom est obligatoire");
+            return false;
+        }
+        if (txtEmail != null && (txtEmail.getText().trim().isEmpty() || !txtEmail.getText().contains("@"))) {
+            showAlert(Alert.AlertType.WARNING, "Validation", "Email invalide");
+            return false;
+        }
+        if (txtTelephone != null && txtTelephone.getText().trim().isEmpty()) {
+            showAlert(Alert.AlertType.WARNING, "Validation", "Le téléphone est obligatoire");
+            return false;
+        }
+        if (txtAdresse != null && txtAdresse.getText().trim().isEmpty()) {
+            showAlert(Alert.AlertType.WARNING, "Validation", "L'adresse est obligatoire");
+            return false;
+        }
+        if (txtPassword != null && txtPassword.getText().length() < 6) {
+            showAlert(Alert.AlertType.WARNING, "Validation", "Le mot de passe doit contenir au moins 6 caractères");
             return false;
         }
 
         return true;
     }
 
+    private void fillForm(ClientDTO client) {
+        if (txtNom != null) txtNom.setText(client.getNom());
+        if (txtPrenom != null) txtPrenom.setText(client.getPrenom());
+        if (txtEmail != null) txtEmail.setText(client.getEmail());
+        if (txtTelephone != null) txtTelephone.setText(client.getTelephone());
+        if (txtAdresse != null) txtAdresse.setText(client.getAdresse());
+        if (txtPassword != null) txtPassword.clear();
+    }
+
     private void clearForm() {
-        txtNom.clear();
-        txtPrenom.clear();
-        txtEmail.clear();
-        txtTelephone.clear();
-        txtAdresse.clear();
-        txtPassword.clear();
+        if (txtNom != null) txtNom.clear();
+        if (txtPrenom != null) txtPrenom.clear();
+        if (txtEmail != null) txtEmail.clear();
+        if (txtTelephone != null) txtTelephone.clear();
+        if (txtAdresse != null) txtAdresse.clear();
+        if (txtPassword != null) txtPassword.clear();
+        if (txtRechercheClient != null) txtRechercheClient.clear();
+
         selectedClient = null;
-        tableClients.getSelectionModel().clearSelection();
-    }
-
-    private void loadClients() {
-        try {
-            List<ClientDTO> clients = clientService.getAllClients();
-            ObservableList<ClientDTO> clientsData = FXCollections.observableArrayList(clients);
-            tableClients.setItems(clientsData);
-        } catch (Exception e) {
-            showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible de charger les clients");
+        if (tableClients != null) {
+            tableClients.getSelectionModel().clearSelection();
         }
     }
 
-    // Navigation methods
-    @FXML private void handleDashboard() { navigateToPage("UI_Dashboard"); }
-    @FXML private void handleGestionComptes() { navigateToPage("UI_Gestion_Comptes"); }
-    @FXML private void handleGestionTransactions() { navigateToPage("UI_Gestion_Transactions"); }
-    @FXML private void handleGestionCredits() { navigateToPage("UI_Gestion_Credits"); }
-    @FXML private void handleGestionCartes() { navigateToPage("UI_Gestion_Cartes_Bancaires"); }
-    @FXML
-    private void handleGestionSupport() {
-        navigateToPage("UI_Service_Client_Rapports");
+    private void updateButtonStates() {
+        boolean hasSelection = selectedClient != null;
+        String statut = selectedClient != null ? selectedClient.getStatut() : "";
+
+        // Boutons de base
+        if (btnModifierClient != null) btnModifierClient.setDisable(!hasSelection);
+        if (btnSupprimerClient != null) btnSupprimerClient.setDisable(!hasSelection);
+        if (btnVoirComptes != null) btnVoirComptes.setDisable(!hasSelection);
+
+        // Boutons de gestion de statut
+        if (btnSuspendreClient != null) {
+            btnSuspendreClient.setDisable(!hasSelection || !"Actif".equals(statut));
+        }
+        if (btnReactiverClient != null) {
+            btnReactiverClient.setDisable(!hasSelection || !"Suspendu".equals(statut));
+        }
+        if (btnBloquerClient != null) {
+            btnBloquerClient.setDisable(!hasSelection || "Fermé".equals(statut));
+        }
     }
 
-    // OU si vous voulez changer le nom du handler dans le FXML :
+    // === NAVIGATION ===
+
     @FXML
-    private void handleServiceClient() {
-        navigateToPage("UI_Service_Client_Rapports");
+    private void handleDashboard(ActionEvent event) {
+        navigateTo("/com/groupeisi/minisystemebancaire/admin/UI_Dashboard.fxml", event);
     }
 
     @FXML
-    private void handleDeconnexion() {
+    private void handleGestionComptes(ActionEvent event) {
+        navigateTo("/com/groupeisi/minisystemebancaire/admin/UI_Gestion_Comptes.fxml", event);
+    }
+
+    @FXML
+    private void handleGestionTransactions(ActionEvent event) {
+        navigateTo("/com/groupeisi/minisystemebancaire/admin/UI_Gestion_Transactions.fxml", event);
+    }
+
+    @FXML
+    private void handleGestionCredits(ActionEvent event) {
+        navigateTo("/com/groupeisi/minisystemebancaire/admin/UI_Gestion_Credits.fxml", event);
+    }
+
+    @FXML
+    private void handleGestionCartes(ActionEvent event) {
+        navigateTo("/com/groupeisi/minisystemebancaire/admin/UI_Gestion_Cartes_Bancaires.fxml", event);
+    }
+
+    @FXML
+    private void handleGestionSupport(ActionEvent event) {
+        navigateTo("/com/groupeisi/minisystemebancaire/admin/UI_Service_Client_Rapports.fxml", event);
+    }
+
+    @FXML
+    private void handleDeconnexion(ActionEvent event) {
+        SessionManager.logout();
+        navigateTo("/com/groupeisi/minisystemebancaire/UI_Main.fxml", event);
+    }
+
+    private void navigateTo(String fxmlPath, ActionEvent event) {
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/groupeisi/minisystemebancaire/UI_Main.fxml"));
-            Scene scene = new Scene(loader.load());
-            Stage stage = (Stage) btnDeconnexion.getScene().getWindow();
+            FXMLLoader loader = new FXMLLoader(getClass().getResource(fxmlPath));
+            Parent root = loader.load();
+
+            Stage stage = (Stage) ((Node) event.getSource()).getScene().getWindow();
+            Scene scene = new Scene(root);
             stage.setScene(scene);
-            stage.centerOnScreen();
+            stage.show();
         } catch (IOException e) {
-            e.printStackTrace();
-            showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible de se déconnecter");
-        }
-    }
-
-    @FXML
-    private void handleRechercherClient() {
-        String terme = txtRechercheClient.getText().trim();
-        if (terme.isEmpty()) {
-            loadClients(); // Recharger tous les clients
-            return;
-        }
-
-        try {
-            List<ClientDTO> clients = clientService.getAllClients();
-            List<ClientDTO> filtered = clients.stream()
-                    .filter(client ->
-                            client.getNom().toLowerCase().contains(terme.toLowerCase()) ||
-                                    client.getPrenom().toLowerCase().contains(terme.toLowerCase()) ||
-                                    client.getEmail().toLowerCase().contains(terme.toLowerCase()) ||
-                                    String.valueOf(client.getId()).contains(terme)
-                    )
-                    .toList();
-
-            tableClients.setItems(FXCollections.observableArrayList(filtered));
-        } catch (Exception e) {
-            showAlert(Alert.AlertType.ERROR, "Erreur", "Erreur de recherche: " + e.getMessage());
-        }
-    }
-
-
-    @FXML
-    private void handleLogout() {
-        try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/groupeisi/minisystemebancaire/UI_Main.fxml"));
-            Scene scene = new Scene(loader.load());
-            Stage stage = (Stage) btnDeconnexion.getScene().getWindow();
-            stage.setScene(scene);
-            stage.centerOnScreen();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void navigateToPage(String pageName) {
-        try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/groupeisi/minisystemebancaire/admin/" + pageName + ".fxml"));
-            Scene scene = new Scene(loader.load());
-            Stage stage = (Stage) btnAjouterClient.getScene().getWindow();
-            stage.setScene(scene);
-            stage.centerOnScreen();
-        } catch (IOException e) {
-            e.printStackTrace();
-            showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible de charger la page " + pageName);
+            showAlert(Alert.AlertType.ERROR, "Erreur", "Navigation impossible: " + e.getMessage());
         }
     }
 
     private void showAlert(Alert.AlertType type, String title, String message) {
-        Alert alert = new Alert(type);
-        alert.setTitle(title);
-        alert.setHeaderText(null);
-        alert.setContentText(message);
-        alert.showAndWait();
+        Platform.runLater(() -> {
+            Alert alert = new Alert(type);
+            alert.setTitle(title);
+            alert.setHeaderText(null);
+            alert.setContentText(message);
+            alert.showAndWait();
+        });
     }
 }

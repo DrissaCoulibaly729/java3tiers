@@ -1,28 +1,21 @@
 <?php
-
 namespace App\Http\Controllers\Api;
 
 use App\Models\Client;
 use App\Models\Compte;
-use App\Mail\NouveauClientMail;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 
 class ClientController extends Controller
 {
+    // GET /api/clients
     public function index()
     {
         return Client::with('comptes')->get();
     }
 
-    /**
-     * Création complète d'un client avec compte et envoi d'email
-     */
+    // POST /api/clients - AVEC CRÉATION AUTOMATIQUE DE COMPTE
     public function store(Request $request)
     {
         $request->validate([
@@ -30,220 +23,160 @@ class ClientController extends Controller
             'prenom' => 'required|string|max:255',
             'email' => 'required|email|unique:clients',
             'telephone' => 'required|string|max:20',
-            'adresse' => 'required|string',
-            'type_compte' => 'required|in:Courant,Épargne',
-            'solde_initial' => 'required|numeric|min:0',
-            'password' => 'nullable|string|min:6',
+            'adresse' => 'required|string|max:255',
+            'password' => 'required|string|min:6'
         ]);
 
-        return DB::transaction(function () use ($request) {
-            // Générer un mot de passe si non fourni
-            $plainPassword = $request->password ?? Str::random(8);
+        // 🏦 TRANSACTION POUR CRÉER CLIENT + COMPTE ENSEMBLE
+        DB::beginTransaction();
+        
+        try {
+            // 1️⃣ Créer le client
+            $client = Client::create([
+                'nom' => $request->nom,
+                'prenom' => $request->prenom,
+                'email' => $request->email,
+                'telephone' => $request->telephone,
+                'adresse' => $request->adresse,
+                'password' => bcrypt($request->password),
+                'statut' => 'Actif',
+                'date_inscription' => now()
+            ]);
+
+            // 2️⃣ Générer un numéro de compte unique
+            $numeroCompte = $this->genererNumeroCompte();
+
+            // 3️⃣ Créer automatiquement un compte courant pour le nouveau client
+            $compte = Compte::create([
+                'numero' => $numeroCompte,
+                'type' => 'Courant', // Compte courant par défaut
+                'solde' => 0.00, // Solde initial à 0
+                'statut' => 'Actif',
+                'client_id' => $client->id,
+                'date_creation' => now()
+            ]);
+
+            // 4️⃣ Confirmer la transaction
+            DB::commit();
+
+            // 5️⃣ Retourner le client avec son compte
+            $client->load('comptes');
             
-            // Créer le client
-            $client = Client::create([
-                'nom' => $request->nom,
-                'prenom' => $request->prenom,
-                'email' => $request->email,
-                'telephone' => $request->telephone,
-                'adresse' => $request->adresse,
-                'password' => Hash::make($plainPassword),
-                'statut' => 'Actif',
-                'date_inscription' => now(),
-            ]);
-
-            // Créer automatiquement un compte pour ce client
-            $compte = Compte::create([
-                'numero' => Compte::genererNumeroCompte(),
-                'type' => $request->type_compte,
-                'solde' => $request->solde_initial,
-                'client_id' => $client->id,
-                'statut' => 'Actif',
-                'date_creation' => now(),
-            ]);
-
-            // Envoyer l'email de bienvenue
-            try {
-                Mail::to($client->email)->send(
-                    new NouveauClientMail($client, $plainPassword, $compte)
-                );
-                
-                $emailSent = true;
-            } catch (\Exception $e) {
-                // Log l'erreur mais ne fait pas échouer la création
-                \Log::error('Erreur envoi email nouveau client: ' . $e->getMessage());
-                $emailSent = false;
-            }
-
             return response()->json([
-                'client' => $client->load('comptes'),
-                'compte' => $compte,
-                'email_sent' => $emailSent,
-                'plain_password' => $plainPassword, // À utiliser uniquement en développement
-                'message' => 'Client et compte créés avec succès'
+                'success' => true,
+                'message' => 'Client et compte créés avec succès',
+                'client' => $client,
+                'compte' => $compte
             ], 201);
-        });
-    }
 
-    /**
-     * Inscription client (pour l'interface client)
-     */
-    public function register(Request $request)
-    {
-        $request->validate([
-            'nom' => 'required|string|max:255',
-            'prenom' => 'required|string|max:255',
-            'email' => 'required|email|unique:clients',
-            'telephone' => 'required|string|max:20',
-            'adresse' => 'required|string',
-            'password' => 'required|string|min:6|confirmed',
-        ]);
-
-        return DB::transaction(function () use ($request) {
-            $client = Client::create([
-                'nom' => $request->nom,
-                'prenom' => $request->prenom,
-                'email' => $request->email,
-                'telephone' => $request->telephone,
-                'adresse' => $request->adresse,
-                'password' => Hash::make($request->password),
-                'statut' => 'Actif',
-                'date_inscription' => now(),
-            ]);
-
-            // Créer un compte courant par défaut
-            $compte = Compte::create([
-                'numero' => Compte::genererNumeroCompte(),
-                'type' => 'Courant',
-                'solde' => 0,
-                'client_id' => $client->id,
-                'statut' => 'Actif',
-                'date_creation' => now(),
-            ]);
-
+        } catch (\Exception $e) {
+            // ❌ Annuler en cas d'erreur
+            DB::rollback();
+            
             return response()->json([
-                'client' => $client->load('comptes'),
-                'message' => 'Inscription réussie'
-            ], 201);
-        });
-    }
-
-    /**
-     * Connexion client
-     */
-    public function login(Request $request)
-    {
-        $request->validate([
-            'email' => 'required|email',
-            'password' => 'required',
-        ]);
-
-        $client = Client::where('email', $request->email)->first();
-
-        if (!$client || !Hash::check($request->password, $client->password)) {
-            return response()->json([
-                'error' => 'Identifiants incorrects'
-            ], 401);
+                'success' => false,
+                'message' => 'Erreur lors de la création du client et compte',
+                'error' => $e->getMessage()
+            ], 500);
         }
-
-        if ($client->statut !== 'Actif') {
-            return response()->json([
-                'error' => 'Compte suspendu ou inactif'
-            ], 403);
-        }
-
-        return response()->json([
-            'id' => $client->id,
-            'nom' => $client->nom,
-            'prenom' => $client->prenom,
-            'email' => $client->email,
-            'message' => 'Connexion réussie'
-        ]);
     }
 
+    // GET /api/clients/{id}
     public function show(Client $client)
     {
-        return $client->load(['comptes', 'credits', 'ticketSupports']);
+        return $client->load('comptes');
     }
 
+    // PUT /api/clients/{id}
     public function update(Request $request, Client $client)
     {
         $request->validate([
-            'nom' => 'required|string|max:255',
-            'prenom' => 'required|string|max:255',
-            'email' => ['required', 'email', Rule::unique('clients')->ignore($client->id)],
-            'telephone' => 'required|string|max:20',
-            'adresse' => 'required|string',
-            'password' => 'nullable|min:6',
-            'statut' => 'nullable|in:Actif,Suspendu,Inactif',
+            'nom' => 'sometimes|required|string|max:255',
+            'prenom' => 'sometimes|required|string|max:255',
+            'email' => 'sometimes|required|email|unique:clients,email,' . $client->id,
+            'telephone' => 'sometimes|required|string|max:20',
+            'adresse' => 'sometimes|required|string|max:255',
+            'statut' => 'sometimes|required|in:Actif,Suspendu,Fermé'
         ]);
 
-        $data = $request->only(['nom', 'prenom', 'email', 'telephone', 'adresse']);
-        
-        if ($request->filled('password')) {
-            $data['password'] = Hash::make($request->password);
-        }
-
-        if ($request->filled('statut')) {
-            $data['statut'] = $request->statut;
-        }
-
-        $client->update($data);
+        $client->update($request->all());
         return response()->json($client->load('comptes'));
     }
 
+    // DELETE /api/clients/{id}
     public function destroy(Client $client)
     {
-        if ($client->comptes()->where('statut', 'Actif')->exists()) {
+        // Vérifier qu'il n'y a pas de comptes avec solde > 0
+        $comptesAvecSolde = $client->comptes()->where('solde', '>', 0)->count();
+        
+        if ($comptesAvecSolde > 0) {
             return response()->json([
-                'error' => 'Impossible de supprimer un client avec des comptes actifs'
-            ], 403);
+                'success' => false,
+                'message' => 'Impossible de supprimer: le client a des comptes avec solde positif'
+            ], 400);
         }
 
+        // Supprimer les comptes puis le client
+        $client->comptes()->delete();
         $client->delete();
-        return response()->json(null, 204);
-    }
-
-    /**
-     * Suspendre un client
-     */
-    public function suspend(Client $client)
-    {
-        $client->update(['statut' => 'Suspendu']);
         
         return response()->json([
-            'message' => 'Client suspendu avec succès',
-            'client' => $client
+            'success' => true,
+            'message' => 'Client et comptes supprimés avec succès'
         ]);
     }
 
-    /**
-     * Réactiver un client
-     */
-    public function reactivate(Client $client)
+    // 🔢 MÉTHODE POUR GÉNÉRER UN NUMÉRO DE COMPTE UNIQUE
+    private function genererNumeroCompte()
     {
-        $client->update(['statut' => 'Actif']);
+        do {
+            // Format: COMPTE + 6 chiffres aléatoires
+            $numero = 'COMPTE' . str_pad(rand(1, 999999), 6, '0', STR_PAD_LEFT);
+            
+            // Vérifier que le numéro n'existe pas déjà
+            $existe = Compte::where('numero', $numero)->exists();
+            
+        } while ($existe);
         
-        return response()->json([
-            'message' => 'Client réactivé avec succès',
-            'client' => $client
-        ]);
+        return $numero;
     }
 
-    /**
-     * Obtenir les statistiques des clients
-     */
-    public function stats()
-    {
-        $stats = [
-            'total' => Client::count(),
-            'actifs' => Client::where('statut', 'Actif')->count(),
-            'suspendus' => Client::where('statut', 'Suspendu')->count(),
-            'nouveaux_ce_mois' => Client::whereMonth('date_inscription', now()->month)
-                                       ->whereYear('date_inscription', now()->year)
-                                       ->count(),
-        ];
+    // 📊 MÉTHODES SUPPLÉMENTAIRES UTILES
 
-        return response()->json($stats);
+    // GET /api/clients/avec-comptes
+    public function clientsAvecComptes()
+    {
+        return Client::with('comptes')->whereHas('comptes')->get();
+    }
+
+    // GET /api/clients/{id}/comptes
+    public function getComptes(Client $client)
+    {
+        return $client->comptes;
+    }
+
+    // POST /api/clients/{id}/comptes - Ajouter un compte supplémentaire
+    public function ajouterCompte(Request $request, Client $client)
+    {
+        $request->validate([
+            'type' => 'required|in:Courant,Épargne'
+        ]);
+
+        $numeroCompte = $this->genererNumeroCompte();
+
+        $compte = Compte::create([
+            'numero' => $numeroCompte,
+            'type' => $request->type,
+            'solde' => 0.00,
+            'statut' => 'Actif',
+            'client_id' => $client->id,
+            'date_creation' => now()
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Compte supplémentaire créé avec succès',
+            'compte' => $compte
+        ], 201);
     }
 }

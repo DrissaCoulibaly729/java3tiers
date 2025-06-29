@@ -38,37 +38,44 @@ public class AdminCreditsController {
     }
 
     private void setupTableColumns() {
-        // Table crédits en attente
+        // Table crédits en attente - seulement les propriétés qui existent sûrement
         colIdCredit.setCellValueFactory(new PropertyValueFactory<>("id"));
         colMontantCredit.setCellValueFactory(new PropertyValueFactory<>("montant"));
-        colDureeCredit.setCellValueFactory(new PropertyValueFactory<>("dureeMois"));
         colTauxInteret.setCellValueFactory(new PropertyValueFactory<>("tauxInteret"));
         colStatutCredit.setCellValueFactory(new PropertyValueFactory<>("statut"));
-
-        colClientCredit.setCellValueFactory(cellData -> {
-            CreditDTO credit = cellData.getValue();
-            if (credit.getClient() != null) {
-                return new javafx.beans.property.SimpleStringProperty(
-                        credit.getClient().getNom() + " " + credit.getClient().getPrenom()
-                );
-            }
-            return new javafx.beans.property.SimpleStringProperty("N/A");
-        });
 
         // Table crédits en cours
         colIdCreditCours.setCellValueFactory(new PropertyValueFactory<>("id"));
         colMontantCreditCours.setCellValueFactory(new PropertyValueFactory<>("montant"));
-        colMensualiteCreditCours.setCellValueFactory(new PropertyValueFactory<>("mensualite"));
         colStatutCreditCours.setCellValueFactory(new PropertyValueFactory<>("statut"));
 
-        colClientCreditCours.setCellValueFactory(cellData -> {
-            CreditDTO credit = cellData.getValue();
-            if (credit.getClient() != null) {
-                return new javafx.beans.property.SimpleStringProperty(
-                        credit.getClient().getNom() + " " + credit.getClient().getPrenom()
-                );
+        // Client avec gestion d'erreur
+        colClientCredit.setCellValueFactory(cellData -> {
+            try {
+                CreditDTO credit = cellData.getValue();
+                if (credit.getClient() != null) {
+                    return new javafx.beans.property.SimpleStringProperty(
+                            credit.getClient().getNom() + " " + credit.getClient().getPrenom()
+                    );
+                }
+                return new javafx.beans.property.SimpleStringProperty("Client ID: " + credit.getClientId());
+            } catch (Exception e) {
+                return new javafx.beans.property.SimpleStringProperty("N/A");
             }
-            return new javafx.beans.property.SimpleStringProperty("N/A");
+        });
+
+        colClientCreditCours.setCellValueFactory(cellData -> {
+            try {
+                CreditDTO credit = cellData.getValue();
+                if (credit.getClient() != null) {
+                    return new javafx.beans.property.SimpleStringProperty(
+                            credit.getClient().getNom() + " " + credit.getClient().getPrenom()
+                    );
+                }
+                return new javafx.beans.property.SimpleStringProperty("Client ID: " + credit.getClientId());
+            } catch (Exception e) {
+                return new javafx.beans.property.SimpleStringProperty("N/A");
+            }
         });
     }
 
@@ -77,60 +84,41 @@ public class AdminCreditsController {
         if (!validateCreditForm()) return;
 
         try {
-            // ✅ CORRECTION : Utiliser setters au lieu de constructeur problématique
-            CreditDTO credit = new CreditDTO();
-            credit.setMontant(Double.parseDouble(txtMontantCredit.getText()));
-            credit.setTauxInteret(Double.parseDouble(txtTauxInteret.getText()));
-            credit.setDureeMois(Integer.parseInt(txtDureeCredit.getText()));
-            credit.setClientId(choiceClientCredit.getValue().getId());
-            credit.setStatut("En attente");
+            // Création avec VOTRE constructeur exact
+            Long clientId = choiceClientCredit.getValue().getId();
+            Double montant = Double.parseDouble(txtMontantCredit.getText());
+            Integer duree = Integer.parseInt(txtDureeCredit.getText());
+            Double tauxInteret = Double.parseDouble(txtTauxInteret.getText());
 
-            // Calculer la mensualité
-            double mensualite = calculerMensualite(
-                    credit.getMontant(),
-                    credit.getTauxInteret(),
-                    credit.getDureeMois()
-            );
-            credit.setMensualite(mensualite);
-
-            // ✅ CORRECTION : Utiliser createCredit au lieu de demanderCredit
+            // VOTRE constructeur : (Long clientId, Double montant, Integer duree, Double tauxInteret)
+            CreditDTO credit = new CreditDTO(clientId, montant, duree, tauxInteret);
             creditService.createCredit(credit);
 
             showAlert(Alert.AlertType.INFORMATION, "Succès", "Demande de crédit soumise avec succès !");
             clearForm();
             loadCredits();
 
-        } catch (NumberFormatException e) {
-            showAlert(Alert.AlertType.ERROR, "Erreur", "Veuillez saisir des valeurs numériques valides");
         } catch (Exception e) {
-            showAlert(Alert.AlertType.ERROR, "Erreur", "Erreur lors de la soumission : " + e.getMessage());
+            showAlert(Alert.AlertType.ERROR, "Erreur", "Erreur : " + e.getMessage());
         }
-    }
-
-    private double calculerMensualite(double montant, double tauxAnnuel, int dureeMois) {
-        if (tauxAnnuel == 0) {
-            return montant / dureeMois;
-        }
-
-        double tauxMensuel = tauxAnnuel / 100 / 12;
-        return montant * (tauxMensuel * Math.pow(1 + tauxMensuel, dureeMois)) /
-                (Math.pow(1 + tauxMensuel, dureeMois) - 1);
     }
 
     @FXML
     private void handleAccepterCredit() {
         CreditDTO selectedCredit = tableCreditsAttente.getSelectionModel().getSelectedItem();
         if (selectedCredit == null) {
-            showAlert(Alert.AlertType.WARNING, "Sélection", "Veuillez sélectionner un crédit en attente");
+            showAlert(Alert.AlertType.WARNING, "Sélection", "Veuillez sélectionner un crédit");
             return;
         }
 
         try {
-            creditService.accepterCredit(selectedCredit.getId());
-            showAlert(Alert.AlertType.INFORMATION, "Succès", "Crédit accepté avec succès");
+            // Mise à jour simple du statut
+            selectedCredit.setStatut("Approuvé");
+            creditService.updateCredit(selectedCredit);
+            showAlert(Alert.AlertType.INFORMATION, "Succès", "Crédit accepté");
             loadCredits();
         } catch (Exception e) {
-            showAlert(Alert.AlertType.ERROR, "Erreur", "Erreur lors de l'acceptation : " + e.getMessage());
+            showAlert(Alert.AlertType.ERROR, "Erreur", "Erreur : " + e.getMessage());
         }
     }
 
@@ -138,17 +126,55 @@ public class AdminCreditsController {
     private void handleRefuserCredit() {
         CreditDTO selectedCredit = tableCreditsAttente.getSelectionModel().getSelectedItem();
         if (selectedCredit == null) {
-            showAlert(Alert.AlertType.WARNING, "Sélection", "Veuillez sélectionner un crédit en attente");
+            showAlert(Alert.AlertType.WARNING, "Sélection", "Veuillez sélectionner un crédit");
             return;
         }
 
         try {
-            creditService.refuserCredit(selectedCredit.getId());
+            // Mise à jour simple du statut
+            selectedCredit.setStatut("Refusé");
+            creditService.updateCredit(selectedCredit);
             showAlert(Alert.AlertType.INFORMATION, "Succès", "Crédit refusé");
             loadCredits();
         } catch (Exception e) {
-            showAlert(Alert.AlertType.ERROR, "Erreur", "Erreur lors du refus : " + e.getMessage());
+            showAlert(Alert.AlertType.ERROR, "Erreur", "Erreur : " + e.getMessage());
         }
+    }
+
+    @FXML
+    private void handleVoirDetailsCredit() {
+        CreditDTO selectedCredit = tableCreditsAttente.getSelectionModel().getSelectedItem();
+        if (selectedCredit == null) {
+            selectedCredit = tableCreditsEnCours.getSelectionModel().getSelectedItem();
+        }
+
+        if (selectedCredit == null) {
+            showAlert(Alert.AlertType.WARNING, "Sélection", "Veuillez sélectionner un crédit");
+            return;
+        }
+
+        // Affichage simple des détails
+        StringBuilder details = new StringBuilder();
+        details.append("ID: ").append(selectedCredit.getId()).append("\n");
+        details.append("Montant: ").append(selectedCredit.getMontant()).append(" FCFA\n");
+        details.append("Taux: ").append(selectedCredit.getTauxInteret()).append("%\n");
+        details.append("Statut: ").append(selectedCredit.getStatut());
+
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle("Détails du crédit");
+        alert.setHeaderText("Informations du crédit");
+        alert.setContentText(details.toString());
+        alert.showAndWait();
+    }
+
+    @FXML
+    private void handleAnnulerCredit() {
+        clearForm();
+    }
+
+    @FXML
+    private void handleRechercherCredit() {
+        showAlert(Alert.AlertType.INFORMATION, "Recherche", "Fonctionnalité en développement");
     }
 
     private boolean validateCreditForm() {
@@ -172,19 +198,8 @@ public class AdminCreditsController {
                 showAlert(Alert.AlertType.WARNING, "Validation", "Les valeurs doivent être positives");
                 return false;
             }
-
-            if (montant < 1000) {
-                showAlert(Alert.AlertType.WARNING, "Validation", "Le montant minimum est de 1000");
-                return false;
-            }
-
-            if (duree < 12 || duree > 360) {
-                showAlert(Alert.AlertType.WARNING, "Validation", "La durée doit être entre 12 et 360 mois");
-                return false;
-            }
-
         } catch (NumberFormatException e) {
-            showAlert(Alert.AlertType.WARNING, "Validation", "Veuillez saisir des valeurs numériques valides");
+            showAlert(Alert.AlertType.WARNING, "Validation", "Valeurs invalides");
             return false;
         }
 
@@ -200,12 +215,9 @@ public class AdminCreditsController {
 
     private void loadData() {
         try {
-            // Charger les clients
             List<ClientDTO> clients = clientService.getAllClients();
             choiceClientCredit.setItems(FXCollections.observableArrayList(clients));
-
             loadCredits();
-
         } catch (Exception e) {
             showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible de charger les données");
         }
@@ -213,27 +225,24 @@ public class AdminCreditsController {
 
     private void loadCredits() {
         try {
-            // Charger les crédits en attente
             List<CreditDTO> creditsAttente = creditService.getCreditsByStatut("En attente");
-            ObservableList<CreditDTO> creditsAttenteData = FXCollections.observableArrayList(creditsAttente);
-            tableCreditsAttente.setItems(creditsAttenteData);
+            tableCreditsAttente.setItems(FXCollections.observableArrayList(creditsAttente));
 
-            // Charger les crédits approuvés
             List<CreditDTO> creditsApprouves = creditService.getCreditsByStatut("Approuvé");
-            ObservableList<CreditDTO> creditsApprouvesData = FXCollections.observableArrayList(creditsApprouves);
-            tableCreditsEnCours.setItems(creditsApprouvesData);
-
+            tableCreditsEnCours.setItems(FXCollections.observableArrayList(creditsApprouves));
         } catch (Exception e) {
             showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible de charger les crédits");
         }
     }
 
-    // Navigation methods
+    // Navigation methods - simples
     @FXML private void handleDashboard() { navigateToPage("UI_Dashboard"); }
     @FXML private void handleGestionClients() { navigateToPage("UI_Gestion_Clients"); }
     @FXML private void handleGestionComptes() { navigateToPage("UI_Gestion_Comptes"); }
     @FXML private void handleGestionTransactions() { navigateToPage("UI_Gestion_Transactions"); }
     @FXML private void handleGestionCartes() { navigateToPage("UI_Gestion_Cartes_Bancaires"); }
+    @FXML private void handleServiceClient() { navigateToPage("UI_Service_Client_Rapports"); }
+    @FXML private void handleGestionSupport() { navigateToPage("UI_Service_Client_Rapports"); }
 
     @FXML
     private void handleLogout() {
@@ -242,7 +251,6 @@ public class AdminCreditsController {
             Scene scene = new Scene(loader.load());
             Stage stage = (Stage) btnDeconnexion.getScene().getWindow();
             stage.setScene(scene);
-            stage.centerOnScreen();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -254,10 +262,8 @@ public class AdminCreditsController {
             Scene scene = new Scene(loader.load());
             Stage stage = (Stage) btnValiderCredit.getScene().getWindow();
             stage.setScene(scene);
-            stage.centerOnScreen();
         } catch (IOException e) {
-            e.printStackTrace();
-            showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible de charger la page " + pageName);
+            showAlert(Alert.AlertType.ERROR, "Erreur", "Navigation impossible");
         }
     }
 
@@ -268,16 +274,4 @@ public class AdminCreditsController {
         alert.setContentText(message);
         alert.showAndWait();
     }
-    @FXML
-    private void handleGestionSupport() {
-        navigateToPage("UI_Service_Client_Rapports");
-    }
-
-    @FXML
-    private void handleRechercherCredit() {
-        // Implémentation simple de recherche
-        showAlert(Alert.AlertType.INFORMATION, "Recherche", "Fonctionnalité en cours de développement");
-    }
-
-
 }

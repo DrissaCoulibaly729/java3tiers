@@ -3,62 +3,100 @@ package com.groupeisi.minisystemebancaire.utils;
 import com.groupeisi.minisystemebancaire.dto.AdminDTO;
 import com.groupeisi.minisystemebancaire.dto.ClientDTO;
 
-/**
- * ✅ Gestionnaire de session pour stocker les informations de l'utilisateur connecté
- */
 public class SessionManager {
+
     private static AdminDTO currentAdmin;
     private static ClientDTO currentClient;
-    private static String userType; // "ADMIN" ou "CLIENT"
+    private static String currentUserType; // "ADMIN" ou "CLIENT"
 
-    // Méthodes pour Admin
+    // ✅ Gestion de la session Admin
     public static void setCurrentAdmin(AdminDTO admin) {
         currentAdmin = admin;
-        currentClient = null; // S'assurer qu'un seul type d'utilisateur est connecté
-        userType = "ADMIN";
-        System.out.println("✅ Session admin créée pour: " + admin.getUsername());
+        currentClient = null; // Effacer la session client si elle existe
+        currentUserType = "ADMIN";
+        System.out.println("🔧 Session admin définie pour: " + admin.getUsername());
     }
 
     public static AdminDTO getCurrentAdmin() {
         return currentAdmin;
     }
 
-    public static boolean isAdminLoggedIn() {
-        return currentAdmin != null && "ADMIN".equals(userType);
+    public static void clearCurrentAdmin() {
+        currentAdmin = null;
+        if ("ADMIN".equals(currentUserType)) {
+            currentUserType = null;
+        }
+        System.out.println("🧹 Session admin effacée");
     }
 
-    // Méthodes pour Client
+    public static boolean isAdminLoggedIn() {
+        return currentAdmin != null;
+    }
+
+    // ✅ Gestion de la session Client
     public static void setCurrentClient(ClientDTO client) {
         currentClient = client;
-        currentAdmin = null; // S'assurer qu'un seul type d'utilisateur est connecté
-        userType = "CLIENT";
-        System.out.println("✅ Session client créée pour: " + client.getEmail());
+        currentAdmin = null; // Effacer la session admin si elle existe
+        currentUserType = "CLIENT";
+        System.out.println("🔧 Session client définie pour: " + client.getEmail());
     }
 
     public static ClientDTO getCurrentClient() {
         return currentClient;
     }
 
+    public static void clearCurrentClient() {
+        currentClient = null;
+        if ("CLIENT".equals(currentUserType)) {
+            currentUserType = null;
+        }
+        System.out.println("🧹 Session client effacée");
+    }
+
     public static boolean isClientLoggedIn() {
-        return currentClient != null && "CLIENT".equals(userType);
+        return currentClient != null;
     }
 
-    // Méthodes génériques
-    public static String getUserType() {
-        return userType;
+    // ✅ AJOUT: Méthodes manquantes utilisées dans votre code
+
+    /**
+     * Méthode clearSession() utilisée dans MainApp.java
+     */
+    public static void clearSession() {
+        clearAllSessions();
     }
 
-    public static boolean isLoggedIn() {
+    /**
+     * Méthode logout() utilisée dans les contrôleurs Dashboard
+     */
+    public static void logout() {
+        clearAllSessions();
+    }
+
+    // ✅ Gestion générale de la session
+    public static String getCurrentUserType() {
+        return currentUserType;
+    }
+
+    public static boolean isAnyUserLoggedIn() {
         return isAdminLoggedIn() || isClientLoggedIn();
     }
 
+    public static void clearAllSessions() {
+        currentAdmin = null;
+        currentClient = null;
+        currentUserType = null;
+        System.out.println("🧹 Toutes les sessions effacées");
+    }
+
+    // ✅ Utilitaires pour obtenir des informations sur l'utilisateur connecté
     public static String getCurrentUserName() {
         if (isAdminLoggedIn()) {
             return currentAdmin.getUsername();
         } else if (isClientLoggedIn()) {
             return currentClient.getNom() + " " + currentClient.getPrenom();
         }
-        return "Invité";
+        return null;
     }
 
     public static Long getCurrentUserId() {
@@ -70,17 +108,22 @@ public class SessionManager {
         return null;
     }
 
-    // Nettoyer la session
-    public static void clearSession() {
-        System.out.println("🔐 Nettoyage de la session...");
-        currentAdmin = null;
-        currentClient = null;
-        userType = null;
+    // ✅ Vérifications de sécurité
+    public static void requireAdminSession() throws SecurityException {
+        if (!isAdminLoggedIn()) {
+            throw new SecurityException("Session administrateur requise");
+        }
     }
 
-    // Méthode utilitaire pour la déconnexion
-    public static void logout() {
-        System.out.println("👋 Déconnexion de l'utilisateur: " + getCurrentUserName());
-        clearSession();
+    public static void requireClientSession() throws SecurityException {
+        if (!isClientLoggedIn()) {
+            throw new SecurityException("Session client requise");
+        }
+    }
+
+    public static void requireAnySession() throws SecurityException {
+        if (!isAnyUserLoggedIn()) {
+            throw new SecurityException("Session utilisateur requise");
+        }
     }
 }

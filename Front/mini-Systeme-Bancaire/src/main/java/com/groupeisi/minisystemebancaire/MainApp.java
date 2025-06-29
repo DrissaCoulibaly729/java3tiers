@@ -23,7 +23,7 @@ public class MainApp extends Application {
         // Configuration de l'application
         Platform.setImplicitExit(true);
 
-        // Initialiser l'admin par défaut en arrière-plan
+        // Initialiser l'admin par défaut en arrière-plan b
         initializeDefaultAdminAsync();
 
         try {
@@ -83,7 +83,7 @@ public class MainApp extends Application {
 
     @Override
     public void stop() {
-        // Nettoyer la session au fermeture
+        // Nettoyer la session au
         SessionManager.clearSession();
         System.out.println("🔐 Session nettoyée lors de la fermeture");
     }

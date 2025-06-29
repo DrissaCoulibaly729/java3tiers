@@ -1,18 +1,14 @@
 package com.groupeisi.minisystemebancaire.dto;
 
 import com.google.gson.annotations.SerializedName;
-
 import java.time.LocalDateTime;
 
-/**
- * ✅ DTO pour la classe Compte
- */
 public class CompteDTO {
     private Long id;
     private String numero;
-    private String type; // "Courant" ou "Épargne"
+    private String type;
     private Double solde;
-    private String statut; // "Actif" ou "Fermé"
+    private String statut;
 
     @SerializedName("date_creation")
     private LocalDateTime dateCreation;
@@ -20,10 +16,9 @@ public class CompteDTO {
     @SerializedName("client_id")
     private Long clientId;
 
-    // Référence au client (pour les jointures)
     private ClientDTO client;
 
-    // Constructeurs
+    // Constructeurs existants
     public CompteDTO() {}
 
     public CompteDTO(String numero, String type, Double solde, Long clientId) {
@@ -35,87 +30,36 @@ public class CompteDTO {
         this.dateCreation = LocalDateTime.now();
     }
 
-    // Getters et Setters
-    public Long getId() {
-        return id;
-    }
+    // Getters et Setters existants
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
 
-    public void setId(Long id) {
-        this.id = id;
-    }
+    public String getNumero() { return numero; }
+    public void setNumero(String numero) { this.numero = numero; }
 
-    public String getNumero() {
-        return numero;
-    }
+    public String getType() { return type; }
+    public void setType(String type) { this.type = type; }
 
-    public void setNumero(String numero) {
-        this.numero = numero;
-    }
+    public Double getSolde() { return solde != null ? solde : 0.0; }
+    public void setSolde(Double solde) { this.solde = solde; }
 
-    public String getType() {
-        return type;
-    }
+    public String getStatut() { return statut; }
+    public void setStatut(String statut) { this.statut = statut; }
 
-    public void setType(String type) {
-        this.type = type;
-    }
+    public LocalDateTime getDateCreation() { return dateCreation; }
+    public void setDateCreation(LocalDateTime dateCreation) { this.dateCreation = dateCreation; }
 
-    public Double getSolde() {
-        return solde != null ? solde : 0.0;
-    }
+    public Long getClientId() { return clientId; }
+    public void setClientId(Long clientId) { this.clientId = clientId; }
 
-    public void setSolde(Double solde) {
-        this.solde = solde;
-    }
+    public ClientDTO getClient() { return client; }
+    public void setClient(ClientDTO client) { this.client = client; }
 
-    public String getStatut() {
-        return statut;
-    }
-
-    public void setStatut(String statut) {
-        this.statut = statut;
-    }
-
-    public LocalDateTime getDateCreation() {
-        return dateCreation;
-    }
-
-    public void setDateCreation(LocalDateTime dateCreation) {
-        this.dateCreation = dateCreation;
-    }
-
-    public Long getClientId() {
-        return clientId;
-    }
-
-    public void setClientId(Long clientId) {
-        this.clientId = clientId;
-    }
-
-    public ClientDTO getClient() {
-        return client;
-    }
-
-    public void setClient(ClientDTO client) {
-        this.client = client;
-    }
-
-    // Méthodes utilitaires
-    public boolean isActif() {
-        return "Actif".equals(statut);
-    }
-
-    public boolean isFerme() {
-        return "Fermé".equals(statut);
-    }
-
-    public boolean isCourant() {
-        return "Courant".equals(type);
-    }
-
-    public boolean isEpargne() {
-        return "Épargne".equals(type);
-    }
+    // Méthodes utilitaires existantes
+    public boolean isActif() { return "Actif".equals(statut); }
+    public boolean isFerme() { return "Fermé".equals(statut); }
+    public boolean isCourant() { return "Courant".equals(type); }
+    public boolean isEpargne() { return "Épargne".equals(type); }
 
     public String getSoldeFormate() {
         return String.format("%.2f FCFA", getSolde());
@@ -146,18 +90,27 @@ public class CompteDTO {
         return montant > 0 && getSolde() >= montant;
     }
 
+    // ✅ NOUVELLE MÉTHODE toString POUR AFFICHAGE AUTOMATIQUE DANS LES CHOICEBOX
     @Override
     public String toString() {
-        return "CompteDTO{" +
-                "id=" + id +
-                ", numero='" + numero + '\'' +
-                ", type='" + type + '\'' +
-                ", solde=" + solde +
-                ", statut='" + statut + '\'' +
-                ", clientId=" + clientId +
-                '}';
+        if (numero == null) {
+            return "Compte invalide";
+        }
+
+        // Format: 💳 NUMERO | SOLDE FCFA - CLIENT
+        String soldeStr = String.format("%.0f", getSolde());
+        String clientInfo = "";
+
+        if (client != null && client.getNom() != null) {
+            clientInfo = " - " + client.getNom();
+        } else if (clientId != null) {
+            clientInfo = " - Client #" + clientId;
+        }
+
+        return String.format("💳 %s | %s FCFA%s", numero, soldeStr, clientInfo);
     }
 
+    // Méthode equals et hashCode existantes
     @Override
     public boolean equals(Object obj) {
         if (this == obj) return true;
