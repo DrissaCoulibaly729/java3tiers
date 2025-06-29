@@ -68,7 +68,7 @@
                <Label text="Pas encore de compte ?"
                       style="-fx-font-size: 12px; -fx-text-fill: #7f8c8d;"/>
 
-               <Button fx:id="btnInscription" text="📝 S'inscrire" onAction="#handleRegister"
+               <Button fx:id="btnInscription" text="📝 S'inscrire" onAction="#handleInscription"
                        style="-fx-background-color: #27ae60; -fx-text-fill: white;
                                    -fx-font-size: 14px; -fx-font-weight: bold;
                                    -fx-background-radius: 8; -fx-padding: 10 25 10 25;

@@ -3,13 +3,8 @@ package com.groupeisi.minisystemebancaire.controllers.client;
 import com.groupeisi.minisystemebancaire.dto.ClientDTO;
 import com.groupeisi.minisystemebancaire.dto.CompteDTO;
 import com.groupeisi.minisystemebancaire.dto.TransactionDTO;
-// Note: Imports commentés car services non utilisés actuellement
-// import com.groupeisi.minisystemebancaire.dto.CarteBancaireDTO;
-// import com.groupeisi.minisystemebancaire.dto.CreditDTO;
 import com.groupeisi.minisystemebancaire.services.CompteService;
 import com.groupeisi.minisystemebancaire.services.TransactionService;
-// import com.groupeisi.minisystemebancaire.services.CarteBancaireService;
-// import com.groupeisi.minisystemebancaire.services.CreditService;
 import com.groupeisi.minisystemebancaire.utils.SessionManager;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
@@ -26,6 +21,7 @@ import javafx.stage.Stage;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class ClientDashboardController {
 
@@ -60,12 +56,9 @@ public class ClientDashboardController {
     // Services
     private final CompteService compteService = new CompteService();
     private final TransactionService transactionService = new TransactionService();
-    // Note: Services cartes et crédits commentés car méthodes spécifiques non disponibles
-    // private final CarteBancaireService carteService = new CarteBancaireService();
-    // private final CreditService creditService = new CreditService();
 
     private ClientDTO currentClient;
-    private Long clientId; // Pour la compatibilité
+    private Long clientId;
 
     @FXML
     public void initialize() {
@@ -77,114 +70,45 @@ public class ClientDashboardController {
             return;
         }
 
-        this.clientId = currentClient.getId(); // Initialiser clientId
-        setupUI();
+        // ✅ VÉRIFICATION CRITIQUE : S'assurer que l'ID client existe
+        if (currentClient.getId() == null) {
+            System.err.println("❌ ERREUR CRITIQUE : Client en session sans ID !");
+            showAlert(Alert.AlertType.ERROR, "Erreur", "Session corrompue - Veuillez vous reconnecter");
+            SessionManager.clearCurrentClient();
+            redirectToLogin();
+            return;
+        }
+
+        this.clientId = currentClient.getId();
+        System.out.println("🔧 Dashboard initialisé pour le client ID: " + clientId);
+
         setupTableColumns();
+        updateWelcomeMessage();
         loadDashboardData();
     }
 
-    // Méthode pour la compatibilité
-    public void setClientId(Long clientId) {
-        this.clientId = clientId;
-    }
-
-    public Long getClientId() {
-        return this.clientId;
-    }
-
-    private void setupUI() {
-        // Mise à jour du titre avec le nom du client - STYLE IDENTIQUE À L'ADMIN
-        if (lblWelcome != null) {
-            lblWelcome.setText("📊 Tableau de Bord - " + currentClient.getPrenom() + " " + currentClient.getNom());
-        }
-
-        // Mettre le bouton Dashboard en actif - STYLE IDENTIQUE À L'ADMIN
-        if (btnDashboard != null) {
-            btnDashboard.setStyle("-fx-background-color: #3498db; -fx-background-radius: 10; " +
-                    "-fx-text-fill: white; -fx-font-weight: bold; " +
-                    "-fx-pref-width: 220px; -fx-padding: 12;");
-        }
-    }
-
     private void setupTableColumns() {
-        // Configuration des colonnes de comptes
-        if (colNumeroCompte != null) {
-            colNumeroCompte.setCellValueFactory(new PropertyValueFactory<>("numero"));
-        }
-        if (colTypeCompte != null) {
-            colTypeCompte.setCellValueFactory(new PropertyValueFactory<>("type"));
-        }
+        // Configuration des colonnes de la table des comptes
+        if (colNumeroCompte != null) colNumeroCompte.setCellValueFactory(new PropertyValueFactory<>("numero"));
+        if (colTypeCompte != null) colTypeCompte.setCellValueFactory(new PropertyValueFactory<>("type"));
         if (colSoldeCompte != null) {
             colSoldeCompte.setCellValueFactory(new PropertyValueFactory<>("solde"));
-            // Formatage du solde
             colSoldeCompte.setCellFactory(column -> new TableCell<CompteDTO, Double>() {
                 @Override
                 protected void updateItem(Double item, boolean empty) {
                     super.updateItem(item, empty);
                     if (empty || item == null) {
                         setText(null);
-                        setStyle("");
                     } else {
                         setText(String.format("%.2f FCFA", item));
-                        // Couleur selon le solde
-                        if (item > 0) {
-                            setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
-                        } else if (item < 0) {
-                            setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
-                        } else {
-                            setStyle("-fx-text-fill: #f39c12; -fx-font-weight: bold;");
-                        }
                     }
                 }
             });
         }
-        if (colStatutCompte != null) {
-            colStatutCompte.setCellValueFactory(new PropertyValueFactory<>("statut"));
-            // Formatage du statut avec icônes
-            colStatutCompte.setCellFactory(column -> new TableCell<CompteDTO, String>() {
-                @Override
-                protected void updateItem(String item, boolean empty) {
-                    super.updateItem(item, empty);
-                    if (empty || item == null) {
-                        setText(null);
-                        setStyle("");
-                    } else {
-                        if ("Actif".equals(item)) {
-                            setText("✅ Actif");
-                            setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
-                        } else if ("Suspendu".equals(item)) {
-                            setText("⏸️ Suspendu");
-                            setStyle("-fx-text-fill: #f39c12; -fx-font-weight: bold;");
-                        } else {
-                            setText("❌ " + item);
-                            setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
-                        }
-                    }
-                }
-            });
-        }
+        if (colStatutCompte != null) colStatutCompte.setCellValueFactory(new PropertyValueFactory<>("statut"));
 
-        // Configuration des colonnes de transactions
-        if (colTypeTransaction != null) {
-            colTypeTransaction.setCellValueFactory(new PropertyValueFactory<>("type"));
-            colTypeTransaction.setCellFactory(column -> new TableCell<TransactionDTO, String>() {
-                @Override
-                protected void updateItem(String item, boolean empty) {
-                    super.updateItem(item, empty);
-                    if (empty || item == null) {
-                        setText(null);
-                    } else {
-                        String icon = switch (item) {
-                            case "Dépôt" -> "💰 Dépôt";
-                            case "Retrait" -> "💸 Retrait";
-                            case "Virement" -> "🔄 Virement";
-                            default -> item;
-                        };
-                        setText(icon);
-                    }
-                }
-            });
-        }
+        // Configuration des colonnes de la table des transactions
+        if (colTypeTransaction != null) colTypeTransaction.setCellValueFactory(new PropertyValueFactory<>("type"));
         if (colMontantTransaction != null) {
             colMontantTransaction.setCellValueFactory(new PropertyValueFactory<>("montant"));
             colMontantTransaction.setCellFactory(column -> new TableCell<TransactionDTO, Double>() {
@@ -195,126 +119,59 @@ public class ClientDashboardController {
                         setText(null);
                     } else {
                         setText(String.format("%.2f FCFA", item));
-                        // Couleur selon le type
-                        TransactionDTO transaction = getTableRow().getItem();
-                        if (transaction != null) {
-                            switch (transaction.getType()) {
-                                case "Dépôt":
-                                    setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
-                                    break;
-                                case "Retrait":
-                                    setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
-                                    break;
-                                case "Virement":
-                                    setStyle("-fx-text-fill: #3498db; -fx-font-weight: bold;");
-                                    break;
-                            }
-                        }
                     }
                 }
             });
         }
-        if (colDateTransaction != null) {
-            colDateTransaction.setCellValueFactory(new PropertyValueFactory<>("date"));
-        }
-        if (colStatutTransaction != null) {
-            colStatutTransaction.setCellValueFactory(new PropertyValueFactory<>("statut"));
-            colStatutTransaction.setCellFactory(column -> new TableCell<TransactionDTO, String>() {
-                @Override
-                protected void updateItem(String item, boolean empty) {
-                    super.updateItem(item, empty);
-                    if (empty || item == null) {
-                        setText(null);
-                        setStyle("");
-                    } else {
-                        switch (item.toLowerCase()) {
-                            case "validé":
-                                setText("✅ Validé");
-                                setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
-                                break;
-                            case "en attente":
-                                setText("⏳ En attente");
-                                setStyle("-fx-text-fill: #f39c12; -fx-font-weight: bold;");
-                                break;
-                            case "rejeté":
-                                setText("❌ Rejeté");
-                                setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
-                                break;
-                            default:
-                                setText(item);
-                                setStyle("");
-                        }
-                    }
-                }
-            });
+        if (colDateTransaction != null) colDateTransaction.setCellValueFactory(new PropertyValueFactory<>("dateFormatted"));
+        if (colStatutTransaction != null) colStatutTransaction.setCellValueFactory(new PropertyValueFactory<>("statut"));
+    }
+
+    private void updateWelcomeMessage() {
+        if (lblWelcome != null && currentClient != null) {
+            String welcomeText = "Bienvenue, " + currentClient.getPrenom() + " " + currentClient.getNom();
+            lblWelcome.setText(welcomeText);
         }
     }
 
     private void loadDashboardData() {
+        loadComptes();
+        loadTransactions();
+        // Note: Cartes et crédits commentés car API non implémentée
+        // loadCartes();
+        // loadCredits();
+    }
+
+    // ✅ CORRECTION : Méthode loadComptes avec vérification d'ID
+    private void loadComptes() {
+        if (clientId == null) {
+            System.err.println("❌ Impossible de charger les comptes : clientId est null");
+            showAlert(Alert.AlertType.ERROR, "Erreur", "Session invalide");
+            return;
+        }
+
         Thread loadThread = new Thread(() -> {
             try {
-                // Chargement des comptes
-                List<CompteDTO> comptes = compteService.getComptesByClientId(currentClient.getId());
-
-                // Chargement des transactions récentes
-                List<TransactionDTO> transactions = transactionService.getTransactionsByClient(currentClient.getId());
-
-                // Chargement des cartes (méthode alternative ou placeholder)
-                int nombreCartes = 0;
-                try {
-                    // Si vous avez une méthode différente, utilisez-la ici
-                    // Exemple: cartes = carteService.getAllCartes().stream()
-                    //    .filter(carte -> carte.getClientId().equals(currentClient.getId()))
-                    //    .toList();
-                    // Pour l'instant, on utilise un placeholder
-                    nombreCartes = 0; // À remplacer par la vraie logique
-                } catch (Exception e) {
-                    System.out.println("Service cartes non disponible: " + e.getMessage());
-                }
-
-                // Chargement des crédits (méthode alternative ou placeholder)
-                int nombreCredits = 0;
-                try {
-                    // Si vous avez une méthode différente, utilisez-la ici
-                    // Exemple: credits = creditService.getAllCredits().stream()
-                    //    .filter(credit -> credit.getClientId().equals(currentClient.getId()))
-                    //    .toList();
-                    // Pour l'instant, on utilise un placeholder
-                    nombreCredits = 0; // À remplacer par la vraie logique
-                } catch (Exception e) {
-                    System.out.println("Service crédits non disponible: " + e.getMessage());
-                }
-
-                // Mise à jour de l'interface
-                final int finalNombreCartes = nombreCartes;
-                final int finalNombreCredits = nombreCredits;
+                System.out.println("🔄 Chargement des comptes pour client ID: " + clientId);
+                List<CompteDTO> comptes = compteService.getComptesByClientId(clientId);
 
                 Platform.runLater(() -> {
-                    // Mise à jour des comptes
-                    if (tableComptes != null) {
+                    if (tableComptes != null && comptes != null) {
                         ObservableList<CompteDTO> comptesData = FXCollections.observableArrayList(comptes);
                         tableComptes.setItems(comptesData);
+                        updateComptesStatistics(comptes);
+                        System.out.println("✅ " + comptes.size() + " comptes chargés");
+                    } else {
+                        updateComptesStatistics(null);
+                        System.out.println("ℹ️ Aucun compte trouvé pour ce client");
                     }
-
-                    // Mise à jour des transactions récentes (5 dernières)
-                    if (tableTransactionsRecentes != null) {
-                        List<TransactionDTO> recentTransactions = transactions.stream()
-                                .limit(5)
-                                .toList();
-                        ObservableList<TransactionDTO> transactionsData = FXCollections.observableArrayList(recentTransactions);
-                        tableTransactionsRecentes.setItems(transactionsData);
-                    }
-
-                    // Mise à jour des statistiques
-                    updateStatistics(comptes, finalNombreCartes, finalNombreCredits);
                 });
 
             } catch (Exception e) {
+                System.err.println("❌ Erreur lors du chargement des comptes: " + e.getMessage());
                 Platform.runLater(() -> {
-                    showAlert(Alert.AlertType.ERROR, "Erreur",
-                            "Impossible de charger les données du tableau de bord: " + e.getMessage());
-                    System.err.println("❌ Erreur chargement dashboard: " + e.getMessage());
-                    e.printStackTrace();
+                    updateComptesStatistics(null);
+                    showAlert(Alert.AlertType.ERROR, "Erreur", "Impossible de charger les comptes: " + e.getMessage());
                 });
             }
         });
@@ -323,59 +180,122 @@ public class ClientDashboardController {
         loadThread.start();
     }
 
-    private void updateStatistics(List<CompteDTO> comptes, int nombreCartes, int nombreCredits) {
-        // Nombre de comptes
-        if (lblNbComptes != null) {
-            lblNbComptes.setText(String.valueOf(comptes.size()));
+    // ✅ CORRECTION : Méthode loadTransactions avec vérification d'ID
+    private void loadTransactions() {
+        if (clientId == null) {
+            System.err.println("❌ Impossible de charger les transactions : clientId est null");
+            return;
         }
 
-        // Solde total
-        if (lblSoldeTotal != null) {
-            double soldeTotal = comptes.stream()
-                    .filter(c -> "Actif".equals(c.getStatut()))
-                    .mapToDouble(CompteDTO::getSolde)
-                    .sum();
-            lblSoldeTotal.setText(String.format("%.2f FCFA", soldeTotal));
-        }
+        Thread loadThread = new Thread(() -> {
+            try {
+                System.out.println("🔄 Chargement des transactions pour client ID: " + clientId);
+                List<TransactionDTO> transactions = transactionService.getTransactionsByClientId(clientId);
 
-        // Nombre de cartes
-        if (lblNbCartes != null) {
-            lblNbCartes.setText(String.valueOf(nombreCartes));
-        }
+                Platform.runLater(() -> {
+                    if (tableTransactionsRecentes != null && transactions != null) {
+                        // Prendre seulement les 10 dernières transactions
+                        List<TransactionDTO> recentTransactions = transactions.stream()
+                                .limit(10)
+                                .collect(Collectors.toList());
 
-        // Nombre de crédits
-        if (lblNbCredits != null) {
-            lblNbCredits.setText(String.valueOf(nombreCredits));
-        }
+                        ObservableList<TransactionDTO> transactionsData = FXCollections.observableArrayList(recentTransactions);
+                        tableTransactionsRecentes.setItems(transactionsData);
+                        System.out.println("✅ " + recentTransactions.size() + " transactions récentes chargées");
+                    }
+                });
+
+            } catch (Exception e) {
+                System.err.println("❌ Erreur lors du chargement des transactions: " + e.getMessage());
+                Platform.runLater(() -> {
+                    showAlert(Alert.AlertType.WARNING, "Avertissement", "Impossible de charger les transactions récentes");
+                });
+            }
+        });
+
+        loadThread.setDaemon(true);
+        loadThread.start();
     }
 
-    // === MÉTHODES DE NAVIGATION - CORRESPONDANCE AVEC LE FXML ===
+    private void updateComptesStatistics(List<CompteDTO> comptes) {
+        if (comptes == null || comptes.isEmpty()) {
+            if (lblNbComptes != null) lblNbComptes.setText("0");
+            if (lblSoldeTotal != null) lblSoldeTotal.setText("0.00 FCFA");
+        } else {
+            if (lblNbComptes != null) lblNbComptes.setText(String.valueOf(comptes.size()));
+
+            double soldeTotal = comptes.stream()
+                    .filter(c -> "Actif".equals(c.getStatut()))
+                    .mapToDouble(c -> c.getSolde() != null ? c.getSolde() : 0.0)
+                    .sum();
+
+            if (lblSoldeTotal != null) lblSoldeTotal.setText(String.format("%.2f FCFA", soldeTotal));
+        }
+
+        // Valeurs par défaut pour les cartes et crédits (non implémentés)
+        if (lblNbCartes != null) lblNbCartes.setText("0");
+        if (lblNbCredits != null) lblNbCredits.setText("0");
+    }
+
+    // === GESTIONNAIRES D'ÉVÉNEMENTS NAVIGATION ===
 
     @FXML
+    private void handleDashboard(ActionEvent event) {
+        // Déjà sur le dashboard, rafraîchir les données
+        loadDashboardData();
+    }
+
+    // ✅ AJOUT : Méthodes manquantes pour correspondre au FXML
+    @FXML
     private void goToTransactions(ActionEvent event) {
-        navigateTo("/com/groupeisi/minisystemebancaire/client/UI_Transactions.fxml", event);
+        handleTransactions(event);
     }
 
     @FXML
     private void goToCredits(ActionEvent event) {
-        navigateTo("/com/groupeisi/minisystemebancaire/client/UI_Credits.fxml", event);
+        handleCredits(event);
     }
 
     @FXML
     private void goToCartes(ActionEvent event) {
-        navigateTo("/com/groupeisi/minisystemebancaire/client/UI_Cartes.fxml", event);
+        handleCartes(event);
     }
 
     @FXML
     private void goToSupport(ActionEvent event) {
-        navigateTo("/com/groupeisi/minisystemebancaire/client/UI_Support.fxml", event);
+        handleSupport(event);
     }
 
     @FXML
     private void handleLogout(ActionEvent event) {
+        handleDeconnexion(event);
+    }
+
+    @FXML
+    private void handleTransactions(ActionEvent event) {
+        navigateTo("/com/groupeisi/minisystemebancaire/client/UI_Transactions.fxml", event);
+    }
+
+    @FXML
+    private void handleCredits(ActionEvent event) {
+        navigateTo("/com/groupeisi/minisystemebancaire/client/UI_Credits.fxml", event);
+    }
+
+    @FXML
+    private void handleCartes(ActionEvent event) {
+        navigateTo("/com/groupeisi/minisystemebancaire/client/UI_Cartes.fxml", event);
+    }
+
+    @FXML
+    private void handleSupport(ActionEvent event) {
+        navigateTo("/com/groupeisi/minisystemebancaire/client/UI_Support.fxml", event);
+    }
+
+    @FXML
+    private void handleDeconnexion(ActionEvent event) {
         Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
-        confirmation.setTitle("Déconnexion");
-        confirmation.setHeaderText("Confirmer la déconnexion");
+        confirmation.setTitle("Confirmation");
+        confirmation.setHeaderText("Déconnexion");
         confirmation.setContentText("Êtes-vous sûr de vouloir vous déconnecter ?");
 
         confirmation.showAndWait().ifPresent(response -> {
@@ -393,10 +313,16 @@ public class ClientDashboardController {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/groupeisi/minisystemebancaire/UI_Main.fxml"));
             Parent root = loader.load();
 
-            Stage stage = (Stage) lblWelcome.getScene().getWindow();
-            Scene scene = new Scene(root);
-            stage.setScene(scene);
-            stage.centerOnScreen();
+            Stage stage = null;
+            if (lblWelcome != null && lblWelcome.getScene() != null) {
+                stage = (Stage) lblWelcome.getScene().getWindow();
+            }
+
+            if (stage != null) {
+                Scene scene = new Scene(root);
+                stage.setScene(scene);
+                stage.centerOnScreen();
+            }
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -433,5 +359,8 @@ public class ClientDashboardController {
 
     public void setCurrentClient(ClientDTO currentClient) {
         this.currentClient = currentClient;
+        if (currentClient != null) {
+            this.clientId = currentClient.getId();
+        }
     }
 }

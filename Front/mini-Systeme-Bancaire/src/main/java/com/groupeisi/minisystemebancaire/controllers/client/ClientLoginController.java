@@ -14,6 +14,7 @@ import javafx.scene.control.*;
 import javafx.stage.Stage;
 
 import java.io.IOException;
+import java.util.regex.Pattern;
 
 public class ClientLoginController {
     private final ClientService clientService = new ClientService();
@@ -74,43 +75,27 @@ public class ClientLoginController {
                 ClientDTO client = clientService.login(email, password);
 
                 Platform.runLater(() -> {
-                    if (client != null) {
-                        System.out.println("✅ Connexion réussie pour: " + client.getEmail());
+                    if (client != null && client.getId() != null) {
+                        System.out.println("✅ Connexion réussie pour: " + client.getEmail() + " (ID: " + client.getId() + ")");
 
-                        // Stocker les informations de session
+                        // ✅ CORRECTION : Vérifier que l'ID existe avant de sauvegarder la session
                         SessionManager.setCurrentClient(client);
 
-                        showMessage("Connexion réussie ! Redirection...", "success");
+                        showMessage("Connexion réussie !", "success");
 
-                        // Redirection vers le dashboard client après un court délai
-                        Platform.runLater(() -> {
-                            try {
-                                Thread.sleep(1000); // Délai pour afficher le message
-                                ouvrirDashboardClient(event != null ? event : new ActionEvent(btnLogin, null));
-                            } catch (InterruptedException e) {
-                                Thread.currentThread().interrupt();
-                            }
-                        });
+                        // Redirection vers le dashboard client
+                        navigateToClientDashboard();
                     } else {
-                        showMessage("Identifiants incorrects", "error");
+                        System.err.println("❌ Connexion échouée : client null ou ID manquant");
+                        showMessage("Email ou mot de passe incorrect", "error");
                         resetLoginButton();
                     }
                 });
 
             } catch (Exception e) {
+                System.err.println("❌ Erreur lors de la connexion: " + e.getMessage());
                 Platform.runLater(() -> {
-                    System.err.println("❌ Identifiants incorrects ou compte suspendu");
-
-                    String errorMessage = e.getMessage();
-                    if (errorMessage.contains("suspend")) {
-                        showMessage("Votre compte est suspendu. Contactez l'administration.", "error");
-                    } else if (errorMessage.contains("serveur")) {
-                        showMessage("Erreur de connexion au serveur. Vérifiez votre connexion.", "error");
-                    } else {
-                        showMessage("Identifiants incorrects", "error");
-                    }
-
-                    txtPassword.clear();
+                    showMessage("Erreur de connexion: " + e.getMessage(), "error");
                     resetLoginButton();
                 });
             }
@@ -122,55 +107,49 @@ public class ClientLoginController {
 
     @FXML
     private void handleQuitter(ActionEvent event) {
-        navigateTo("/com/groupeisi/minisystemebancaire/UI_Main.fxml", event);
+        Platform.exit();
+        System.exit(0);
     }
 
     @FXML
     private void handleInscription(ActionEvent event) {
-        System.out.println("📝 Redirection vers inscription...");
-        navigateTo("/com/groupeisi/minisystemebancaire/client/UI_Register.fxml", event);
-    }
-
-    @FXML
-    private void handleRegister(ActionEvent event) {
-        // Alias pour handleInscription pour compatibilité FXML
-        handleInscription(event);
-    }
-
-    private void ouvrirDashboardClient(ActionEvent event) {
         try {
-            System.out.println("🚀 Navigation vers le dashboard client...");
-            navigateTo("/com/groupeisi/minisystemebancaire/client/UI_Dashboard.fxml", event);
-        } catch (Exception e) {
-            e.printStackTrace();
-            showMessage("Erreur lors de l'ouverture du dashboard", "error");
-            resetLoginButton();
-        }
-    }
-
-    private void navigateTo(String fxmlPath, ActionEvent event) {
-        try {
-            System.out.println("🚀 Navigation vers : " + fxmlPath);
-
-            FXMLLoader loader = new FXMLLoader(getClass().getResource(fxmlPath));
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/groupeisi/minisystemebancaire/client/UI_Register.fxml"));
             Parent root = loader.load();
 
             Stage stage = (Stage) ((Node) event.getSource()).getScene().getWindow();
             Scene scene = new Scene(root);
             stage.setScene(scene);
             stage.centerOnScreen();
-
         } catch (IOException e) {
             e.printStackTrace();
-            showMessage("Erreur lors de la navigation vers " + fxmlPath, "error");
+            showMessage("Erreur lors de l'ouverture de la page d'inscription", "error");
         }
     }
 
-    private void showMessage(String message, String type) {
-        lblMessage.setText(message);
-        lblMessage.setStyle(type.equals("error") ?
-                "-fx-text-fill: #e74c3c; -fx-font-weight: bold;" :
-                "-fx-text-fill: #27ae60; -fx-font-weight: bold;");
+    // ✅ AJOUT : Méthode handleRegister pour correspondre au FXML
+    @FXML
+    private void handleRegister(ActionEvent event) {
+        handleInscription(event);
+    }
+
+    // ✅ MÉTHODES UTILITAIRES
+
+    private void navigateToClientDashboard() {
+        try {
+            System.out.println("🚀 Navigation vers le dashboard client...");
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/groupeisi/minisystemebancaire/client/UI_Dashboard.fxml"));
+            Parent root = loader.load();
+
+            Stage stage = (Stage) txtEmail.getScene().getWindow();
+            Scene scene = new Scene(root);
+            stage.setScene(scene);
+            stage.centerOnScreen();
+        } catch (IOException e) {
+            e.printStackTrace();
+            showMessage("Erreur lors de la redirection", "error");
+            resetLoginButton();
+        }
     }
 
     private void resetLoginButton() {
@@ -179,6 +158,19 @@ public class ClientLoginController {
     }
 
     private boolean isValidEmail(String email) {
-        return email.contains("@") && email.contains(".") && email.length() > 5;
+        String emailRegex = "^[a-zA-Z0-9_+&*-]+(?:\\.[a-zA-Z0-9_+&*-]+)*@(?:[a-zA-Z0-9-]+\\.)+[a-zA-Z]{2,7}$";
+        return Pattern.compile(emailRegex).matcher(email).matches();
+    }
+
+    private void showMessage(String message, String type) {
+        if (lblMessage != null) {
+            lblMessage.setText(message);
+            lblMessage.setStyle(
+                    "error".equals(type) ? "-fx-text-fill: red;" :
+                            "success".equals(type) ? "-fx-text-fill: green;" :
+                                    "-fx-text-fill: blue;"
+            );
+        }
+        System.out.println(("error".equals(type) ? "❌ " : "✅ ") + message);
     }
 }

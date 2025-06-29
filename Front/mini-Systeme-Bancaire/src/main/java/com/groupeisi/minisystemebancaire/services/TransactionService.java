@@ -4,16 +4,75 @@ import com.google.gson.reflect.TypeToken;
 import com.groupeisi.minisystemebancaire.dto.TransactionDTO;
 import java.net.http.HttpRequest;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class TransactionService extends ApiService {
 
+    /**
+     * ✅ MÉTHODE MANQUANTE : Récupérer les transactions d'un client par son ID
+     */
+    public List<TransactionDTO> getTransactionsByClientId(Long clientId) {
+        try {
+            System.out.println("🔄 Récupération des transactions pour le client ID: " + clientId);
+
+            // Récupérer toutes les transactions
+            List<TransactionDTO> allTransactions = getAllTransactions();
+            List<TransactionDTO> clientTransactions = new ArrayList<>();
+
+            // Filtrer les transactions qui concernent ce client
+            for (TransactionDTO transaction : allTransactions) {
+                boolean belongsToClient = false;
+
+                // Vérifier si la transaction concerne un compte du client
+                if (transaction.getCompteDestination() != null &&
+                        transaction.getCompteDestination().getClient() != null &&
+                        clientId.equals(transaction.getCompteDestination().getClient().getId())) {
+                    belongsToClient = true;
+                }
+
+                if (transaction.getCompteSource() != null &&
+                        transaction.getCompteSource().getClient() != null &&
+                        clientId.equals(transaction.getCompteSource().getClient().getId())) {
+                    belongsToClient = true;
+                }
+
+                if (belongsToClient) {
+                    clientTransactions.add(transaction);
+                }
+            }
+
+            // Trier par date (plus récentes en premier)
+            clientTransactions.sort((t1, t2) -> {
+                if (t1.getDate() == null) return 1;
+                if (t2.getDate() == null) return -1;
+                return t2.getDate().compareTo(t1.getDate());
+            });
+
+            System.out.println("✅ " + clientTransactions.size() + " transactions trouvées pour le client ID: " + clientId);
+            return clientTransactions;
+
+        } catch (Exception e) {
+            System.err.println("❌ Erreur lors de la récupération des transactions du client: " + e.getMessage());
+            throw new RuntimeException("Impossible de récupérer les transactions: " + e.getMessage());
+        }
+    }
+
     public List<TransactionDTO> getAllTransactions() {
         try {
+            System.out.println("🔄 Récupération de toutes les transactions...");
             HttpRequest request = createRequest("/transactions").GET().build();
             String response = sendRequestForString(request);
-            return gson.fromJson(response, new TypeToken<List<TransactionDTO>>(){}.getType());
+            List<TransactionDTO> transactions = gson.fromJson(response, new TypeToken<List<TransactionDTO>>(){}.getType());
+
+            if (transactions == null) {
+                transactions = new ArrayList<>();
+            }
+
+            System.out.println("✅ " + transactions.size() + " transactions récupérées");
+            return transactions;
         } catch (Exception e) {
             System.err.println("❌ Erreur lors de la récupération des transactions: " + e.getMessage());
             throw new RuntimeException("Impossible de récupérer la liste des transactions: " + e.getMessage());
@@ -216,8 +275,6 @@ public class TransactionService extends ApiService {
         }
     }
 
-    // ✅ AJOUT: Méthodes manquantes utilisées dans votre code
-
     /**
      * Méthode getTransactionsRecentes() utilisée dans AdminDashboardController
      */
@@ -227,10 +284,14 @@ public class TransactionService extends ApiService {
             String response = sendRequestForString(request);
             List<TransactionDTO> allTransactions = gson.fromJson(response, new TypeToken<List<TransactionDTO>>(){}.getType());
 
+            if (allTransactions == null) {
+                return new ArrayList<>();
+            }
+
             // Retourner seulement les 'limit' premières transactions
             return allTransactions.stream()
                     .limit(limit)
-                    .collect(java.util.stream.Collectors.toList());
+                    .collect(Collectors.toList());
         } catch (Exception e) {
             System.err.println("❌ Erreur lors de la récupération des transactions récentes: " + e.getMessage());
             throw new RuntimeException("Impossible de récupérer les transactions récentes: " + e.getMessage());
@@ -250,67 +311,5 @@ public class TransactionService extends ApiService {
             System.err.println("❌ Erreur lors de l'annulation de la transaction: " + e.getMessage());
             throw new RuntimeException("Impossible d'annuler la transaction: " + e.getMessage());
         }
-    }
-
-    // Classes internes pour les requêtes spécifiques (gardez les existantes)
-    public static class MotifRejet {
-        private final String motif;
-
-        public MotifRejet(String motif) {
-            this.motif = motif;
-        }
-
-        public String getMotif() { return motif; }
-    }
-
-    public static class DepotRequest {
-        private final Long compteId;
-        private final double montant;
-        private final String description;
-
-        public DepotRequest(Long compteId, double montant, String description) {
-            this.compteId = compteId;
-            this.montant = montant;
-            this.description = description;
-        }
-
-        public Long getCompteId() { return compteId; }
-        public double getMontant() { return montant; }
-        public String getDescription() { return description; }
-    }
-
-    public static class RetraitRequest {
-        private final Long compteId;
-        private final double montant;
-        private final String description;
-
-        public RetraitRequest(Long compteId, double montant, String description) {
-            this.compteId = compteId;
-            this.montant = montant;
-            this.description = description;
-        }
-
-        public Long getCompteId() { return compteId; }
-        public double getMontant() { return montant; }
-        public String getDescription() { return description; }
-    }
-
-    public static class VirementRequest {
-        private final Long compteSourceId;
-        private final Long compteDestId;
-        private final double montant;
-        private final String description;
-
-        public VirementRequest(Long compteSourceId, Long compteDestId, double montant, String description) {
-            this.compteSourceId = compteSourceId;
-            this.compteDestId = compteDestId;
-            this.montant = montant;
-            this.description = description;
-        }
-
-        public Long getCompteSourceId() { return compteSourceId; }
-        public Long getCompteDestId() { return compteDestId; }
-        public double getMontant() { return montant; }
-        public String getDescription() { return description; }
     }
 }
