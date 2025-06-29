@@ -3,15 +3,24 @@ package com.groupeisi.minisystemebancaire.dto;
 import com.google.gson.annotations.SerializedName;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 
 /**
- * ✅ DTO pour la classe Transaction
+ * ✅ DTO pour la classe Transaction - Version corrigée sans LocalDateTime direct
  */
 public class TransactionDTO {
     private Long id;
     private String type; // "Dépôt", "Retrait", "Virement"
     private Double montant;
-    private LocalDateTime date;
+
+    // ✅ CHANGEMENT: Gestion de la date comme String pour éviter les erreurs Gson
+    private String date; // Format ISO depuis l'API
+    @SerializedName("created_at")
+    private String createdAt;
+    @SerializedName("updated_at")
+    private String updatedAt;
+
     private String statut; // "Validé", "Rejeté", "En attente"
     private String description;
 
@@ -25,6 +34,13 @@ public class TransactionDTO {
     private CompteDTO compteSource;
     private CompteDTO compteDestination;
 
+    // ✅ Formatters pour les dates
+    private static final DateTimeFormatter[] FORMATTERS = {
+            DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'"), // Laravel avec microsecondes
+            DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'"),        // ISO standard
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")              // Format simple
+    };
+
     // Constructeurs
     public TransactionDTO() {}
 
@@ -32,11 +48,16 @@ public class TransactionDTO {
         this.type = type;
         this.montant = montant;
         this.compteSourceId = compteSourceId;
-        this.date = LocalDateTime.now();
+        this.date = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
         this.statut = "En attente";
     }
 
-    // Getters et Setters
+    public TransactionDTO(String type, Double montant, Long compteSourceId, String description) {
+        this(type, montant, compteSourceId);
+        this.description = description;
+    }
+
+    // ✅ GETTERS ET SETTERS STANDARD
     public Long getId() {
         return id;
     }
@@ -61,12 +82,70 @@ public class TransactionDTO {
         this.montant = montant;
     }
 
-    public LocalDateTime getDate() {
+    // ✅ GESTION DE DATE COMME STRING
+    public String getDate() {
         return date;
     }
 
-    public void setDate(LocalDateTime date) {
+    public void setDate(String date) {
         this.date = date;
+    }
+
+    public String getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(String createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public String getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(String updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
+    // ✅ MÉTHODES POUR CONVERTIR EN LocalDateTime SEULEMENT QUAND NÉCESSAIRE
+    public LocalDateTime getDateAsLocalDateTime() {
+        return parseDate(date);
+    }
+
+    public LocalDateTime getCreatedAtAsLocalDateTime() {
+        return parseDate(createdAt);
+    }
+
+    public LocalDateTime getUpdatedAtAsLocalDateTime() {
+        return parseDate(updatedAt);
+    }
+
+    // ✅ PARSING ROBUSTE DES DATES
+    private LocalDateTime parseDate(String dateStr) {
+        if (dateStr == null || dateStr.isEmpty()) {
+            return null;
+        }
+
+        // Essayer chaque format
+        for (DateTimeFormatter formatter : FORMATTERS) {
+            try {
+                return LocalDateTime.parse(dateStr, formatter);
+            } catch (DateTimeParseException ignored) {
+                // Continuer avec le format suivant
+            }
+        }
+
+        // Si aucun format ne marche, essayer de nettoyer
+        try {
+            String cleanDate = dateStr
+                    .replaceAll("\\.[0-9]+Z$", "Z")  // Enlever les microsecondes
+                    .replaceAll("Z$", "");           // Enlever le Z
+
+            return LocalDateTime.parse(cleanDate, DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss"));
+        } catch (DateTimeParseException e) {
+            System.err.println("⚠️ Impossible de parser la date: " + dateStr + " - Utilisation de la date actuelle");
+            return LocalDateTime.now(); // Fallback
+        }
     }
 
     public String getStatut() {
@@ -117,7 +196,7 @@ public class TransactionDTO {
         this.compteDestination = compteDestination;
     }
 
-    // Méthodes utilitaires
+    // ✅ MÉTHODES UTILITAIRES
     public boolean isValidee() {
         return "Validé".equals(statut);
     }
@@ -147,10 +226,37 @@ public class TransactionDTO {
     }
 
     public String getDateFormatee() {
-        if (date != null) {
-            return date.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"));
+        LocalDateTime dateTime = getDateAsLocalDateTime();
+        if (dateTime != null) {
+            return dateTime.format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"));
         }
-        return "";
+        return date != null ? date.substring(0, Math.min(10, date.length())) : "";
+    }
+
+    public String getTypeIcon() {
+        return switch (type != null ? type : "") {
+            case "Dépôt" -> "💰";
+            case "Retrait" -> "💸";
+            case "Virement" -> "🔄";
+            default -> "💳";
+        };
+    }
+
+    public String getStatutColor() {
+        return switch (statut != null ? statut : "") {
+            case "Validé" -> "#27ae60";
+            case "Rejeté" -> "#e74c3c";
+            case "En attente" -> "#f39c12";
+            default -> "#95a5a6";
+        };
+    }
+
+    public String getCompteSourceNumero() {
+        return compteSource != null ? compteSource.getNumero() : "";
+    }
+
+    public String getCompteDestNumero() {
+        return compteDestination != null ? compteDestination.getNumero() : "";
     }
 
     @Override
@@ -159,7 +265,7 @@ public class TransactionDTO {
                 "id=" + id +
                 ", type='" + type + '\'' +
                 ", montant=" + montant +
-                ", date=" + date +
+                ", date='" + date + '\'' +
                 ", statut='" + statut + '\'' +
                 ", compteSourceId=" + compteSourceId +
                 ", compteDestId=" + compteDestId +

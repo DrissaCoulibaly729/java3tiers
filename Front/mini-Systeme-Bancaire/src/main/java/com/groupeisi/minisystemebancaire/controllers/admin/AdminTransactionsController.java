@@ -81,28 +81,28 @@ public class AdminTransactionsController {
     }
 
     private void setupUI() {
-        // Types de transaction avec logique bancaire
+        // Types de transaction avec logique bancaire - FORMAT ATTENDU PAR LARAVEL
         if (choiceTypeTransaction != null) {
             choiceTypeTransaction.setItems(FXCollections.observableArrayList(
-                    "DEPOT", "RETRAIT", "VIREMENT"
+                    "Dépôt", "Retrait", "Virement"  // CORRIGÉ : Format Laravel
             ));
-            choiceTypeTransaction.setValue("DEPOT");
+            choiceTypeTransaction.setValue("Dépôt");
 
             // Gestion dynamique du compte destination
             choiceTypeTransaction.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
                 if (choiceCompteDest != null) {
-                    boolean needDestination = "VIREMENT".equals(newVal);
+                    boolean needDestination = "Virement".equals(newVal);
                     choiceCompteDest.setVisible(needDestination);
                     choiceCompteDest.setDisable(!needDestination);
 
                     // Message d'aide dans la console ou titre de fenêtre
-                    if ("DEPOT".equals(newVal)) {
+                    if ("Dépôt".equals(newVal)) {
                         currentMessage = "💰 Dépôt : Ajouter de l'argent sur le compte";
                         System.out.println(currentMessage);
-                    } else if ("RETRAIT".equals(newVal)) {
+                    } else if ("Retrait".equals(newVal)) {
                         currentMessage = "💸 Retrait : Retirer de l'argent du compte";
                         System.out.println(currentMessage);
-                    } else if ("VIREMENT".equals(newVal)) {
+                    } else if ("Virement".equals(newVal)) {
                         currentMessage = "🔄 Virement : Transférer entre deux comptes";
                         System.out.println(currentMessage);
                     }
@@ -137,9 +137,9 @@ public class AdminTransactionsController {
                         setText(null);
                     } else {
                         String icon = switch (item) {
-                            case "DEPOT" -> "💰 Dépôt";
-                            case "RETRAIT" -> "💸 Retrait";
-                            case "VIREMENT" -> "🔄 Virement";
+                            case "Dépôt" -> "💰 Dépôt";
+                            case "Retrait" -> "💸 Retrait";
+                            case "Virement" -> "🔄 Virement";
                             default -> item;
                         };
                         setText(icon);
@@ -162,13 +162,13 @@ public class AdminTransactionsController {
                         TransactionDTO transaction = getTableRow().getItem();
                         if (transaction != null) {
                             switch (transaction.getType()) {
-                                case "DEPOT":
+                                case "Dépôt":
                                     setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
                                     break;
-                                case "RETRAIT":
+                                case "Retrait":
                                     setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
                                     break;
-                                case "VIREMENT":
+                                case "Virement":
                                     setStyle("-fx-text-fill: #3498db; -fx-font-weight: bold;");
                                     break;
                             }
@@ -241,11 +241,11 @@ public class AdminTransactionsController {
             colCompteDest.setCellValueFactory(cellData -> {
                 try {
                     TransactionDTO transaction = cellData.getValue();
-                    if ("VIREMENT".equals(transaction.getType()) && transaction.getCompteDestination() != null) {
+                    if ("Virement".equals(transaction.getType()) && transaction.getCompteDestination() != null) {
                         return new javafx.beans.property.SimpleStringProperty(
                                 "💳 " + transaction.getCompteDestination().getNumero()
                         );
-                    } else if (!"VIREMENT".equals(transaction.getType())) {
+                    } else if (!"Virement".equals(transaction.getType())) {
                         return new javafx.beans.property.SimpleStringProperty("-");
                     }
                     return new javafx.beans.property.SimpleStringProperty("N/A");
@@ -346,7 +346,7 @@ public class AdminTransactionsController {
             CompteDTO compteSource = choiceCompteSource.getValue();
             CompteDTO compteDest = null;
 
-            if ("VIREMENT".equals(type)) {
+            if ("Virement".equals(type)) {
                 compteDest = choiceCompteDest.getValue();
                 if (compteDest == null) {
                     showAlert(Alert.AlertType.WARNING, "Validation", "Compte destination requis pour un virement");
@@ -424,7 +424,7 @@ public class AdminTransactionsController {
         }
 
         // Validation spéciale pour les virements
-        if ("VIREMENT".equals(type)) {
+        if ("Virement".equals(type)) {
             CompteDTO compteDest = choiceCompteDest != null ? choiceCompteDest.getValue() : null;
             if (compteDest == null) {
                 showAlert(Alert.AlertType.WARNING, "Validation", "❌ Veuillez sélectionner un compte destination pour le virement");
@@ -444,7 +444,7 @@ public class AdminTransactionsController {
 
         // Vérifications spécifiques par type
         switch (type) {
-            case "RETRAIT":
+            case "Retrait":
                 if (compteSource.getSolde() < montant) {
                     showAlert(Alert.AlertType.ERROR, "Solde insuffisant",
                             String.format("Solde actuel: %.2f FCFA\nMontant demandé: %.2f FCFA",
@@ -457,7 +457,7 @@ public class AdminTransactionsController {
                 }
                 break;
 
-            case "DEPOT":
+            case "Dépôt":
                 if (montant > 1000000) { // Limite dépôt 1M
                     Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
                     alert.setTitle("Dépôt important");
@@ -469,7 +469,7 @@ public class AdminTransactionsController {
                 }
                 break;
 
-            case "VIREMENT":
+            case "Virement":
                 if (compteDest == null) {
                     showAlert(Alert.AlertType.ERROR, "Erreur", "Compte destination requis");
                     return false;
@@ -494,21 +494,21 @@ public class AdminTransactionsController {
         StringBuilder message = new StringBuilder();
 
         switch (type) {
-            case "DEPOT":
+            case "Dépôt":
                 message.append("💰 DÉPÔT\n\n");
                 message.append(String.format("Montant: %.2f FCFA\n", montant));
                 message.append(String.format("Sur le compte: %s\n", compteSource.getNumero()));
                 message.append(String.format("Nouveau solde: %.2f FCFA", compteSource.getSolde() + montant));
                 break;
 
-            case "RETRAIT":
+            case "Retrait":
                 message.append("💸 RETRAIT\n\n");
                 message.append(String.format("Montant: %.2f FCFA\n", montant));
                 message.append(String.format("Du compte: %s\n", compteSource.getNumero()));
                 message.append(String.format("Nouveau solde: %.2f FCFA", compteSource.getSolde() - montant));
                 break;
 
-            case "VIREMENT":
+            case "Virement":
                 message.append("🔄 VIREMENT\n\n");
                 message.append(String.format("Montant: %.2f FCFA\n", montant));
                 message.append(String.format("De: %s (%.2f FCFA)\n", compteSource.getNumero(), compteSource.getSolde()));
@@ -528,48 +528,47 @@ public class AdminTransactionsController {
             TransactionDTO transaction = new TransactionDTO();
             transaction.setType(type);
             transaction.setMontant(montant);
-            transaction.setCompteSourceId(compteSource.getId());
-            transaction.setDate(LocalDateTime.now());
+
+            // CONFIGURATION SELON LE TYPE DE TRANSACTION (logique Laravel)
+            switch (type) {
+                case "Dépôt":
+                    // Pour un dépôt, le compte destination reçoit l'argent
+                    transaction.setCompteDestId(compteSource.getId());
+                    break;
+
+                case "Retrait":
+                    // Pour un retrait, l'argent sort du compte source
+                    transaction.setCompteSourceId(compteSource.getId());
+                    break;
+
+                case "Virement":
+                    // Pour un virement, transfert du source vers destination
+                    transaction.setCompteSourceId(compteSource.getId());
+                    transaction.setCompteDestId(compteDest.getId());
+                    break;
+            }
+
             transaction.setStatut("Validé"); // Exécution immédiate pour l'admin
 
-            if (compteDest != null) {
-                transaction.setCompteDestId(compteDest.getId());
+            // Sauvegarder la transaction (Laravel se charge des mises à jour de solde)
+            TransactionDTO result = transactionService.createTransaction(transaction);
+
+            if (result != null) {
+                // Message de succès avec détails
+                String successMessage = String.format("✅ Transaction %s réussie!\n\nMontant: %.2f FCFA\nTransaction ID: %s",
+                        type.toLowerCase(), montant, result.getId());
+
+                showAlert(Alert.AlertType.INFORMATION, "Succès", successMessage);
+
+                clearForm();
+                loadData(); // Recharger pour voir les nouveaux soldes
+            } else {
+                showAlert(Alert.AlertType.ERROR, "Erreur", "Échec de la création de transaction");
             }
-
-            // MISE À JOUR DES SOLDES (logique bancaire réelle)
-            switch (type) {
-                case "DEPOT":
-                    compteSource.setSolde(compteSource.getSolde() + montant);
-                    compteService.updateCompte(compteSource);
-                    break;
-
-                case "RETRAIT":
-                    compteSource.setSolde(compteSource.getSolde() - montant);
-                    compteService.updateCompte(compteSource);
-                    break;
-
-                case "VIREMENT":
-                    compteSource.setSolde(compteSource.getSolde() - montant);
-                    compteDest.setSolde(compteDest.getSolde() + montant);
-                    compteService.updateCompte(compteSource);
-                    compteService.updateCompte(compteDest);
-                    break;
-            }
-
-            // Sauvegarder la transaction
-            transactionService.createTransaction(transaction);
-
-            // Message de succès avec détails
-            String successMessage = String.format("✅ Transaction %s réussie!\n\nMontant: %.2f FCFA\nNouveau solde: %.2f FCFA",
-                    type.toLowerCase(), montant, compteSource.getSolde());
-
-            showAlert(Alert.AlertType.INFORMATION, "Succès", successMessage);
-
-            clearForm();
-            loadData(); // Recharger pour voir les nouveaux soldes
 
         } catch (Exception e) {
             showAlert(Alert.AlertType.ERROR, "Erreur", "Échec de la transaction: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
@@ -710,7 +709,7 @@ public class AdminTransactionsController {
     // === UTILITAIRES ===
 
     private void clearForm() {
-        if (choiceTypeTransaction != null) choiceTypeTransaction.setValue("DEPOT");
+        if (choiceTypeTransaction != null) choiceTypeTransaction.setValue("Dépôt");
         if (choiceCompteSource != null) choiceCompteSource.setValue(null);
         if (choiceCompteDest != null) choiceCompteDest.setValue(null);
         if (txtMontantTransaction != null) txtMontantTransaction.clear();

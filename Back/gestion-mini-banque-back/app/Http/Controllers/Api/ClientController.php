@@ -3,9 +3,13 @@ namespace App\Http\Controllers\Api;
 
 use App\Models\Client;
 use App\Models\Compte;
+use App\Mail\NouveauClientMail;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 
 class ClientController extends Controller
 {
@@ -59,6 +63,15 @@ class ClientController extends Controller
             // 4️⃣ Confirmer la transaction
             DB::commit();
 
+            // 📧 Envoyer email de bienvenue (optionnel)
+            try {
+                Mail::to($client->email)
+                    ->send(new NouveauClientMail($client, $request->password, $compte));
+            } catch (\Exception $e) {
+                // Log l'erreur mais ne pas faire échouer la création
+                Log::warning('Erreur envoi email nouveau client: ' . $e->getMessage());
+            }
+
             // 5️⃣ Retourner le client avec son compte
             $client->load('comptes');
             
@@ -81,6 +94,59 @@ class ClientController extends Controller
         }
     }
 
+    // 🔐 POST /api/clients/login - MÉTHODE LOGIN MANQUANTE
+    public function login(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email',
+            'password' => 'required'
+        ]);
+
+        // Chercher le client par email
+        $client = Client::where('email', $request->email)->first();
+
+        // Vérifier si le client existe et le mot de passe est correct
+        if (!$client || !Hash::check($request->password, $client->password)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Email ou mot de passe incorrect'
+            ], 401);
+        }
+
+        // Vérifier le statut du client
+        if ($client->statut !== 'Actif') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Votre compte est ' . strtolower($client->statut) . '. Contactez votre banque.'
+            ], 403);
+        }
+
+        // Charger les comptes du client
+        $client->load('comptes');
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Connexion réussie',
+            'client' => [
+                'id' => $client->id,
+                'nom' => $client->nom,
+                'prenom' => $client->prenom,
+                'email' => $client->email,
+                'telephone' => $client->telephone,
+                'adresse' => $client->adresse,
+                'statut' => $client->statut,
+                'date_inscription' => $client->date_inscription,
+                'comptes' => $client->comptes
+            ]
+        ], 200);
+    }
+
+    // 📝 POST /api/clients/register - Alias pour store (inscription)
+    public function register(Request $request)
+    {
+        return $this->store($request);
+    }
+
     // GET /api/clients/{id}
     public function show(Client $client)
     {
@@ -101,6 +167,36 @@ class ClientController extends Controller
 
         $client->update($request->all());
         return response()->json($client->load('comptes'));
+    }
+
+    // PUT /api/clients/{client}/suspend - Suspendre un client
+    public function suspend(Client $client)
+    {
+        $client->update(['statut' => 'Suspendu']);
+        
+        // Suspendre aussi tous ses comptes
+        $client->comptes()->update(['statut' => 'Suspendu']);
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Client et comptes suspendus avec succès',
+            'client' => $client->load('comptes')
+        ]);
+    }
+
+    // PUT /api/clients/{client}/reactivate - Réactiver un client
+    public function reactivate(Client $client)
+    {
+        $client->update(['statut' => 'Actif']);
+        
+        // Réactiver aussi tous ses comptes
+        $client->comptes()->update(['statut' => 'Actif']);
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Client et comptes réactivés avec succès',
+            'client' => $client->load('comptes')
+        ]);
     }
 
     // DELETE /api/clients/{id}
@@ -178,5 +274,55 @@ class ClientController extends Controller
             'message' => 'Compte supplémentaire créé avec succès',
             'compte' => $compte
         ], 201);
+    }
+
+    // 🔍 POST /api/clients/verify-password - Vérifier le mot de passe (utile pour certaines opérations)
+    public function verifyPassword(Request $request)
+    {
+        $request->validate([
+            'client_id' => 'required|exists:clients,id',
+            'password' => 'required'
+        ]);
+
+        $client = Client::findOrFail($request->client_id);
+
+        if (Hash::check($request->password, $client->password)) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Mot de passe correct'
+            ]);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Mot de passe incorrect'
+        ], 401);
+    }
+
+    // 🔄 PUT /api/clients/{id}/change-password - Changer le mot de passe
+    public function changePassword(Request $request, Client $client)
+    {
+        $request->validate([
+            'current_password' => 'required',
+            'new_password' => 'required|min:6|confirmed'
+        ]);
+
+        // Vérifier l'ancien mot de passe
+        if (!Hash::check($request->current_password, $client->password)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Mot de passe actuel incorrect'
+            ], 401);
+        }
+
+        // Mettre à jour le mot de passe
+        $client->update([
+            'password' => bcrypt($request->new_password)
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Mot de passe modifié avec succès'
+        ]);
     }
 }

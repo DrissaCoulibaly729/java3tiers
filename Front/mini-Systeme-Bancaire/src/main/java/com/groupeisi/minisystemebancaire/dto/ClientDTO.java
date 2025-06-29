@@ -7,7 +7,7 @@ import java.time.format.DateTimeParseException;
 import java.util.List;
 
 /**
- * ✅ DTO pour la classe Client - Version corrigée pour les dates
+ * ✅ DTO pour la classe Client - Version corrigée pour les dates Laravel
  */
 public class ClientDTO {
     private Long id;
@@ -19,11 +19,9 @@ public class ClientDTO {
     private String password;
     private String statut;
 
-    // ✅ CHANGEMENT: Gestion flexible des dates pour éviter les erreurs de parsing
+    // ✅ CHANGEMENT: Gestion des dates comme String pour éviter les erreurs de parsing
     @SerializedName("date_inscription")
-    private String dateInscriptionStr; // Pour recevoir depuis l'API
-
-    private LocalDateTime dateInscription; // Pour usage interne
+    private String dateInscriptionStr;
 
     @SerializedName("created_at")
     private String createdAtStr;
@@ -33,16 +31,16 @@ public class ClientDTO {
 
     private List<CompteDTO> comptes;
 
-    // ✅ Formatters pour les dates
-    private static final DateTimeFormatter LARAVEL_FORMATTER =
-            DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'");
-    private static final DateTimeFormatter SIMPLE_FORMATTER =
-            DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'");
+    // ✅ Formatters pour les dates Laravel
+    private static final DateTimeFormatter[] FORMATTERS = {
+            DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'"), // Laravel avec microsecondes
+            DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'"),        // ISO standard
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")              // Format simple
+    };
 
     // Constructeurs
     public ClientDTO() {}
 
-    // ✅ CORRECTION: Constructeur avec 6 paramètres comme attendu par votre code
     public ClientDTO(String nom, String prenom, String email, String telephone, String adresse, String password) {
         this.nom = nom;
         this.prenom = prenom;
@@ -51,10 +49,9 @@ public class ClientDTO {
         this.adresse = adresse;
         this.password = password;
         this.statut = "Actif";
-        this.dateInscription = LocalDateTime.now();
     }
 
-    // Getters et Setters
+    // ✅ GETTERS ET SETTERS STANDARD
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
@@ -79,24 +76,9 @@ public class ClientDTO {
     public String getStatut() { return statut; }
     public void setStatut(String statut) { this.statut = statut; }
 
-    public LocalDateTime getDateInscription() {
-        // ✅ CORRECTION: Parser automatiquement si on a une string
-        if (dateInscription == null && dateInscriptionStr != null) {
-            dateInscription = parseDate(dateInscriptionStr);
-        }
-        return dateInscription;
-    }
-
-    public void setDateInscription(LocalDateTime dateInscription) {
-        this.dateInscription = dateInscription;
-    }
-
-    // ✅ AJOUT: Getters/setters pour les strings de dates (compatibilité JSON)
+    // ✅ GESTION DES DATES COMME STRING (pas de parsing automatique)
     public String getDateInscriptionStr() { return dateInscriptionStr; }
-    public void setDateInscriptionStr(String dateInscriptionStr) {
-        this.dateInscriptionStr = dateInscriptionStr;
-        this.dateInscription = null; // Reset pour re-parser
-    }
+    public void setDateInscriptionStr(String dateInscriptionStr) { this.dateInscriptionStr = dateInscriptionStr; }
 
     public String getCreatedAtStr() { return createdAtStr; }
     public void setCreatedAtStr(String createdAtStr) { this.createdAtStr = createdAtStr; }
@@ -107,44 +89,85 @@ public class ClientDTO {
     public List<CompteDTO> getComptes() { return comptes; }
     public void setComptes(List<CompteDTO> comptes) { this.comptes = comptes; }
 
-    // ✅ MÉTHODE REQUISE: getNomComplet() utilisée dans votre code
+    // ✅ MÉTHODES REQUISES PAR VOTRE CODE
     public String getNomComplet() {
-        return nom + " " + prenom;
+        return (prenom != null ? prenom : "") + " " + (nom != null ? nom : "");
     }
 
-    // ✅ AJOUT: Méthode pour parser les dates de façon robuste
+    // ✅ MÉTHODES POUR PARSER LES DATES SEULEMENT QUAND NÉCESSAIRE
+    public LocalDateTime getDateInscription() {
+        return parseDate(dateInscriptionStr);
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return parseDate(createdAtStr);
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return parseDate(updatedAtStr);
+    }
+
+    // ✅ MÉTHODE POUR FORMATER LES DATES POUR L'AFFICHAGE
+    public String getDateInscriptionFormatee() {
+        LocalDateTime date = getDateInscription();
+        if (date != null) {
+            return date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy à HH:mm"));
+        }
+        return dateInscriptionStr != null ? dateInscriptionStr.substring(0, 10) : "";
+    }
+
+    // ✅ PARSING ROBUSTE DES DATES
     private LocalDateTime parseDate(String dateStr) {
         if (dateStr == null || dateStr.isEmpty()) {
             return null;
         }
 
-        try {
-            // Essayer d'abord le format avec microsecondes
-            return LocalDateTime.parse(dateStr, LARAVEL_FORMATTER);
-        } catch (DateTimeParseException e1) {
+        // Essayer chaque format
+        for (DateTimeFormatter formatter : FORMATTERS) {
             try {
-                // Essayer le format simple
-                return LocalDateTime.parse(dateStr, SIMPLE_FORMATTER);
-            } catch (DateTimeParseException e2) {
-                // Si ça ne marche pas, nettoyer la string et réessayer
-                String cleanDate = dateStr.replaceAll("\\.[0-9]+Z$", "Z");
-                try {
-                    return LocalDateTime.parse(cleanDate, SIMPLE_FORMATTER);
-                } catch (DateTimeParseException e3) {
-                    System.err.println("⚠️ Impossible de parser la date: " + dateStr);
-                    return LocalDateTime.now(); // Fallback
-                }
+                return LocalDateTime.parse(dateStr, formatter);
+            } catch (DateTimeParseException ignored) {
+                // Continuer avec le format suivant
             }
+        }
+
+        // Si aucun format ne marche, extraire juste la partie date/heure
+        try {
+            String cleanDate = dateStr
+                    .replaceAll("\\.[0-9]+Z$", "Z")  // Enlever les microsecondes
+                    .replaceAll("Z$", "");           // Enlever le Z
+
+            return LocalDateTime.parse(cleanDate, DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss"));
+        } catch (DateTimeParseException e) {
+            System.err.println("⚠️ Impossible de parser la date: " + dateStr + " - Utilisation de la date actuelle");
+            return LocalDateTime.now(); // Fallback pour éviter les crashes
         }
     }
 
-    // Méthodes utilitaires existantes
+    // ✅ MÉTHODES UTILITAIRES
     public boolean isActif() {
         return "Actif".equals(statut);
     }
 
     public boolean isSuspendu() {
         return "Suspendu".equals(statut);
+    }
+
+    public boolean isFerme() {
+        return "Fermé".equals(statut);
+    }
+
+    // ✅ MÉTHODES POUR LES STATISTIQUES
+    public int getNombreComptes() {
+        return comptes != null ? comptes.size() : 0;
+    }
+
+    public double getSoldeTotal() {
+        if (comptes == null) return 0.0;
+        return comptes.stream()
+                .filter(c -> "Actif".equals(c.getStatut()))
+                .mapToDouble(c -> c.getSolde() != null ? c.getSolde() : 0.0)
+                .sum();
     }
 
     @Override
@@ -155,6 +178,20 @@ public class ClientDTO {
                 ", prenom='" + prenom + '\'' +
                 ", email='" + email + '\'' +
                 ", statut='" + statut + '\'' +
+                ", comptes=" + (comptes != null ? comptes.size() : 0) +
                 '}';
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        ClientDTO clientDTO = (ClientDTO) o;
+        return id != null && id.equals(clientDTO.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return id != null ? id.hashCode() : 0;
     }
 }
